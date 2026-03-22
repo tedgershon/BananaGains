@@ -1,14 +1,17 @@
 # BananaGains Project Specification
 
 ## Project Title
+
 BananaGains: CMU's Prediction Market
 
 ## Team Members
+
 - Aaron Tang (`at2`)
 - Ted Gershon (`tgershon`)
 - Jonathan Gu (`jgu2`)
 
 ## Project Overview
+
 BananaGains is a campus prediction market for the CMU community Users create and trade on markets about campus events using a virtual banana currency The product is inspired by prediction market platforms such as Polymarket and Kalshi, but it is scoped around campus life and culture
 
 Each user starts with an allocation of "banana currency" Users spend bananas to buy YES or NO positions on markets, and their balances grow when they make accurate predictions The platform uses a parimutuel-style pool model where displayed probability is derived from pool distribution, and winning positions receive a proportional share of the final pool after settlement
@@ -16,9 +19,11 @@ Each user starts with an allocation of "banana currency" Users spend bananas to 
 For resolution flow, markets are creator-resolved first, but outcomes that are disputed can move into a voter process where neutral voters (who don't bet) stake bananas to vote on the correct result Majority voters are rewarded from the pool to encourage honest voting and provide a governance mechanism for contested markets
 
 ## Scope Priorities
+
 To address reviewer feedback about project direction, the team is explicitly separating the project into MVP goals, main goals, and stretch goals This is intended to keep the team focused on a coherent baseline product before expanding into more dynamic or technically ambitious features
 
 ### MVP Goals
+
 The MVP is the smallest version of BananaGains that still feels like a real campus prediction market instead of a static demo
 
 - Users can browse markets and open a market detail page
@@ -30,6 +35,7 @@ The MVP is the smallest version of BananaGains that still feels like a real camp
 - The application can settle a resolved market and update balances accordingly
 
 ### Main Goals
+
 These are the goals that make BananaGains distinct from a very simple betting site
 
 - Persistent backend data for users, markets, trades, and balances
@@ -40,6 +46,7 @@ These are the goals that make BananaGains distinct from a very simple betting si
 - A deployed version of the application that course staff can access remotely
 
 ### Stretch Goals
+
 These are worthwhile features, but they are not required for the project to feel complete
 
 - WebSocket live market updates instead of simple polling
@@ -49,6 +56,7 @@ These are worthwhile features, but they are not required for the project to feel
 ## Design Decisions
 
 ### Simple Resolution First
+
 The project will begin with a simple, easy to understand resolution flow before attempting more complex governance
 
 - A market creator resolves the market first
@@ -60,6 +68,7 @@ The project will begin with a simple, easy to understand resolution flow before 
 This keeps the resolution process understandable for users and realistic for the course timeline
 
 ### Real Time Updates: NOT MVP
+
 Live updates are useful for a prediction market, but they are not required for the project to demonstrate its core value
 
 - The team will prioritize a correct trading and settlement flow first
@@ -67,6 +76,7 @@ Live updates are useful for a prediction market, but they are not required for t
 - WebSockets and Redis remain part of the intended technical direction, but they are treated as a stretch or polish feature rather than a dependency for the whole project
 
 ### Authentication and Deployment Plan
+
 The team will use a staged approach rather than overcomplicating early sprints
 
 - Sprint 1 may use a demo-user mode so the product flow can be built and demonstrated quickly
@@ -75,6 +85,7 @@ The team will use a staged approach rather than overcomplicating early sprints
 - Deployment to a cloud-accessible environment is required before the final demo and is planned explicitly in Sprint 4
 
 ## Delivery Schedule
+
 The course schedule gives the team four real build sprints before the final demo week
 
 - Sprint 1: March 17 to March 22, 2026
@@ -89,6 +100,7 @@ The course schedule gives the team four real build sprints before the final demo
   Demo lead: Aaron Tang (`at2`)
 
 ## Product Backlog
+
 The full product backlog is maintained in a separate document:
 
 - [PRODUCT_BACKLOG.md](/Users/aaron/s26_team_11/PRODUCT_BACKLOG.md)
@@ -96,6 +108,7 @@ The full product backlog is maintained in a separate document:
 ## Sprint Backlogs
 
 ### Sprint 1: Clickable Market MVP
+
 Dates: March 17 to March 22, 2026
 Linear tag: `sprint-1`
 Due date: March 22, 2026
@@ -112,9 +125,11 @@ The team can demo browsing markets, opening a market, creating a market, and pla
 Backlog items:
 
 #### Setup and Frontend Foundation
+
 Intended owner: Aaron Tang (`at2`)
 
 Scope:
+
 - Initialize repo structure for Nextjs and FastAPI
 - Set up the frontend app shell and shared layout
 - Define the route map for MVP views
@@ -122,9 +137,11 @@ Scope:
 - Establish the no-auth demo-user assumption for early demos
 
 #### Frontend MVP Flow
+
 Intended owner: Aaron Tang (`at2`)
 
 Scope:
+
 - Build the landing experience
 - Build market list and market detail pages
 - Build create market page
@@ -133,18 +150,22 @@ Scope:
 - Wire mock data through the happy path before backend integration
 
 #### FastAPI MVP Data and Core APIs
+
 Intended owner: Ted Gershon (`tgershon`)
 
 Scope:
+
 - Create the FastAPI project and app structure
 - Set up the local PostgreSQL connection strategy
 - Define starter data models for user balance, market, and bet data
 - Expose core endpoints for market list, market detail, create market, and place bet
 
 #### Trading Logic and Demo Integration
+
 Intended owner: Jonathan Gu (`jgu2`)
 
 Scope:
+
 - Create seed demo users and sample markets
 - Implement a simple no-auth demo-user selection path
 - Define initial probability display logic from pool totals
@@ -152,6 +173,7 @@ Scope:
 - Fix integration issues and prepare the Sprint 1 demo narrative
 
 ### Sprint 2: Persisted Trading Workflow
+
 Dates: March 23 to March 29, 2026
 Linear tag: `sprint-2`
 Due date: March 29, 2026
@@ -168,42 +190,51 @@ The team can create a market, place trades against real backend data, and revisi
 Backlog items:
 
 #### Persistent Data Models and Trading Transactions
+
 Intended owner: Ted Gershon (`tgershon`)
 
 Scope:
+
 - Finalize persistent data models for users, markets, and bets
 - Replace starter in-memory assumptions with PostgreSQL-backed records
 - Make the trade path transactional end to end
 - Enforce closed-market and insufficient-balance rules in persistent logic
 
 #### User State, Sessions, and Wallet Flow
+
 Intended owner: Aaron Tang (`at2`)
 
 Scope:
+
 - Move beyond pure mock identity assumptions
 - Establish a practical session or user-selection strategy for the app
 - Connect wallet state to real backend data
 - Make balance displays consistent across pages
 
 #### Portfolio, Leaderboard, and Market State Integration
+
 Intended owner: Jonathan Gu (`jgu2`)
 
 Scope:
+
 - Back the portfolio page with stored position data
 - Back the leaderboard with real balance totals
 - Display open and closed market states consistently in the frontend
 - Remove remaining mock-only assumptions from the main user views
 
 #### Sprint 2 QA, Presentation, and Backlog Handoff
+
 Intended owner: Aaron Tang (`at2`)
 
 Scope:
+
 - Verify the persisted happy path before the sprint presentation
 - Collect integration bugs and triage them quickly
 - Prepare sprint presentation notes and visuals
 - Draft the Sprint 3 backlog and record the next product owner
 
 ### Sprint 3: Resolution, Disputes, and Governance
+
 Dates: March 30 to April 5, 2026
 Linear tag: `sprint-3`
 Due date: April 5, 2026
@@ -220,42 +251,51 @@ The team can show a market being resolved, disputed, voted on, and carried throu
 Backlog items:
 
 #### Resolution Workflow and Settlement Engine
+
 Intended owner: Ted Gershon (`tgershon`)
 
 Scope:
+
 - Implement creator resolution actions
 - Record final market outcomes
 - Compute winning payout shares from the pool
 - Finalize payout distribution and post-resolution state changes
 
 #### Dispute Voting and Voter Incentive Flow
+
 Intended owner: Jonathan Gu (`jgu2`)
 
 Scope:
+
 - Implement dispute flagging on resolved markets
 - Separate bettor and voter roles where needed
 - Create a voter staking and voting path
 - Reward majority voters according to the project rule set
 
 #### Admin Review and Moderation Controls
+
 Intended owner: Aaron Tang (`at2`)
 
 Scope:
+
 - Expose moderation tools for invalid or conflicted markets
 - Add an override path for broken resolutions
 - Surface the key market and dispute state needed for debugging and demo control
 - Make admin behavior understandable during presentations
 
 #### Sprint 3 End-to-End Testing and Presentation
+
 Intended owner: Aaron Tang (`at2`)
 
 Scope:
+
 - Verify the full flow from trade placement to final settlement
 - Test at least one disputed market scenario
 - Prepare the Sprint 3 presentation story and visuals
 - Draft the Sprint 4 hardening backlog
 
 ### Sprint 4: Hardening, Deployment, and Final Demo Readiness
+
 Dates: April 6 to April 12, 2026
 Linear tag: `sprint-4`
 Due date: April 12, 2026
@@ -272,42 +312,51 @@ By the end of Sprint 4, BananaGains should be ready for the final demo week begi
 Backlog items:
 
 #### Validation, Security, and Edge Case Hardening
+
 Intended owner: Ted Gershon (`tgershon`)
 
 Scope:
+
 - Validate inputs across creation, trading, resolution, and voting flows
 - Close obvious security gaps such as unsafe input handling and broken state transitions
 - Test edge cases around insufficient balance, duplicate actions, and invalid market state
 - Tighten backend error handling for final demo stability
 
 #### UX Polish and Live Update Strategy
+
 Intended owner: Aaron Tang (`at2`)
 
 Scope:
+
 - Improve clarity of core pages and flows
 - Polish the final demo path from market browsing through settlement
 - Add lightweight live updates or polling where it materially improves the demo
 - Remove rough edges that make the product feel incomplete
 
 #### Deployment, Seed Data, and Remote Demo Environment
+
 Intended owner: Jonathan Gu (`jgu2`)
 
 Scope:
+
 - Deploy the application to an environment reachable by course staff
 - Configure the demo environment and database
 - Load reliable seed users and markets for demonstration
 - Verify the app works from a clean remote browser session
 
 #### Final Demo Script, Documentation, and Code Review Prep
+
 Intended owner: Aaron Tang (`at2`)
 
 Scope:
+
 - Write the final demo walkthrough order
 - Prepare fallback demo scenarios and seeded accounts
 - Ensure the repo has backlog artifacts and run instructions needed for review
 - Do a final code review pass for modularity, clarity, and obvious cleanup opportunities
 
 ### Final Demo Week: Staff Demo and Buffer
+
 Begins: April 13, 2026
 Linear tag: `final-demo-week`
 Due date: April 13, 2026
@@ -316,16 +365,19 @@ Scope classification: final demo and stabilization buffer
 Demo lead: Aaron Tang (`at2`)
 
 Supporting team:
+
 - Ted Gershon (`tgershon`)
 - Jonathan Gu (`jgu2`)
 
 Goals:
+
 - Run the prepared demo flow for course staff
 - Guide the code review cleanly
 - Keep a small buffer for emergency fixes that do not destabilize the deployment
 - Verify the deployed app remains reachable during the review window
 
 ## Proposed Data Model
+
 The full data model is maintained in a separate document:
 
 - [DATA_MODEL.md](/Users/aaron/s26_team_11/DATA_MODEL.md)

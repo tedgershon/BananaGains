@@ -33,7 +33,7 @@ export interface Bet {
   id: string;
   user_id: string;
   market_id: string;
-  
+
   side: BetSide;
   amount: number;
   created_at: string;

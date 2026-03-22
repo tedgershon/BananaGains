@@ -22,7 +22,13 @@ export default function Home() {
 
   return (
     <>
-      <div className="-mt-6" style={{ marginLeft: "calc(-50vw + 50%)", marginRight: "calc(-50vw + 50%)" }}>
+      <div
+        className="-mt-6"
+        style={{
+          marginLeft: "calc(-50vw + 50%)",
+          marginRight: "calc(-50vw + 50%)",
+        }}
+      >
         <CategoryFilter
           categories={categories}
           selected={selectedCategory}

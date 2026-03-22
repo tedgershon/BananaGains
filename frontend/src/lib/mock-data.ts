@@ -110,6 +110,41 @@ export const MOCK_MARKETS: Market[] = [
   },
 ];
 
+export interface PricePoint {
+  timestamp: string;
+  probability: number;
+}
+
+function generatePriceHistory(
+  marketId: string,
+  startProb: number,
+  endProb: number,
+): PricePoint[] {
+  const points: PricePoint[] = [];
+  const days = 5;
+  for (let i = 0; i <= days * 4; i++) {
+    const t = i / (days * 4);
+    const noise = Math.sin(i * 2.7 + marketId.charCodeAt(7) * 3) * 8;
+    const prob = Math.round(startProb + (endProb - startProb) * t + noise);
+    const date = new Date("2026-03-17T00:00:00Z");
+    date.setHours(date.getHours() + i * 6);
+    points.push({
+      timestamp: date.toISOString(),
+      probability: Math.max(1, Math.min(99, prob)),
+    });
+  }
+  return points;
+}
+
+export const MOCK_PRICE_HISTORY: Record<string, PricePoint[]> = {
+  "market-1": generatePriceHistory("market-1", 70, 80),
+  "market-2": generatePriceHistory("market-2", 50, 42),
+  "market-3": generatePriceHistory("market-3", 75, 89),
+  "market-4": generatePriceHistory("market-4", 55, 45),
+  "market-5": generatePriceHistory("market-5", 48, 53),
+  "market-6": generatePriceHistory("market-6", 50, 60),
+};
+
 export const MOCK_BETS: Bet[] = [
   {
     id: "bet-1",

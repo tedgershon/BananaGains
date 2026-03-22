@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { BananaCoin } from "@/components/banana-coin";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   DEMO_USER,
@@ -43,7 +43,6 @@ export default function PortfolioPage() {
       </section>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
-        {/* Left: Balance cards */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
           <Card size="sm" className="py-2">
             <CardHeader className="pb-0">
@@ -56,6 +55,7 @@ export default function PortfolioPage() {
               </div>
             </CardContent>
           </Card>
+
           <Card size="sm" className="py-2">
             <CardHeader className="pb-0">
               <span className="text-xs text-muted-foreground">Active Bets</span>
@@ -67,6 +67,7 @@ export default function PortfolioPage() {
               </div>
             </CardContent>
           </Card>
+
           <Card size="sm" className="py-2">
             <CardHeader className="pb-0">
               <span className="text-xs text-muted-foreground">
@@ -79,7 +80,6 @@ export default function PortfolioPage() {
           </Card>
         </div>
 
-        {/* Right: Positions */}
         <div className="space-y-2">
           <h2 className="text-lg font-semibold">Positions</h2>
           <div className="grid gap-2">

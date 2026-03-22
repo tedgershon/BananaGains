@@ -1,6 +1,7 @@
 # BananaGains Data Model
 
 ### UserProfile
+
 - `id`
 - `andrew_id`
 - `display_name`
@@ -11,6 +12,7 @@ Purpose:
 Stores the identity and wallet state of each user
 
 ### Market
+
 - `id`
 - `title`
 - `description`
@@ -28,6 +30,7 @@ Purpose:
 Stores the market question, timing, pool totals, and settlement state
 
 ### Bet
+
 - `id`
 - `user_id`
 - `market_id`
@@ -39,6 +42,7 @@ Purpose:
 Represents a single user trade on the YES or NO side of a market
 
 ### ResolutionVote
+
 - `id`
 - `market_id`
 - `voter_id`
@@ -50,6 +54,7 @@ Purpose:
 Represents a neutral voter participation record for disputed markets
 
 ### Transaction
+
 - `id`
 - `user_id`
 - `market_id`
@@ -61,6 +66,7 @@ Purpose:
 Tracks wallet-affecting events such as initial allocation, bet placement, voter stake, reward, and payout
 
 ## Relationship Summary
+
 - A `UserProfile` can create many `Market` records
 - A `UserProfile` can place many `Bet` records
 - A `Market` can have many `Bet` records
@@ -68,6 +74,7 @@ Tracks wallet-affecting events such as initial allocation, bet placement, voter 
 - A `UserProfile` can have many `Transaction` records tied to market and wallet events
 
 ## Modeling Notes
+
 - `Market.status` should capture values such as `open`, `closed`, `resolved`, and `disputed`
 - `Bet.side` should capture `YES` or `NO`
 - `Transaction.transaction_type` should distinguish wallet events such as initial grant, bet placement, payout, voter stake, and voter reward

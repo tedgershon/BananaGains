@@ -4,7 +4,10 @@ import { cn } from "@/lib/utils";
 export function BananaCoin({
   size = 16,
   className,
-}: { size?: number; className?: string }) {
+}: {
+  size?: number;
+  className?: string;
+}) {
   return (
     <Image
       src="/assets/bananacoin.webp"

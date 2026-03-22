@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { BananaCoin } from "@/components/banana-coin";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { Market } from "@/lib/types";
 import { getMarketProbability } from "@/lib/types";

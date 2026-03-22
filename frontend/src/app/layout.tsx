@@ -5,8 +5,7 @@ import { DEMO_USER } from "@/lib/mock-data";
 
 export const metadata: Metadata = {
   title: "BananaGains | CMU's Prediction Market",
-  description:
-    "A campus prediction market for the CMU community",
+  description: "A campus prediction market for the CMU community",
 };
 
 export default function RootLayout({
