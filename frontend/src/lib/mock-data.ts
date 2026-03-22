@@ -1,4 +1,4 @@
-import type { Market, UserProfile } from "./types";
+import type { Bet, Market, Transaction, UserProfile } from "./types";
 
 export const DEMO_USER: UserProfile = {
   id: "user-1",
@@ -61,9 +61,9 @@ export const MOCK_MARKETS: Market[] = [
   },
   {
     id: "market-4",
-    title: "Will 67-250 curve the final exam?",
+    title: "Will 17-437 curve the final exam?",
     description:
-      "Resolves YES if the Information Systems course 67-250 applies a curve to the final exam.",
+      "Resolves YES if the Information Systems course 17-437 applies a curve to the final exam.",
     creator_id: "user-2",
     created_at: "2026-03-18T16:00:00Z",
     close_at: "2026-04-11T23:59:00Z",
@@ -107,5 +107,83 @@ export const MOCK_MARKETS: Market[] = [
     resolved_outcome: null,
     resolved_at: null,
     category: "Campus Life",
+  },
+];
+
+export const MOCK_BETS: Bet[] = [
+  {
+    id: "bet-1",
+    user_id: "user-1",
+    market_id: "market-1",
+    side: "YES",
+    amount: 200,
+    created_at: "2026-03-18T12:00:00Z",
+  },
+  {
+    id: "bet-2",
+    user_id: "user-1",
+    market_id: "market-3",
+    side: "YES",
+    amount: 150,
+    created_at: "2026-03-18T14:00:00Z",
+  },
+  {
+    id: "bet-3",
+    user_id: "user-1",
+    market_id: "market-4",
+    side: "NO",
+    amount: 100,
+    created_at: "2026-03-19T09:30:00Z",
+  },
+  {
+    id: "bet-4",
+    user_id: "user-1",
+    market_id: "market-6",
+    side: "YES",
+    amount: 50,
+    created_at: "2026-03-17T15:00:00Z",
+  },
+];
+
+export const MOCK_TRANSACTIONS: Transaction[] = [
+  {
+    id: "tx-1",
+    user_id: "user-1",
+    market_id: null,
+    transaction_type: "initial_grant",
+    amount: 1500,
+    created_at: "2026-03-17T00:00:00Z",
+  },
+  {
+    id: "tx-2",
+    user_id: "user-1",
+    market_id: "market-1",
+    transaction_type: "bet_placement",
+    amount: -200,
+    created_at: "2026-03-18T12:00:00Z",
+  },
+  {
+    id: "tx-3",
+    user_id: "user-1",
+    market_id: "market-3",
+    transaction_type: "bet_placement",
+    amount: -150,
+    created_at: "2026-03-18T14:00:00Z",
+  },
+  {
+    id: "tx-4",
+    user_id: "user-1",
+    market_id: "market-4",
+    transaction_type: "bet_placement",
+    amount: -100,
+    created_at: "2026-03-19T09:30:00Z",
+  },
+  {
+    id: "tx-5",
+    user_id: "user-1",
+    market_id: "market-6",
+    transaction_type: "bet_placement",
+    amount: -50,
+    created_at: "2026-03-17T15:00:00Z",
   },
 ];

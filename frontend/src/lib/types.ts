@@ -39,6 +39,22 @@ export interface Bet {
   created_at: string;
 }
 
+export type TransactionType =
+  | "initial_grant"
+  | "bet_placement"
+  | "payout"
+  | "voter_stake"
+  | "voter_reward";
+
+export interface Transaction {
+  id: string;
+  user_id: string;
+  market_id: string | null;
+  transaction_type: TransactionType;
+  amount: number;
+  created_at: string;
+}
+
 // Probability of Yes occuring in market; we will just use this as the paramutuel market probability
 // since most prediction markets show the yes probability by default
 // TODO: later, consider taking into account the fee charged if we're reflecting payout
