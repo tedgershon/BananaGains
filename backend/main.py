@@ -1,7 +1,26 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
+from config import get_settings
+from routers import auth, bets, leaderboard, markets, portfolio
+
+app = FastAPI(title="BananaGains API", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_settings().cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router)
+app.include_router(markets.router)
+app.include_router(bets.router)
+app.include_router(portfolio.router)
+app.include_router(leaderboard.router)
+
 
 @app.get("/")
-def read_root():
-    return {"hello": "world"}
+def health_check():
+    return {"status": "ok", "service": "bananagains-api"}

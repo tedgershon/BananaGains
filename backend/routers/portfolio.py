@@ -1,0 +1,50 @@
+from fastapi import APIRouter, Depends, Query
+from supabase import Client
+
+from dependencies import get_current_user, get_supabase_client
+from schemas.bet import BetResponse
+from schemas.transaction import TransactionResponse
+
+router = APIRouter(prefix="/api", tags=["portfolio"])
+
+
+@router.get("/portfolio", response_model=list[BetResponse])
+async def get_portfolio(
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """
+    Get the authenticated user's positions across all markets.
+
+    Returns every bet the user has placed, ordered newest first.
+    The frontend can aggregate these by market_id to compute net positions.
+    """
+    result = (
+        supabase.table("bets")
+        .select("*")
+        .eq("user_id", current_user["id"])
+        .order("created_at", desc=True)
+        .execute()
+    )
+
+    return result.data or []
+
+
+@router.get("/transactions", response_model=list[TransactionResponse])
+async def get_transactions(
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """Get the authenticated user's transaction history, newest first."""
+    result = (
+        supabase.table("transactions")
+        .select("*")
+        .eq("user_id", current_user["id"])
+        .order("created_at", desc=True)
+        .range(offset, offset + limit - 1)
+        .execute()
+    )
+
+    return result.data or []
