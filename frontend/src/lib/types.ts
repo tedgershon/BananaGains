@@ -1,3 +1,7 @@
+// ---------------------------------------------------------------------------
+// Domain types (mirror DATA_MODEL.md and backend response schemas)
+// ---------------------------------------------------------------------------
+
 export type MarketStatus = "open" | "closed" | "resolved" | "disputed";
 export type BetSide = "YES" | "NO";
 
@@ -55,16 +59,52 @@ export interface Transaction {
   created_at: string;
 }
 
-// Probability of Yes occuring in market; we will just use this as the paramutuel market probability
-// since most prediction markets show the yes probability by default
+export interface LeaderboardEntry {
+  id: string;
+  andrew_id: string;
+  display_name: string;
+  banana_balance: number;
+}
+
+// ---------------------------------------------------------------------------
+// Request types (match backend Pydantic request schemas)
+// ---------------------------------------------------------------------------
+
+export interface CreateMarketRequest {
+  title: string;
+  description: string;
+  close_at: string;
+  resolution_criteria: string;
+  category?: string;
+}
+
+export interface PlaceBetRequest {
+  side: BetSide;
+  amount: number;
+}
+
+export interface CreateProfileRequest {
+  andrew_id: string;
+  display_name: string;
+}
+
+// ---------------------------------------------------------------------------
+// Response types (when they differ from the domain types above)
+// ---------------------------------------------------------------------------
+
+export interface PlaceBetResponse {
+  bet_id: string;
+  new_balance: number;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+// Parimutuel yes-probability derived from pool totals
 // TODO: later, consider taking into account the fee charged if we're reflecting payout
 export function getMarketProbability(market: Market): number {
   const total = market.yes_pool_total + market.no_pool_total;
-  const yes = market.yes_pool_total;
-  // if both pools empty, then the probability is just 50%. Either could occur.
-  if (total === 0) {
-    return 50;
-  }
-
-  return Math.round((yes / total) * 100);
+  if (total === 0) return 50;
+  return Math.round((market.yes_pool_total / total) * 100);
 }
