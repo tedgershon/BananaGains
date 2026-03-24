@@ -1,4 +1,10 @@
-import type { Bet, Market, Transaction, UserProfile } from "./types";
+import type {
+  Bet,
+  LeaderboardEntry,
+  Market,
+  Transaction,
+  UserProfile,
+} from "./types";
 
 export const DEMO_USER: UserProfile = {
   id: "user-1",
@@ -220,5 +226,38 @@ export const MOCK_TRANSACTIONS: Transaction[] = [
     transaction_type: "bet_placement",
     amount: -50,
     created_at: "2026-03-17T15:00:00Z",
+  },
+];
+
+export const MOCK_LEADERBOARD: LeaderboardEntry[] = [
+  {
+    id: "user-1",
+    andrew_id: "at2",
+    display_name: "Aaron Tang",
+    banana_balance: 1000,
+  },
+  {
+    id: "user-2",
+    andrew_id: "tgershon",
+    display_name: "Ted Gershon",
+    banana_balance: 1350,
+  },
+  {
+    id: "user-3",
+    andrew_id: "jgu2",
+    display_name: "Jonathan Gu",
+    banana_balance: 870,
+  },
+  {
+    id: "user-4",
+    andrew_id: "demouser",
+    display_name: "Demo Student",
+    banana_balance: 1500,
+  },
+  {
+    id: "user-5",
+    andrew_id: "tartans",
+    display_name: "Tartan Fan",
+    banana_balance: 620,
   },
 ];

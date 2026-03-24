@@ -3,19 +3,20 @@
 import { useMemo, useState } from "react";
 import { CategoryFilter } from "@/components/category-filter";
 import { MarketCard } from "@/components/market-card";
-import { MOCK_MARKETS } from "@/lib/mock-data";
+import { useData } from "@/lib/DataProvider";
 
 export default function Home() {
+  const { markets } = useData();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const categories = useMemo(
-    () => [...new Set(MOCK_MARKETS.map((m) => m.category))],
-    [],
+    () => [...new Set(markets.map((m) => m.category))],
+    [markets],
   );
 
   const filtered = selectedCategory
-    ? MOCK_MARKETS.filter((m) => m.category === selectedCategory)
-    : MOCK_MARKETS;
+    ? markets.filter((m) => m.category === selectedCategory)
+    : markets;
 
   const openMarkets = filtered.filter((m) => m.status === "open");
   const closedMarkets = filtered.filter((m) => m.status !== "open");

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BananaCoin } from "@/components/banana-coin";
@@ -21,13 +20,10 @@ export function Navbar() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2 text-lg font-bold">
-            <Image
-              src="/assets/logo.webp"
-              alt="Bananagains"
-              width={32}
-              height={32}
-            />
-            <span>Bananagains</span>
+            <span className="text-2xl" role="img" aria-label="banana">
+              🍌
+            </span>
+            <span>BananaGains</span>
           </Link>
           <nav className="hidden items-center gap-1 sm:flex">
             {NAV_LINKS.map((link) => (
