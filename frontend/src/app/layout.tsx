@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Navbar } from "@/components/navbar";
-import { DEMO_USER } from "@/lib/mock-data";
+import { SessionProvider } from "@/lib/SessionProvider";
 
 export const metadata: Metadata = {
   title: "BananaGains | CMU's Prediction Market",
@@ -16,8 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen bg-background font-sans antialiased">
-        <Navbar balance={DEMO_USER.banana_balance} />
-        <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
+        <SessionProvider>
+          <Navbar />
+          <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
+        </SessionProvider>
       </body>
     </html>
   );

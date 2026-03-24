@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BananaCoin } from "@/components/banana-coin";
+import { useSession } from "@/lib/SessionProvider";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
@@ -11,8 +12,9 @@ const NAV_LINKS = [
   { href: "/leaderboard", label: "Leaderboard" },
 ];
 
-export function Navbar({ balance }: { balance: number }) {
+export function Navbar() {
   const pathname = usePathname();
+  const { user } = useSession();
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-white">
@@ -50,7 +52,7 @@ export function Navbar({ balance }: { balance: number }) {
             className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-accent"
           >
             <BananaCoin size={16} />
-            <span>{balance.toLocaleString()}</span>
+            <span>{user.banana_balance.toLocaleString()}</span>
           </Link>
           <Link
             href="/markets/create"
