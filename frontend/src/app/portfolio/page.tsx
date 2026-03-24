@@ -1,18 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import { BananaCoin } from "@/components/banana-coin";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import {
-  DEMO_USER,
-  MOCK_BETS,
-  MOCK_MARKETS,
-  MOCK_TRANSACTIONS,
-} from "@/lib/mock-data";
+import { useData } from "@/lib/DataProvider";
+import { useSession } from "@/lib/SessionProvider";
 import { getMarketProbability } from "@/lib/types";
-
-function getMarketById(id: string) {
-  return MOCK_MARKETS.find((m) => m.id === id);
-}
 
 const TX_LABELS: Record<string, string> = {
   initial_grant: "Initial Grant",
@@ -23,13 +17,20 @@ const TX_LABELS: Record<string, string> = {
 };
 
 export default function PortfolioPage() {
-  const userBets = MOCK_BETS.filter((b) => b.user_id === DEMO_USER.id);
-  const userTxs = MOCK_TRANSACTIONS.filter(
-    (t) => t.user_id === DEMO_USER.id,
-  ).sort(
-    (a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-  );
+  const { user } = useSession();
+  const { markets, bets, transactions } = useData();
+
+  function getMarketById(id: string) {
+    return markets.find((m) => m.id === id);
+  }
+
+  const userBets = bets.filter((b) => b.user_id === user.id);
+  const userTxs = transactions
+    .filter((t) => t.user_id === user.id)
+    .sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
 
   const activeBets = userBets.reduce((sum, b) => sum + b.amount, 0);
 
@@ -38,7 +39,7 @@ export default function PortfolioPage() {
       <section>
         <h1 className="text-3xl font-bold tracking-tight">Portfolio</h1>
         <p className="text-sm text-muted-foreground">
-          {DEMO_USER.display_name} ({DEMO_USER.andrew_id})
+          {user.display_name} ({user.andrew_id})
         </p>
       </section>
 
@@ -51,7 +52,7 @@ export default function PortfolioPage() {
             <CardContent>
               <div className="flex items-center gap-2 text-3xl font-bold">
                 <BananaCoin size={28} />
-                {DEMO_USER.banana_balance.toLocaleString()}
+                {user.banana_balance.toLocaleString()}
               </div>
             </CardContent>
           </Card>

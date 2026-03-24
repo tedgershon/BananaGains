@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -18,12 +19,15 @@ interface SessionContextValue {
   isDemo: boolean;
   /** True while the initial session check is in flight. */
   isLoading: boolean;
+  /** Apply a delta to the demo user's banana balance. */
+  updateBalance: (delta: number) => void;
 }
 
 const SessionCtx = createContext<SessionContextValue>({
   user: DEMO_USER,
   isDemo: true,
   isLoading: false,
+  updateBalance: () => {},
 });
 
 export function useSession() {
@@ -41,6 +45,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile>(DEMO_USER);
   const [isDemo, setIsDemo] = useState(true);
   const [isLoading, setIsLoading] = useState(!!supabase);
+
+  const updateBalance = useCallback((delta: number) => {
+    setUser((prev) => ({
+      ...prev,
+      banana_balance: prev.banana_balance + delta,
+    }));
+  }, []);
 
   useEffect(() => {
     if (!supabase) return;
@@ -68,8 +79,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, isDemo, isLoading }),
-    [user, isDemo, isLoading],
+    () => ({ user, isDemo, isLoading, updateBalance }),
+    [user, isDemo, isLoading, updateBalance],
   );
 
   return <SessionCtx.Provider value={value}>{children}</SessionCtx.Provider>;

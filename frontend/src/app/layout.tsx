@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Navbar } from "@/components/navbar";
+import { DataProvider } from "@/lib/DataProvider";
 import { SessionProvider } from "@/lib/SessionProvider";
 
 export const metadata: Metadata = {
@@ -17,8 +18,10 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen bg-background font-sans antialiased">
         <SessionProvider>
-          <Navbar />
-          <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
+          <DataProvider>
+            <Navbar />
+            <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
+          </DataProvider>
         </SessionProvider>
       </body>
     </html>

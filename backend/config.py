@@ -4,9 +4,11 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    supabase_url: str
-    supabase_key: str
-    supabase_jwt_secret: str
+    supabase_url: str = ""
+    supabase_key: str = ""
+    supabase_jwt_secret: str = ""
+
+    demo_mode: bool = False
 
     cors_origins: list[str] = ["http://localhost:3000"]
 

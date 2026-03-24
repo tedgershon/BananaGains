@@ -8,12 +8,9 @@ import { ProbabilityChart } from "@/components/probability-chart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import {
-  DEMO_USER,
-  MOCK_BETS,
-  MOCK_MARKETS,
-  MOCK_PRICE_HISTORY,
-} from "@/lib/mock-data";
+import { useData } from "@/lib/DataProvider";
+import { useSession } from "@/lib/SessionProvider";
+import type { BetSide } from "@/lib/types";
 import { getMarketProbability } from "@/lib/types";
 
 export default function MarketDetailPage({
@@ -22,8 +19,12 @@ export default function MarketDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const market = MOCK_MARKETS.find((m) => m.id === id);
+  const { markets, bets, priceHistory, placeBet } = useData();
+  const { user } = useSession();
+  const market = markets.find((m) => m.id === id);
   const [betAmount, setBetAmount] = useState("");
+  const [betError, setBetError] = useState<string | null>(null);
+  const [betSuccess, setBetSuccess] = useState<string | null>(null);
 
   if (!market) {
     return (
@@ -38,9 +39,30 @@ export default function MarketDetailPage({
 
   const probability = getMarketProbability(market);
   const total = market.yes_pool_total + market.no_pool_total;
-  const priceHistory = MOCK_PRICE_HISTORY[market.id] ?? [];
-  const marketBets = MOCK_BETS.filter((b) => b.market_id === market.id);
+  const chartData = priceHistory[market.id] ?? [];
+  const marketBets = bets.filter((b) => b.market_id === market.id);
   const isOpen = market.status === "open";
+
+  function handleBet(side: BetSide) {
+    setBetError(null);
+    setBetSuccess(null);
+    const amount = Number(betAmount);
+    if (!betAmount || Number.isNaN(amount) || amount <= 0) {
+      setBetError("Enter a valid positive amount.");
+      return;
+    }
+    if (amount > user.banana_balance) {
+      setBetError("Insufficient banana balance.");
+      return;
+    }
+    try {
+      placeBet(market.id, side, amount);
+      setBetSuccess(`Placed ${amount} on ${side}!`);
+      setBetAmount("");
+    } catch (err) {
+      setBetError(err instanceof Error ? err.message : "Failed to place bet.");
+    }
+  }
 
   const closesAt = new Date(market.close_at).toLocaleDateString("en-US", {
     month: "long",
@@ -83,7 +105,7 @@ export default function MarketDetailPage({
               </span>
             </CardHeader>
             <CardContent>
-              <ProbabilityChart data={priceHistory} />
+              <ProbabilityChart data={chartData} />
             </CardContent>
           </Card>
 
@@ -132,21 +154,38 @@ export default function MarketDetailPage({
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     Your balance: <BananaCoin size={12} />
                     <span className="font-medium text-foreground">
-                      {DEMO_USER.banana_balance.toLocaleString()}
+                      {user.banana_balance.toLocaleString()}
                     </span>
                   </div>
                   <input
                     type="number"
                     placeholder="Amount"
+                    min={1}
                     value={betAmount}
-                    onChange={(e) => setBetAmount(e.target.value)}
+                    onChange={(e) => {
+                      setBetAmount(e.target.value);
+                      setBetError(null);
+                      setBetSuccess(null);
+                    }}
                     className="w-full rounded-full border border-border bg-background px-4 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                   />
+                  {betError && (
+                    <p className="text-xs font-medium text-danger">{betError}</p>
+                  )}
+                  {betSuccess && (
+                    <p className="text-xs font-medium text-success">{betSuccess}</p>
+                  )}
                   <div className="grid grid-cols-2 gap-2">
-                    <Button className="h-14 text-base bg-success text-success-foreground hover:bg-success/80">
+                    <Button
+                      className="h-14 text-base bg-success text-success-foreground hover:bg-success/80"
+                      onClick={() => handleBet("YES")}
+                    >
                       Yes {probability}%
                     </Button>
-                    <Button className="h-14 text-base bg-danger text-danger-foreground hover:bg-danger/80">
+                    <Button
+                      className="h-14 text-base bg-danger text-danger-foreground hover:bg-danger/80"
+                      onClick={() => handleBet("NO")}
+                    >
                       No {100 - probability}%
                     </Button>
                   </div>
