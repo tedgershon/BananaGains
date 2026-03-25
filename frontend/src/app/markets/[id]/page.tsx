@@ -2,16 +2,41 @@
 
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
 import { ProbabilityChart } from "@/components/probability-chart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import * as api from "@/lib/api";
 import { useData } from "@/lib/DataProvider";
 import { useSession } from "@/lib/SessionProvider";
-import type { BetSide } from "@/lib/types";
+import type { Bet, BetSide, PricePoint } from "@/lib/types";
 import { getMarketProbability } from "@/lib/types";
+
+function buildPriceHistory(bets: Bet[]): PricePoint[] {
+  if (bets.length === 0) return [];
+
+  const sorted = [...bets].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+
+  let yes = 0;
+  let no = 0;
+  const points: PricePoint[] = [];
+
+  for (const bet of sorted) {
+    if (bet.side === "YES") yes += bet.amount;
+    else no += bet.amount;
+    const total = yes + no;
+    points.push({
+      timestamp: bet.created_at,
+      probability: total > 0 ? Math.round((yes / total) * 100) : 50,
+    });
+  }
+
+  return points;
+}
 
 export default function MarketDetailPage({
   params,
@@ -19,12 +44,37 @@ export default function MarketDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { markets, bets, priceHistory, placeBet } = useData();
+  const { markets, placeBet, fetchMarket } = useData();
   const { user } = useSession();
-  const market = markets.find((m) => m.id === id);
+
+  const contextMarket = markets.find((m) => m.id === id);
+  const [fetchedMarket, setFetchedMarket] = useState<typeof contextMarket>();
+  const [marketBets, setMarketBets] = useState<Bet[]>([]);
+  const [betsLoading, setBetsLoading] = useState(true);
+
+  const market = contextMarket ?? fetchedMarket;
+
+  useEffect(() => {
+    if (!contextMarket) {
+      fetchMarket(id)
+        .then(setFetchedMarket)
+        .catch(() => {});
+    }
+  }, [id, contextMarket, fetchMarket]);
+
+  useEffect(() => {
+    setBetsLoading(true);
+    api
+      .listBetsForMarket(id)
+      .then(setMarketBets)
+      .catch(() => {})
+      .finally(() => setBetsLoading(false));
+  }, [id]);
+
   const [betAmount, setBetAmount] = useState("");
   const [betError, setBetError] = useState<string | null>(null);
   const [betSuccess, setBetSuccess] = useState<string | null>(null);
+  const [betting, setBetting] = useState(false);
 
   if (!market) {
     return (
@@ -39,11 +89,10 @@ export default function MarketDetailPage({
 
   const probability = getMarketProbability(market);
   const total = market.yes_pool_total + market.no_pool_total;
-  const chartData = priceHistory[market.id] ?? [];
-  const marketBets = bets.filter((b) => b.market_id === market.id);
+  const chartData = buildPriceHistory(marketBets);
   const isOpen = market.status === "open";
 
-  function handleBet(side: BetSide) {
+  async function handleBet(side: BetSide) {
     setBetError(null);
     setBetSuccess(null);
     const amount = Number(betAmount);
@@ -55,12 +104,16 @@ export default function MarketDetailPage({
       setBetError("Insufficient banana balance.");
       return;
     }
+    setBetting(true);
     try {
-      placeBet(market.id, side, amount);
+      await placeBet(market!.id, side, amount);
       setBetSuccess(`Placed ${amount} on ${side}!`);
       setBetAmount("");
+      api.listBetsForMarket(id).then(setMarketBets).catch(() => {});
     } catch (err) {
       setBetError(err instanceof Error ? err.message : "Failed to place bet.");
+    } finally {
+      setBetting(false);
     }
   }
 
@@ -105,7 +158,13 @@ export default function MarketDetailPage({
               </span>
             </CardHeader>
             <CardContent>
-              <ProbabilityChart data={chartData} />
+              {chartData.length > 1 ? (
+                <ProbabilityChart data={chartData} />
+              ) : (
+                <div className="flex h-[280px] items-center justify-center text-muted-foreground">
+                  Not enough activity for a chart yet
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -173,18 +232,22 @@ export default function MarketDetailPage({
                     <p className="text-xs font-medium text-danger">{betError}</p>
                   )}
                   {betSuccess && (
-                    <p className="text-xs font-medium text-success">{betSuccess}</p>
+                    <p className="text-xs font-medium text-success">
+                      {betSuccess}
+                    </p>
                   )}
                   <div className="grid grid-cols-2 gap-2">
                     <Button
                       className="h-14 text-base bg-success text-success-foreground hover:bg-success/80"
                       onClick={() => handleBet("YES")}
+                      disabled={betting}
                     >
                       Yes {probability}%
                     </Button>
                     <Button
                       className="h-14 text-base bg-danger text-danger-foreground hover:bg-danger/80"
                       onClick={() => handleBet("NO")}
+                      disabled={betting}
                     >
                       No {100 - probability}%
                     </Button>
@@ -200,7 +263,9 @@ export default function MarketDetailPage({
 
           <div className="space-y-2">
             <span className="text-sm font-medium">Recent Activity</span>
-            {marketBets.length > 0 ? (
+            {betsLoading ? (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : marketBets.length > 0 ? (
               <div className="space-y-2">
                 {marketBets.map((bet) => (
                   <div

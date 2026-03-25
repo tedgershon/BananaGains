@@ -9,17 +9,15 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { getMe } from "./api";
 import { DEMO_USER } from "./mock-data";
 import { supabase } from "./supabase";
 import type { UserProfile } from "./types";
 
 interface SessionContextValue {
   user: UserProfile;
-  /** True when the app is running with the hardcoded demo user. */
   isDemo: boolean;
-  /** True while the initial session check is in flight. */
   isLoading: boolean;
-  /** Apply a delta to the demo user's banana balance. */
   updateBalance: (delta: number) => void;
 }
 
@@ -34,13 +32,6 @@ export function useSession() {
   return useContext(SessionCtx);
 }
 
-/**
- * Wraps the app with session state.
- *
- * Sprint 1 behaviour: always provides DEMO_USER (Supabase env vars are unset).
- * When Supabase is configured the provider listens to auth-state changes and
- * fetches the real profile from /api/auth/me — wired in Sprint 2.
- */
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile>(DEMO_USER);
   const [isDemo, setIsDemo] = useState(true);
@@ -53,26 +44,40 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  async function loadProfile() {
+    try {
+      const profile = await getMe();
+      setUser(profile);
+      setIsDemo(false);
+    } catch {
+      setUser(DEMO_USER);
+      setIsDemo(true);
+    }
+  }
+
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase) {
+      loadProfile().finally(() => setIsLoading(false));
+      return;
+    }
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        setIsLoading(false);
-        return;
+      if (session) {
+        loadProfile().finally(() => setIsLoading(false));
+      } else {
+        loadProfile().finally(() => setIsLoading(false));
       }
-      // Sprint 2: fetch real profile via getMe() and call setUser / setIsDemo
-      setIsLoading(false);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
+      if (session) {
+        loadProfile();
+      } else {
         setUser(DEMO_USER);
         setIsDemo(true);
       }
-      // Sprint 2: on sign-in, fetch profile and update state
     });
 
     return () => subscription.unsubscribe();

@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { PricePoint } from "@/lib/mock-data";
+import type { PricePoint } from "@/lib/types";
 
 function formatDate(timestamp: string) {
   return new Date(timestamp).toLocaleDateString("en-US", {

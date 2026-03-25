@@ -97,6 +97,11 @@ export interface PlaceBetResponse {
   new_balance: number;
 }
 
+export interface PricePoint {
+  timestamp: string;
+  probability: number;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

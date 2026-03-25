@@ -18,10 +18,21 @@ const TX_LABELS: Record<string, string> = {
 
 export default function PortfolioPage() {
   const { user } = useSession();
-  const { markets, bets, transactions } = useData();
+  const { markets, bets, transactions, loading } = useData();
 
   function getMarketById(id: string) {
     return markets.find((m) => m.id === id);
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-5">
+        <section>
+          <h1 className="text-3xl font-bold tracking-tight">Portfolio</h1>
+        </section>
+        <p className="text-muted-foreground">Loading portfolio...</p>
+      </div>
+    );
   }
 
   const userBets = bets.filter((b) => b.user_id === user.id);
