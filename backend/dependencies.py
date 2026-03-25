@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from datetime import datetime, timezone
 
 from fastapi import Depends, HTTPException, status
@@ -86,6 +87,28 @@ async def get_current_user(
             detail="Not authenticated",
         )
     return _resolve_user(credentials.credentials, supabase)
+
+
+async def get_user_token(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_security),
+) -> str | None:
+    """Return the raw JWT from the Authorization header, or None."""
+    if credentials is None:
+        return None
+    return credentials.credentials
+
+
+@contextmanager
+def user_auth(supabase: Client, token: str | None):
+    """Temporarily set the user's JWT on the PostgREST client so RLS
+    policies that reference ``auth.uid()`` resolve to the real user."""
+    if token:
+        supabase.postgrest.auth(token)
+    try:
+        yield supabase
+    finally:
+        if token:
+            supabase.postgrest.auth(get_settings().supabase_key)
 
 
 async def get_current_user_optional(
