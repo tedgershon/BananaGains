@@ -28,7 +28,9 @@ export default function CreateMarketPage() {
   const [category, setCategory] = useState("General");
   const [error, setError] = useState<string | null>(null);
 
-  function handleSubmit(e: React.FormEvent) {
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
@@ -53,15 +55,22 @@ export default function CreateMarketPage() {
       return;
     }
 
-    const market = addMarket({
-      title: title.trim(),
-      description: description.trim(),
-      close_at: new Date(closeAt).toISOString(),
-      resolution_criteria: resolutionCriteria.trim(),
-      category,
-    });
-
-    router.push(`/markets/${market.id}`);
+    setSubmitting(true);
+    try {
+      const market = await addMarket({
+        title: title.trim(),
+        description: description.trim(),
+        close_at: new Date(closeAt).toISOString(),
+        resolution_criteria: resolutionCriteria.trim(),
+        category,
+      });
+      router.push(`/markets/${market.id}`);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to create market.",
+      );
+      setSubmitting(false);
+    }
   }
 
   const inputClass =
@@ -179,8 +188,13 @@ export default function CreateMarketPage() {
               <p className="text-sm font-medium text-danger">{error}</p>
             )}
 
-            <Button type="submit" size="lg" className="w-full">
-              Create Market
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full"
+              disabled={submitting}
+            >
+              {submitting ? "Creating..." : "Create Market"}
             </Button>
           </form>
         </CardContent>

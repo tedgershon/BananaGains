@@ -4,17 +4,12 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import {
-  MOCK_BETS,
-  MOCK_MARKETS,
-  MOCK_PRICE_HISTORY,
-  MOCK_TRANSACTIONS,
-  type PricePoint,
-} from "./mock-data";
+import * as api from "./api";
 import { useSession } from "./SessionProvider";
 import type {
   Bet,
@@ -28,9 +23,11 @@ interface DataContextValue {
   markets: Market[];
   bets: Bet[];
   transactions: Transaction[];
-  priceHistory: Record<string, PricePoint[]>;
-  addMarket: (req: CreateMarketRequest) => Market;
-  placeBet: (marketId: string, side: BetSide, amount: number) => Bet;
+  loading: boolean;
+  addMarket: (req: CreateMarketRequest) => Promise<Market>;
+  placeBet: (marketId: string, side: BetSide, amount: number) => Promise<void>;
+  refreshMarkets: () => Promise<void>;
+  fetchMarket: (id: string) => Promise<Market>;
 }
 
 const DataCtx = createContext<DataContextValue | null>(null);
@@ -41,71 +38,71 @@ export function useData(): DataContextValue {
   return ctx;
 }
 
-let nextMarketSeq = MOCK_MARKETS.length + 1;
-let nextBetSeq = MOCK_BETS.length + 1;
-let nextTxSeq = MOCK_TRANSACTIONS.length + 1;
-
 export function DataProvider({ children }: { children: ReactNode }) {
   const { user, updateBalance } = useSession();
-  const [markets, setMarkets] = useState<Market[]>(MOCK_MARKETS);
-  const [bets, setBets] = useState<Bet[]>(MOCK_BETS);
-  const [transactions, setTransactions] =
-    useState<Transaction[]>(MOCK_TRANSACTIONS);
-  const [priceHistory] =
-    useState<Record<string, PricePoint[]>>(MOCK_PRICE_HISTORY);
+  const [markets, setMarkets] = useState<Market[]>([]);
+  const [bets, setBets] = useState<Bet[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const [mkts, userBets, txs] = await Promise.all([
+          api.listMarkets(),
+          api.getPortfolio(),
+          api.getTransactions(),
+        ]);
+        if (cancelled) return;
+        setMarkets(mkts);
+        setBets(userBets);
+        setTransactions(txs);
+      } catch (err) {
+        console.error("Failed to load initial data:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const refreshMarkets = useCallback(async () => {
+    const mkts = await api.listMarkets();
+    setMarkets(mkts);
+  }, []);
+
+  const fetchMarket = useCallback(async (id: string): Promise<Market> => {
+    const market = await api.getMarket(id);
+    setMarkets((prev) => {
+      const idx = prev.findIndex((m) => m.id === id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = market;
+        return next;
+      }
+      return [market, ...prev];
+    });
+    return market;
+  }, []);
 
   const addMarket = useCallback(
-    (req: CreateMarketRequest): Market => {
-      const id = `market-${nextMarketSeq++}`;
-      const now = new Date().toISOString();
-      const market: Market = {
-        id,
-        title: req.title,
-        description: req.description,
-        creator_id: user.id,
-        created_at: now,
-        close_at: req.close_at,
-        status: "open",
-        resolution_criteria: req.resolution_criteria,
-        category: req.category ?? "General",
-        yes_pool_total: 0,
-        no_pool_total: 0,
-        resolved_outcome: null,
-        resolved_at: null,
-      };
+    async (req: CreateMarketRequest): Promise<Market> => {
+      const market = await api.createMarket(req);
       setMarkets((prev) => [market, ...prev]);
       return market;
     },
-    [user.id],
+    [],
   );
 
   const placeBet = useCallback(
-    (marketId: string, side: BetSide, amount: number): Bet => {
-      if (amount <= 0) throw new Error("Bet amount must be positive");
-      if (amount > user.banana_balance)
-        throw new Error("Insufficient banana balance");
-
-      const now = new Date().toISOString();
-      const betId = `bet-${nextBetSeq++}`;
-      const txId = `tx-${nextTxSeq++}`;
-
-      const bet: Bet = {
-        id: betId,
-        user_id: user.id,
-        market_id: marketId,
-        side,
-        amount,
-        created_at: now,
-      };
-
-      const tx: Transaction = {
-        id: txId,
-        user_id: user.id,
-        market_id: marketId,
-        transaction_type: "bet_placement",
-        amount: -amount,
-        created_at: now,
-      };
+    async (marketId: string, side: BetSide, amount: number): Promise<void> => {
+      const res = await api.placeBet(marketId, { side, amount });
 
       setMarkets((prev) =>
         prev.map((m) => {
@@ -116,18 +113,56 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }),
       );
 
-      setBets((prev) => [bet, ...prev]);
-      setTransactions((prev) => [tx, ...prev]);
-      updateBalance(-amount);
+      updateBalance(res.new_balance - user.banana_balance);
 
-      return bet;
+      const now = new Date().toISOString();
+      setBets((prev) => [
+        {
+          id: res.bet_id,
+          user_id: user.id,
+          market_id: marketId,
+          side,
+          amount,
+          created_at: now,
+        },
+        ...prev,
+      ]);
+      setTransactions((prev) => [
+        {
+          id: `tx-${res.bet_id}`,
+          user_id: user.id,
+          market_id: marketId,
+          transaction_type: "bet_placement" as const,
+          amount: -amount,
+          created_at: now,
+        },
+        ...prev,
+      ]);
     },
     [user.id, user.banana_balance, updateBalance],
   );
 
   const value = useMemo(
-    () => ({ markets, bets, transactions, priceHistory, addMarket, placeBet }),
-    [markets, bets, transactions, priceHistory, addMarket, placeBet],
+    () => ({
+      markets,
+      bets,
+      transactions,
+      loading,
+      addMarket,
+      placeBet,
+      refreshMarkets,
+      fetchMarket,
+    }),
+    [
+      markets,
+      bets,
+      transactions,
+      loading,
+      addMarket,
+      placeBet,
+      refreshMarkets,
+      fetchMarket,
+    ],
   );
 
   return <DataCtx.Provider value={value}>{children}</DataCtx.Provider>;

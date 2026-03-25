@@ -6,7 +6,7 @@ import { MarketCard } from "@/components/market-card";
 import { useData } from "@/lib/DataProvider";
 
 export default function Home() {
-  const { markets } = useData();
+  const { markets, loading } = useData();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const categories = useMemo(
@@ -42,28 +42,34 @@ export default function Home() {
           <h1 className="text-3xl font-bold tracking-tight">Markets</h1>
         </section>
 
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold">
-            Open Markets ({openMarkets.length})
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {openMarkets.map((market) => (
-              <MarketCard key={market.id} market={market} />
-            ))}
-          </div>
-        </section>
+        {loading ? (
+          <p className="text-muted-foreground">Loading markets...</p>
+        ) : (
+          <>
+            <section className="space-y-4">
+              <h2 className="text-lg font-semibold">
+                Open Markets ({openMarkets.length})
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {openMarkets.map((market) => (
+                  <MarketCard key={market.id} market={market} />
+                ))}
+              </div>
+            </section>
 
-        {closedMarkets.length > 0 && (
-          <section className="space-y-4">
-            <h2 className="text-lg font-semibold">
-              Closed & Resolved ({closedMarkets.length})
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {closedMarkets.map((market) => (
-                <MarketCard key={market.id} market={market} />
-              ))}
-            </div>
-          </section>
+            {closedMarkets.length > 0 && (
+              <section className="space-y-4">
+                <h2 className="text-lg font-semibold">
+                  Closed & Resolved ({closedMarkets.length})
+                </h2>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {closedMarkets.map((market) => (
+                    <MarketCard key={market.id} market={market} />
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
         )}
       </div>
     </>
