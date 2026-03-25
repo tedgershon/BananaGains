@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { BananaCoin } from "@/components/banana-coin";
 import { useSession } from "@/lib/SessionProvider";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,8 @@ const NAV_LINKS = [
 
 export function Navbar() {
   const pathname = usePathname();
-  const { user } = useSession();
+  const router = useRouter();
+  const { user, isDemo, signOut } = useSession();
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-white">
@@ -56,6 +57,25 @@ export function Navbar() {
           >
             Create Market
           </Link>
+          {isDemo ? (
+            <Link
+              href="/auth"
+              className="rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
+            >
+              Sign In
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={async () => {
+                await signOut();
+                router.push("/");
+              }}
+              className="rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
+            >
+              Sign Out
+            </button>
+          )}
         </div>
       </div>
     </header>

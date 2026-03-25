@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from supabase import Client
 
-from dependencies import get_current_user, get_supabase_client
+from dependencies import get_current_user, get_supabase_client, get_user_token, user_auth
 from schemas.user import CreateProfileRequest, UserProfileResponse
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -22,6 +22,7 @@ async def create_or_update_profile(
     body: CreateProfileRequest,
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_client),
+    token: str | None = Depends(get_user_token),
 ):
     """
     Upsert the profile for the authenticated user.
@@ -36,18 +37,19 @@ async def create_or_update_profile(
             detail="andrew_id must not be empty",
         )
 
-    result = (
-        supabase.table("profiles")
-        .upsert(
-            {
-                "id": current_user["id"],
-                "andrew_id": body.andrew_id.strip(),
-                "display_name": body.display_name.strip(),
-            },
-            on_conflict="id",
+    with user_auth(supabase, token):
+        result = (
+            supabase.table("profiles")
+            .upsert(
+                {
+                    "id": current_user["id"],
+                    "andrew_id": body.andrew_id.strip(),
+                    "display_name": body.display_name.strip(),
+                },
+                on_conflict="id",
+            )
+            .execute()
         )
-        .execute()
-    )
 
     if not result.data:
         raise HTTPException(

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
 
-from dependencies import get_current_user, get_current_user_optional, get_supabase_client
+from dependencies import get_current_user, get_current_user_optional, get_supabase_client, get_user_token, user_auth
 from schemas.market import CreateMarketRequest, MarketResponse
 
 router = APIRouter(prefix="/api/markets", tags=["markets"])
@@ -76,22 +76,24 @@ async def create_market(
     body: CreateMarketRequest,
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_client),
+    token: str | None = Depends(get_user_token),
 ):
     """Create a new prediction market."""
-    result = (
-        supabase.table("markets")
-        .insert(
-            {
-                "title": body.title,
-                "description": body.description,
-                "creator_id": current_user["id"],
-                "close_at": body.close_at.isoformat(),
-                "resolution_criteria": body.resolution_criteria,
-                "category": body.category,
-            }
+    with user_auth(supabase, token):
+        result = (
+            supabase.table("markets")
+            .insert(
+                {
+                    "title": body.title,
+                    "description": body.description,
+                    "creator_id": current_user["id"],
+                    "close_at": body.close_at.isoformat(),
+                    "resolution_criteria": body.resolution_criteria,
+                    "category": body.category,
+                }
+            )
+            .execute()
         )
-        .execute()
-    )
 
     if not result.data:
         raise HTTPException(

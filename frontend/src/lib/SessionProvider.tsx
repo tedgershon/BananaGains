@@ -19,6 +19,7 @@ interface SessionContextValue {
   isDemo: boolean;
   isLoading: boolean;
   updateBalance: (delta: number) => void;
+  signOut: () => Promise<void>;
 }
 
 const SessionCtx = createContext<SessionContextValue>({
@@ -26,6 +27,7 @@ const SessionCtx = createContext<SessionContextValue>({
   isDemo: true,
   isLoading: false,
   updateBalance: () => {},
+  signOut: async () => {},
 });
 
 export function useSession() {
@@ -83,9 +85,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  const signOut = useCallback(async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+    setUser(DEMO_USER);
+    setIsDemo(true);
+  }, []);
+
   const value = useMemo(
-    () => ({ user, isDemo, isLoading, updateBalance }),
-    [user, isDemo, isLoading, updateBalance],
+    () => ({ user, isDemo, isLoading, updateBalance, signOut }),
+    [user, isDemo, isLoading, updateBalance, signOut],
   );
 
   return <SessionCtx.Provider value={value}>{children}</SessionCtx.Provider>;
