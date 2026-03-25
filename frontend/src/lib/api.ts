@@ -7,6 +7,8 @@ import type {
   Market,
   PlaceBetRequest,
   PlaceBetResponse,
+  ResolveMarketRequest,
+  ResolveMarketResponse,
   Transaction,
   UserProfile,
 } from "./types";
@@ -99,6 +101,16 @@ export function getMarket(marketId: string): Promise<Market> {
 
 export function createMarket(body: CreateMarketRequest): Promise<Market> {
   return apiFetch("/api/markets", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function resolveMarket(
+  marketId: string,
+  body: ResolveMarketRequest,
+): Promise<ResolveMarketResponse> {
+  return apiFetch(`/api/markets/${marketId}/resolve`, {
     method: "POST",
     body: JSON.stringify(body),
   });

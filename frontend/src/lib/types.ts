@@ -78,6 +78,10 @@ export interface CreateMarketRequest {
   category?: string;
 }
 
+export interface ResolveMarketRequest {
+  outcome: BetSide;
+}
+
 export interface PlaceBetRequest {
   side: BetSide;
   amount: number;
@@ -95,6 +99,12 @@ export interface CreateProfileRequest {
 export interface PlaceBetResponse {
   bet_id: string;
   new_balance: number;
+}
+
+export interface ResolveMarketResponse {
+  market_id: string;
+  status: string;
+  outcome: string;
 }
 
 export interface PricePoint {
