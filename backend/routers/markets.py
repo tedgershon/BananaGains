@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
 
 from dependencies import get_current_user, get_current_user_optional, get_supabase_client, get_user_token, user_auth
-from schemas.market import CreateMarketRequest, MarketResponse
+from schemas.market import CreateMarketRequest, MarketResponse, ResolveMarketRequest, ResolveMarketResponse
 
 router = APIRouter(prefix="/api/markets", tags=["markets"])
 
@@ -102,3 +102,47 @@ async def create_market(
         )
 
     return result.data[0]
+
+
+@router.post("/{market_id}/resolve", response_model=ResolveMarketResponse)
+async def resolve_market(
+    market_id: str,
+    body: ResolveMarketRequest,
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client),
+    token: str | None = Depends(get_user_token),
+):
+    """Resolve an existing prediction market."""
+    with user_auth(supabase, token):
+        # First verify the creator
+        market = supabase.table("markets").select("creator_id").eq("id", market_id).single().execute()
+        if not market.data:
+            raise HTTPException(status_code=404, detail="Market not found.")
+        if market.data["creator_id"] != current_user["id"]:
+            raise HTTPException(status_code=403, detail="Only the market creator can resolve this market.")
+
+        try:
+            result = supabase.rpc(
+                "resolve_market",
+                {
+                    "p_market_id": market_id,
+                    "p_outcome": body.outcome,
+                    "p_resolver_id": current_user["id"],
+                }
+            ).execute()
+            return result.data
+        except Exception as e:
+            if "not open" in str(e).lower() or "already resolved" in str(e).lower():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=str(e),
+                )
+            if "not found" in str(e).lower():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Market not found.",
+                )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to resolve market: {e}"
+            )

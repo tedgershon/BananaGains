@@ -48,3 +48,13 @@ class MarketResponse(BaseModel):
     no_pool_total: float
     resolved_outcome: Literal["YES", "NO"] | None = None
     resolved_at: datetime | None = None
+
+
+class ResolveMarketRequest(BaseModel):
+    outcome: Literal["YES", "NO"]
+
+class ResolveMarketResponse(BaseModel):
+    market_id: str
+    status: str
+    outcome: str
+
