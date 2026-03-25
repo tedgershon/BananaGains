@@ -1,4 +1,4 @@
--- 004_auto_close_markets.sql
+-- 003_auto_close_markets.sql
 -- Periodic job to close markets whose close_at has passed.
 -- Works alongside the lazy API-layer check for immediate correctness.
 

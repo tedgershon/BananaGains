@@ -77,22 +77,25 @@ CREATE TABLE transactions (
 CREATE INDEX idx_transactions_user_id ON transactions (user_id);
 CREATE INDEX idx_transactions_market_id ON transactions (market_id);
 
--- Trigger: auto-create a profile row when a new user signs up via Supabase Auth
-CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER AS $$
+-- Trigger: auto-create a profile row when a new user signs up via Supabase Auth.
+-- search_path must be set and table names must be schema-qualified per Supabase docs.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = ''
+AS $$
 BEGIN
-    INSERT INTO profiles (id, andrew_id, display_name)
+    INSERT INTO public.profiles (id, andrew_id, display_name)
     VALUES (
         NEW.id,
         COALESCE(NEW.raw_user_meta_data->>'andrew_id', split_part(NEW.email, '@', 1)),
         COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1))
     );
-    -- Grant initial bananas
-    INSERT INTO transactions (user_id, transaction_type, amount)
+    INSERT INTO public.transactions (user_id, transaction_type, amount)
     VALUES (NEW.id, 'initial_grant', 1000);
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
