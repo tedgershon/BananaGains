@@ -67,7 +67,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (session) {
         loadProfile().finally(() => setIsLoading(false));
       } else {
-        loadProfile().finally(() => setIsLoading(false));
+        setUser(DEMO_USER);
+        setIsDemo(true);
+        setIsLoading(false);
       }
     });
 

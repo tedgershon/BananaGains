@@ -226,6 +226,15 @@ export default function MarketDetailPage({
               <span className="text-sm font-medium">Place a Bet</span>
             </CardHeader>
             <CardContent className="space-y-3">
+              {betError && (
+                <p className="text-xs font-medium text-danger">{betError}</p>
+              )}
+              {betSuccess && (
+                <p className="text-xs font-medium text-success">
+                  {betSuccess}
+                </p>
+              )}
+              
               {isOpen ? (
                 <>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -246,14 +255,6 @@ export default function MarketDetailPage({
                     }}
                     className="w-full rounded-full border border-border bg-background px-4 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                   />
-                  {betError && (
-                    <p className="text-xs font-medium text-danger">{betError}</p>
-                  )}
-                  {betSuccess && (
-                    <p className="text-xs font-medium text-success">
-                      {betSuccess}
-                    </p>
-                  )}
                   <div className="grid grid-cols-2 gap-2">
                     <Button
                       className="h-14 text-base bg-success text-success-foreground hover:bg-success/80"
