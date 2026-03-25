@@ -44,7 +44,7 @@ export default function MarketDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { markets, placeBet, fetchMarket } = useData();
+  const { markets, placeBet, fetchMarket, resolveMarket } = useData();
   const { user } = useSession();
 
   const contextMarket = markets.find((m) => m.id === id);
@@ -75,6 +75,7 @@ export default function MarketDetailPage({
   const [betError, setBetError] = useState<string | null>(null);
   const [betSuccess, setBetSuccess] = useState<string | null>(null);
   const [betting, setBetting] = useState(false);
+  const [resolving, setResolving] = useState(false);
 
   if (!market) {
     return (
@@ -114,6 +115,23 @@ export default function MarketDetailPage({
       setBetError(err instanceof Error ? err.message : "Failed to place bet.");
     } finally {
       setBetting(false);
+    }
+  }
+
+  async function handleResolve(outcome: BetSide) {
+    if (!confirm(`Are you sure you want to resolve this market as ${outcome}? This CANNOT be undone.`)) return;
+    setResolving(true);
+    setBetError(null);
+    setBetSuccess(null);
+    try {
+      await resolveMarket(market!.id, outcome);
+      setBetSuccess(`Market resolved as ${outcome}!`);
+      // Update local bets/history
+      api.listBetsForMarket(id).then(setMarketBets);
+    } catch (err) {
+      setBetError(err instanceof Error ? err.message : "Failed to resolve market.");
+    } finally {
+      setResolving(false);
     }
   }
 
@@ -254,9 +272,35 @@ export default function MarketDetailPage({
                   </div>
                 </>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  This market is {market.status} and no longer accepting bets.
-                </p>
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    This market is {market.status} and no longer accepting bets.
+                  </p>
+                  
+                  {market.status === 'closed' && user.id === market.creator_id && (
+                    <div className="space-y-2 mt-4 pt-4 border-t">
+                      <p className="text-sm font-medium">Resolve Market Outcomes</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          variant="outline"
+                          className="h-10 text-success border-success hover:bg-success hover:text-success-foreground"
+                          onClick={() => handleResolve("YES")}
+                          disabled={resolving}
+                        >
+                          Resolve YES
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="h-10 text-danger border-danger hover:bg-danger hover:text-danger-foreground"
+                          onClick={() => handleResolve("NO")}
+                          disabled={resolving}
+                        >
+                          Resolve NO
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>
