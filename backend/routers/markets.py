@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
 
@@ -5,6 +7,25 @@ from dependencies import get_current_user, get_current_user_optional, get_supaba
 from schemas.market import CreateMarketRequest, MarketResponse
 
 router = APIRouter(prefix="/api/markets", tags=["markets"])
+
+
+def _auto_close_expired(markets: list[dict], supabase: Client) -> list[dict]:
+    """Lazily transition any open market whose close_at has passed to 'closed'."""
+    now = datetime.now(tz=timezone.utc)
+    expired_ids: list[str] = []
+    for m in markets:
+        if m.get("status") == "open":
+            close_at = datetime.fromisoformat(m["close_at"])
+            if close_at <= now:
+                m["status"] = "closed"
+                expired_ids.append(m["id"])
+
+    if expired_ids:
+        supabase.table("markets").update({"status": "closed"}).in_(
+            "id", expired_ids
+        ).execute()
+
+    return markets
 
 
 @router.get("", response_model=list[MarketResponse])
@@ -27,7 +48,7 @@ async def list_markets(
     query = query.order("created_at", desc=True).range(offset, offset + limit - 1)
     result = query.execute()
 
-    return result.data or []
+    return _auto_close_expired(result.data or [], supabase)
 
 
 @router.get("/{market_id}", response_model=MarketResponse)
@@ -47,7 +68,7 @@ async def get_market(
             detail="Market not found",
         )
 
-    return result.data
+    return _auto_close_expired([result.data], supabase)[0]
 
 
 @router.post("", response_model=MarketResponse, status_code=status.HTTP_201_CREATED)

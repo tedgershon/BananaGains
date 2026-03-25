@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from supabase import Client, create_client
 
@@ -20,12 +20,20 @@ DEMO_USER_PROFILE: dict = {
 }
 
 
-def get_supabase_client() -> Client | None:
+def get_supabase_client() -> Client:
+    """Return a Supabase client.  Always initialised when URL + key are set.
+
+    The demo_mode flag only governs *authentication* (get_current_user returns
+    a hardcoded profile); every route still needs a live DB connection.
+    """
     global _supabase_client
-    s = get_settings()
-    if s.demo_mode:
-        return _supabase_client
     if _supabase_client is None:
+        s = get_settings()
+        if not s.supabase_url or not s.supabase_key:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Supabase URL and key must be configured",
+            )
         _supabase_client = create_client(s.supabase_url, s.supabase_key)
     return _supabase_client
 
@@ -63,7 +71,7 @@ def _resolve_user(token: str, supabase: Client) -> dict:
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_security),
-    supabase: Client | None = Depends(get_supabase_client),
+    supabase: Client = Depends(get_supabase_client),
 ) -> dict:
     """Required auth -- returns the authenticated user's profile or 401.
 
@@ -77,17 +85,12 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
         )
-    if supabase is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database not configured",
-        )
     return _resolve_user(credentials.credentials, supabase)
 
 
 async def get_current_user_optional(
     credentials: HTTPAuthorizationCredentials | None = Depends(_security_optional),
-    supabase: Client | None = Depends(get_supabase_client),
+    supabase: Client = Depends(get_supabase_client),
 ) -> dict | None:
     """Optional auth -- returns profile if a valid token is present, else None.
 
@@ -97,8 +100,6 @@ async def get_current_user_optional(
         return DEMO_USER_PROFILE
 
     if credentials is None:
-        return None
-    if supabase is None:
         return None
     try:
         return _resolve_user(credentials.credentials, supabase)
