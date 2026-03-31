@@ -4,15 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-type Mode = "sign-in" | "sign-up";
-
 export default function AuthPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("sign-in");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [andrewId, setAndrewId] = useState("");
-  const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -37,33 +30,21 @@ export default function AuthPage() {
     );
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleGoogleSignIn() {
     if (!supabase) return;
     setError(null);
     setLoading(true);
 
     try {
-      if (mode === "sign-up") {
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { andrew_id: andrewId, full_name: displayName },
-          },
-        });
-        if (signUpError) throw signUpError;
-      } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (signInError) throw signInError;
-      }
-      router.push("/");
+      const { error: signInError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth`,
+        },
+      });
+      if (signInError) throw signInError;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
       setLoading(false);
     }
   }
@@ -74,90 +55,13 @@ export default function AuthPage() {
         <span className="text-4xl" role="img" aria-label="banana">
           🍌
         </span>
-        <h1 className="mt-2 text-2xl font-bold">
-          {mode === "sign-in" ? "Welcome back" : "Create your account"}
-        </h1>
+        <h1 className="mt-2 text-2xl font-bold">Welcome to BananaGains</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {mode === "sign-in"
-            ? "Sign in to start predicting"
-            : "Join CMU's prediction market"}
+          Sign in with your CMU Google account to start predicting
         </p>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-4 rounded-xl border border-border bg-card p-6"
-      >
-        <div>
-          <label htmlFor="email" className="mb-1 block text-sm font-medium">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-            placeholder="you@andrew.cmu.edu"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="password" className="mb-1 block text-sm font-medium">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            required
-            minLength={6}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-            placeholder="At least 6 characters"
-          />
-        </div>
-
-        {mode === "sign-up" && (
-          <>
-            <div>
-              <label
-                htmlFor="andrew-id"
-                className="mb-1 block text-sm font-medium"
-              >
-                Andrew ID
-              </label>
-              <input
-                id="andrew-id"
-                type="text"
-                required
-                value={andrewId}
-                onChange={(e) => setAndrewId(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                placeholder="e.g. at2"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="display-name"
-                className="mb-1 block text-sm font-medium"
-              >
-                Display Name
-              </label>
-              <input
-                id="display-name"
-                type="text"
-                required
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                placeholder="Your name"
-              />
-            </div>
-          </>
-        )}
-
+      <div className="space-y-4 rounded-xl border border-border bg-card p-6">
         {error && (
           <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error}
@@ -165,49 +69,18 @@ export default function AuthPage() {
         )}
 
         <button
-          type="submit"
+          type="button"
+          onClick={handleGoogleSignIn}
           disabled={loading}
           className="w-full rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
-          {loading
-            ? "Loading..."
-            : mode === "sign-in"
-              ? "Sign In"
-              : "Create Account"}
+          {loading ? "Redirecting to Google..." : "Continue with Google"}
         </button>
-      </form>
 
-      <p className="mt-4 text-center text-sm text-muted-foreground">
-        {mode === "sign-in" ? (
-          <>
-            Don&apos;t have an account?{" "}
-            <button
-              type="button"
-              onClick={() => {
-                setMode("sign-up");
-                setError(null);
-              }}
-              className="font-medium text-foreground underline underline-offset-4 hover:text-primary"
-            >
-              Sign up
-            </button>
-          </>
-        ) : (
-          <>
-            Already have an account?{" "}
-            <button
-              type="button"
-              onClick={() => {
-                setMode("sign-in");
-                setError(null);
-              }}
-              className="font-medium text-foreground underline underline-offset-4 hover:text-primary"
-            >
-              Sign in
-            </button>
-          </>
-        )}
-      </p>
+        <p className="text-center text-xs text-muted-foreground">
+          Only @andrew.cmu.edu Google accounts are allowed.
+        </p>
+      </div>
     </div>
   );
 }
