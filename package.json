@@ -1,0 +1,7 @@
+{
+  "name": "s26_team_11",
+  "private": true,
+  "devDependencies": {
+    "supabase": "^2.84.5"
+  }
+}

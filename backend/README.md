@@ -17,3 +17,7 @@ Notable auth enforcement migrations:
 
 - `005_cmu_email_rls.sql` restricts database access to `@andrew.cmu.edu` users.
 - `006_auth_cmu_domain_trigger.sql` blocks account creation unless the email ends with `@andrew.cmu.edu`.
+
+Dispute/voting migration:
+
+- `007_dispute_voting.sql` adds dispute fields and voting RPCs.

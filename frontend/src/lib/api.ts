@@ -1,9 +1,12 @@
 import { supabase } from "./supabase";
 import type {
   Bet,
+  CastVoteRequest,
   ClaimDailyResponse,
   CreateMarketRequest,
   CreateProfileRequest,
+  DisputeResponse,
+  FileDisputeRequest,
   LeaderboardEntry,
   Market,
   PlaceBetRequest,
@@ -12,6 +15,7 @@ import type {
   ResolveMarketResponse,
   Transaction,
   UserProfile,
+  VoteResponse,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -119,6 +123,34 @@ export function resolveMarket(
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+export function fileDispute(
+  marketId: string,
+  body: FileDisputeRequest,
+): Promise<DisputeResponse> {
+  return apiFetch(`/api/markets/${marketId}/dispute`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function getDispute(marketId: string): Promise<DisputeResponse> {
+  return apiFetch(`/api/markets/${marketId}/dispute`);
+}
+
+export function castDisputeVote(
+  marketId: string,
+  body: CastVoteRequest,
+): Promise<VoteResponse> {
+  return apiFetch(`/api/markets/${marketId}/dispute/vote`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function listDisputeVotes(marketId: string): Promise<VoteResponse[]> {
+  return apiFetch(`/api/markets/${marketId}/dispute/votes`);
 }
 
 // ---------------------------------------------------------------------------

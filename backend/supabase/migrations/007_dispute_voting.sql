@@ -1,0 +1,5 @@
+-- 007_dispute_voting.sql (deprecated)
+-- This migration is intentionally left as a no-op because the dispute/vote
+-- flow has been superseded by later governance migrations (010+).
+-- Keeping the file avoids breaking historical references while preventing
+-- conflicting schema changes during fresh resets.

@@ -2,16 +2,16 @@
 
 import {
   createContext,
+  type ReactNode,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
-  type ReactNode,
 } from "react";
 import * as api from "./api";
-import { useSession } from "./SessionProvider";
 import { DEMO_USER } from "./mock-data";
+import { useSession } from "./SessionProvider";
 import type {
   Bet,
   BetSide,
@@ -28,6 +28,8 @@ interface DataContextValue {
   claimDaily: () => Promise<void>;
   addMarket: (req: CreateMarketRequest) => Promise<Market>;
   resolveMarket: (marketId: string, outcome: BetSide) => Promise<void>;
+  disputeMarket: (marketId: string, explanation: string) => Promise<void>;
+  castDisputeVote: (marketId: string, vote: BetSide) => Promise<void>;
   placeBet: (marketId: string, side: BetSide, amount: number) => Promise<void>;
   refreshMarkets: () => Promise<void>;
   fetchMarket: (id: string) => Promise<Market>;
@@ -56,7 +58,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const mkts = await api.listMarkets();
         if (cancelled) return;
         setMarkets(mkts);
-      } catch (err: any) {
+      } catch (err: unknown) {
         // Only log if it's not a generic 401 when we are just completely unauthenticated out the gate
         console.error("Failed to load markets:", err);
       }
@@ -70,8 +72,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
           if (cancelled) return;
           setBets(userBets);
           setTransactions(txs);
-        } catch (err: any) {
-          if (err?.status !== 401) {
+        } catch (err: unknown) {
+          const apiError = err as { status?: number } | undefined;
+          if (apiError?.status !== 401) {
             console.error("Failed to load user data:", err);
           }
         }
@@ -121,7 +124,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const resolveMarket = useCallback(
     async (marketId: string, outcome: BetSide): Promise<void> => {
-      await api.resolveMarket(marketId, { outcome });
+      const res = await api.resolveMarket(marketId, { outcome });
 
       // Reflect the status change locally immediately
       setMarkets((prev) =>
@@ -129,19 +132,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
           if (m.id !== marketId) return m;
           return {
             ...m,
-            status: "resolved",
-            resolved_outcome: outcome,
-            resolved_at: new Date().toISOString(),
+            status: res.status ?? "pending_resolution",
+            proposed_outcome: res.proposed_outcome ?? outcome,
+            proposed_at: new Date().toISOString(),
+            dispute_deadline: res.dispute_deadline ?? null,
           };
         }),
       );
 
       // Refresh the user's transactions and balance to reflect potential payouts
-      Promise.all([
-        api.getPortfolio(),
-        api.getTransactions(),
-        api.getMe(),
-      ])
+      Promise.all([api.getPortfolio(), api.getTransactions(), api.getMe()])
         .then(([newBets, newTxs, profile]) => {
           setBets(newBets);
           setTransactions(newTxs);
@@ -150,6 +150,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
         .catch(console.error);
     },
     [updateBalance, user.banana_balance],
+  );
+
+  const disputeMarket = useCallback(
+    async (marketId: string, explanation: string): Promise<void> => {
+      const res = await api.fileDispute(marketId, { explanation });
+      setMarkets((prev) =>
+        prev.map((m) =>
+          m.id === marketId
+            ? {
+                ...m,
+                status: "disputed",
+                disputed_at: res.created_at,
+                disputed_by: res.disputer_id,
+                voting_ends_at: res.voting_deadline,
+              }
+            : m,
+        ),
+      );
+    },
+    [],
+  );
+
+  const castDisputeVote = useCallback(
+    async (marketId: string, vote: BetSide): Promise<void> => {
+      await api.castDisputeVote(marketId, { vote });
+    },
+    [],
   );
 
   const placeBet = useCallback(
@@ -221,6 +248,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       claimDaily,
       addMarket,
       resolveMarket,
+      disputeMarket,
+      castDisputeVote,
       placeBet,
       refreshMarkets,
       fetchMarket,
@@ -233,6 +262,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       claimDaily,
       addMarket,
       resolveMarket,
+      disputeMarket,
+      castDisputeVote,
       placeBet,
       refreshMarkets,
       fetchMarket,

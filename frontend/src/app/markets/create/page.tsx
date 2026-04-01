@@ -67,9 +67,7 @@ export default function CreateMarketPage() {
       });
       router.push(`/markets/${market.id}`);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to create market.",
-      );
+      setError(err instanceof Error ? err.message : "Failed to create market.");
       setSubmitting(false);
     }
   }

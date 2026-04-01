@@ -2,12 +2,12 @@
 
 import {
   createContext,
+  type ReactNode,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
-  type ReactNode,
 } from "react";
 import { getMe } from "./api";
 import { DEMO_USER } from "./mock-data";
@@ -58,7 +58,7 @@ export function SessionProvider({
     setUser((prev) => ({ ...prev, claimed_today: true }));
   }, []);
 
-  async function loadProfile() {
+  const loadProfile = useCallback(async () => {
     try {
       const profile = await getMe();
       setUser(profile);
@@ -67,7 +67,7 @@ export function SessionProvider({
       setUser(DEMO_USER);
       setIsDemo(true);
     }
-  }
+  }, []);
 
   useEffect(() => {
     if (!supabase) {
@@ -97,7 +97,7 @@ export function SessionProvider({
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [loadProfile]);
 
   const signOut = useCallback(async () => {
     if (supabase) {

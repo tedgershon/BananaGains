@@ -143,13 +143,13 @@
   background:
     linear-gradient(var(--card), var(--card)) padding-box,
     conic-gradient(
-        from 180deg at 0% 0%,
-        var(--success) 0deg,
-        var(--success) 60deg,
-        var(--border) 150deg,
-        var(--border) 360deg
-      )
-      border-box;
+      from 180deg at 0% 0%,
+      var(--success) 0deg,
+      var(--success) 60deg,
+      var(--border) 150deg,
+      var(--border) 360deg
+    )
+    border-box;
 }
 
 .glimmer-dot {

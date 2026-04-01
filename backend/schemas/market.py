@@ -61,6 +61,9 @@ class MarketResponse(BaseModel):
     dispute_deadline: datetime | None = None
     resolved_outcome: Literal["YES", "NO"] | None = None
     resolved_at: datetime | None = None
+    disputed_at: datetime | None = None
+    disputed_by: str | None = None
+    voting_ends_at: datetime | None = None
 
 
 class ProposeResolutionRequest(BaseModel):
@@ -82,4 +85,43 @@ class ResolveMarketResponse(BaseModel):
     market_id: str
     status: str
     outcome: str
+
+
+class DisputeMarketResponse(BaseModel):
+    market_id: str
+    status: str
+    voting_ends_at: datetime | None = None
+
+
+class ResolutionVoteRequest(BaseModel):
+    outcome: Literal["YES", "NO"]
+    amount: float
+
+    @field_validator("amount")
+    @classmethod
+    def amount_positive(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("Stake amount must be positive")
+        return v
+
+
+class ResolutionVoteResponse(BaseModel):
+    vote_id: str
+    new_balance: float
+
+
+class ResolutionTotalsResponse(BaseModel):
+    yes_total: float
+    no_total: float
+    total_staked: float
+    total_voters: int
+
+
+class FinalizeDisputeResponse(BaseModel):
+    market_id: str
+    status: str
+    outcome: str
+    yes_total: float
+    no_total: float
+    total_voters: int
 

@@ -2,7 +2,7 @@
 
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
 import { ProbabilityChart } from "@/components/probability-chart";
 import { Badge } from "@/components/ui/badge";
@@ -12,14 +12,15 @@ import { Spinner } from "@/components/ui/spinner";
 import * as api from "@/lib/api";
 import { useData } from "@/lib/DataProvider";
 import { useSession } from "@/lib/SessionProvider";
-import type { Bet, BetSide, PricePoint } from "@/lib/types";
+import type { Bet, BetSide, DisputeResponse, PricePoint } from "@/lib/types";
 import { getMarketProbability } from "@/lib/types";
 
 function buildPriceHistory(bets: Bet[]): PricePoint[] {
   if (bets.length === 0) return [];
 
   const sorted = [...bets].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    (a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );
 
   let yes = 0;
@@ -45,7 +46,15 @@ export default function MarketDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { markets, placeBet, fetchMarket, resolveMarket } = useData();
+  const {
+    markets,
+    bets: userBets,
+    placeBet,
+    fetchMarket,
+    resolveMarket,
+    disputeMarket,
+    castDisputeVote,
+  } = useData();
   const { user } = useSession();
 
   const contextMarket = markets.find((m) => m.id === id);
@@ -77,6 +86,43 @@ export default function MarketDetailPage({
   const [betSuccess, setBetSuccess] = useState<string | null>(null);
   const [betting, setBetting] = useState(false);
   const [resolving, setResolving] = useState(false);
+  const [disputing, setDisputing] = useState(false);
+  const [voting, setVoting] = useState(false);
+  const [disputeExplanation, setDisputeExplanation] = useState("");
+  const [disputeDetails, setDisputeDetails] = useState<DisputeResponse | null>(
+    null,
+  );
+  const [voteTotals, setVoteTotals] = useState<{ yes: number; no: number }>({
+    yes: 0,
+    no: 0,
+  });
+
+  const refreshVoteTotals = useCallback(async () => {
+    try {
+      const votes = await api.listDisputeVotes(id);
+      let yes = 0;
+      let no = 0;
+      for (const vote of votes) {
+        if (vote.selected_outcome === "YES") yes += 1;
+        else if (vote.selected_outcome === "NO") no += 1;
+      }
+      setVoteTotals({ yes, no });
+    } catch {
+      // ignore
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (market?.status === "disputed") {
+      api
+        .getDispute(id)
+        .then(setDisputeDetails)
+        .catch(() => {
+          setDisputeDetails(null);
+        });
+      refreshVoteTotals();
+    }
+  }, [market?.status, refreshVoteTotals]);
 
   if (!market) {
     return (
@@ -93,8 +139,19 @@ export default function MarketDetailPage({
   const total = market.yes_pool_total + market.no_pool_total;
   const chartData = buildPriceHistory(marketBets);
   const isOpen = market.status === "open";
+  const isPendingResolution = market.status === "pending_resolution";
+  const isDisputed = market.status === "disputed";
+  const userHasBet = userBets.some((bet) => bet.market_id === market.id);
+  const votingEndsAt = disputeDetails?.voting_deadline
+    ? new Date(disputeDetails.voting_deadline)
+    : null;
+  const votingClosed = votingEndsAt ? votingEndsAt <= new Date() : false;
+  const disputeDeadline = market.dispute_deadline
+    ? new Date(market.dispute_deadline)
+    : null;
 
   async function handleBet(side: BetSide) {
+    if (!market) return;
     setBetError(null);
     setBetSuccess(null);
     const amount = Number(betAmount);
@@ -108,10 +165,13 @@ export default function MarketDetailPage({
     }
     setBetting(true);
     try {
-      await placeBet(market!.id, side, amount);
+      await placeBet(market.id, side, amount);
       setBetSuccess(`Placed ${amount} on ${side}!`);
       setBetAmount("");
-      api.listBetsForMarket(id).then(setMarketBets).catch(() => {});
+      api
+        .listBetsForMarket(id)
+        .then(setMarketBets)
+        .catch(() => {});
     } catch (err) {
       setBetError(err instanceof Error ? err.message : "Failed to place bet.");
     } finally {
@@ -120,21 +180,75 @@ export default function MarketDetailPage({
   }
 
   async function handleResolve(outcome: BetSide) {
-    if (!confirm(`Are you sure you want to resolve this market as ${outcome}? This CANNOT be undone.`)) return;
+    if (!market) return;
+    if (
+      !confirm(
+        `Are you sure you want to propose ${outcome} as the resolution? This opens a dispute window.`,
+      )
+    )
+      return;
     setResolving(true);
     setBetError(null);
     setBetSuccess(null);
     try {
-      await resolveMarket(market!.id, outcome);
-      setBetSuccess(`Market resolved as ${outcome}!`);
+      await resolveMarket(market.id, outcome);
+      setBetSuccess(`Resolution proposed as ${outcome}. Dispute window open.`);
       // Update local bets/history
       api.listBetsForMarket(id).then(setMarketBets);
     } catch (err) {
-      setBetError(err instanceof Error ? err.message : "Failed to resolve market.");
+      setBetError(
+        err instanceof Error ? err.message : "Failed to resolve market.",
+      );
     } finally {
       setResolving(false);
     }
   }
+
+  async function handleDispute() {
+    if (!market) return;
+    const explanation = disputeExplanation.trim();
+    if (!explanation) {
+      setBetError("Please add a short explanation for the dispute.");
+      return;
+    }
+    setDisputing(true);
+    setBetError(null);
+    setBetSuccess(null);
+    try {
+      await disputeMarket(market.id, explanation);
+      setDisputeExplanation("");
+      setBetSuccess("Market disputed. Voting is now open.");
+    } catch (err) {
+      setBetError(
+        err instanceof Error ? err.message : "Failed to dispute market.",
+      );
+    } finally {
+      setDisputing(false);
+    }
+  }
+
+  async function handleVote(outcome: BetSide) {
+    if (!market) return;
+    setBetError(null);
+    setBetSuccess(null);
+    if (userHasBet) {
+      setBetError("Bettors cannot vote in disputes.");
+      return;
+    }
+    setVoting(true);
+    try {
+      await castDisputeVote(market.id, outcome);
+      setBetSuccess(`Voted ${outcome}.`);
+      refreshVoteTotals();
+    } catch (err) {
+      setBetError(
+        err instanceof Error ? err.message : "Failed to submit vote.",
+      );
+    } finally {
+      setVoting(false);
+    }
+  }
+
 
   const closesAt = new Date(market.close_at).toLocaleDateString("en-US", {
     month: "long",
@@ -195,6 +309,19 @@ export default function MarketDetailPage({
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 <dt className="text-muted-foreground">Status</dt>
                 <dd className="font-medium capitalize">{market.status}</dd>
+                {isDisputed && votingEndsAt && (
+                  <>
+                    <dt className="text-muted-foreground">Voting ends</dt>
+                    <dd className="font-medium">
+                      {votingEndsAt.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </dd>
+                  </>
+                )}
                 <dt className="text-muted-foreground">Closes</dt>
                 <dd className="font-medium">{closesAt}</dd>
                 <dt className="text-muted-foreground">Total Pool</dt>
@@ -231,11 +358,9 @@ export default function MarketDetailPage({
                 <p className="text-xs font-medium text-danger">{betError}</p>
               )}
               {betSuccess && (
-                <p className="text-xs font-medium text-success">
-                  {betSuccess}
-                </p>
+                <p className="text-xs font-medium text-success">{betSuccess}</p>
               )}
-              
+
               {isOpen ? (
                 <>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -278,26 +403,100 @@ export default function MarketDetailPage({
                   <p className="text-sm text-muted-foreground">
                     This market is {market.status} and no longer accepting bets.
                   </p>
-                  
-                  {market.status === 'closed' && user.id === market.creator_id && (
-                    <div className="space-y-2 mt-4 pt-4 border-t">
-                      <p className="text-sm font-medium">Resolve Market Outcomes</p>
+
+                  {market.status === "closed" &&
+                    user.id === market.creator_id && (
+                      <div className="space-y-2 mt-4 pt-4 border-t">
+                        <p className="text-sm font-medium">
+                          Resolve Market Outcomes
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            variant="outline"
+                            className="h-10 text-success border-success hover:bg-success hover:text-success-foreground"
+                            onClick={() => handleResolve("YES")}
+                            disabled={resolving}
+                          >
+                            Resolve YES
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="h-10 text-danger border-danger hover:bg-danger hover:text-danger-foreground"
+                            onClick={() => handleResolve("NO")}
+                            disabled={resolving}
+                          >
+                            Resolve NO
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                  {isPendingResolution && (
+                    <div className="space-y-3 mt-4 pt-4 border-t">
+                      <p className="text-sm font-medium">Dispute Resolution</p>
+                      <div className="text-xs text-muted-foreground">
+                        Provide a short explanation if you want to dispute the
+                        proposed outcome.
+                      </div>
+                      {disputeDeadline && (
+                        <div className="text-xs text-muted-foreground">
+                          Dispute window ends on {" "}
+                          {disputeDeadline.toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                          .
+                        </div>
+                      )}
+                      <textarea
+                        value={disputeExplanation}
+                        onChange={(e) => {
+                          setDisputeExplanation(e.target.value);
+                          setBetError(null);
+                          setBetSuccess(null);
+                        }}
+                        placeholder="Why are you disputing this outcome?"
+                        className="w-full min-h-[90px] rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      />
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={handleDispute}
+                        disabled={disputing}
+                      >
+                        {disputing ? "Submitting dispute..." : "Submit Dispute"}
+                      </Button>
+                    </div>
+                  )}
+
+                  {isDisputed && (
+                    <div className="space-y-3 mt-4 pt-4 border-t">
+                      <p className="text-sm font-medium">Community Vote</p>
+                      <div className="text-xs text-muted-foreground">
+                        {userHasBet
+                          ? "Bettors cannot vote in disputes."
+                          : "Cast your vote on the final outcome."}
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span>YES votes: {voteTotals.yes}</span>
+                        <span>NO votes: {voteTotals.no}</span>
+                      </div>
                       <div className="grid grid-cols-2 gap-2">
                         <Button
-                          variant="outline"
-                          className="h-10 text-success border-success border-b-success/40 active:border-b-success/40 hover:bg-success hover:text-success-foreground"
-                          onClick={() => handleResolve("YES")}
-                          disabled={resolving}
+                          className="h-10 text-sm bg-success text-success-foreground hover:bg-success/80"
+                          onClick={() => handleVote("YES")}
+                          disabled={voting || userHasBet || votingClosed}
                         >
-                          Resolve YES
+                          Vote YES
                         </Button>
                         <Button
-                          variant="outline"
-                          className="h-10 text-danger border-danger border-b-danger/40 active:border-b-danger/40 hover:bg-danger hover:text-danger-foreground"
-                          onClick={() => handleResolve("NO")}
-                          disabled={resolving}
+                          className="h-10 text-sm bg-danger text-danger-foreground hover:bg-danger/80"
+                          onClick={() => handleVote("NO")}
+                          disabled={voting || userHasBet || votingClosed}
                         >
-                          Resolve NO
+                          Vote NO
                         </Button>
                       </div>
                     </div>

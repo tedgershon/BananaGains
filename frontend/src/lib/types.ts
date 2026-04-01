@@ -2,7 +2,13 @@
 // Domain types (mirror DATA_MODEL.md and backend response schemas)
 // ---------------------------------------------------------------------------
 
-export type MarketStatus = "open" | "closed" | "pending_resolution" | "disputed" | "admin_review" | "resolved";
+export type MarketStatus =
+  | "open"
+  | "closed"
+  | "pending_resolution"
+  | "disputed"
+  | "admin_review"
+  | "resolved";
 export type BetSide = "YES" | "NO";
 
 export interface UserProfile {
@@ -29,8 +35,18 @@ export interface Market {
   yes_pool_total: number;
   no_pool_total: number;
 
+  official_source?: string | null;
+  yes_criteria?: string | null;
+  no_criteria?: string | null;
+  ambiguity_criteria?: string | null;
+  proposed_outcome?: BetSide | null;
+  proposed_at?: string | null;
+  dispute_deadline?: string | null;
   resolved_outcome: BetSide | null;
   resolved_at: string | null;
+  disputed_at?: string | null;
+  disputed_by?: string | null;
+  voting_ends_at?: string | null;
   category: string;
 }
 
@@ -78,10 +94,22 @@ export interface CreateMarketRequest {
   close_at: string;
   resolution_criteria: string;
   category?: string;
+  official_source?: string;
+  yes_criteria?: string;
+  no_criteria?: string;
+  ambiguity_criteria?: string;
 }
 
 export interface ResolveMarketRequest {
   outcome: BetSide;
+}
+
+export interface FileDisputeRequest {
+  explanation: string;
+}
+
+export interface CastVoteRequest {
+  vote: BetSide;
 }
 
 export interface PlaceBetRequest {
@@ -105,13 +133,34 @@ export interface PlaceBetResponse {
 
 export interface ResolveMarketResponse {
   market_id: string;
-  status: string;
-  outcome: string;
+  status: MarketStatus;
+  proposed_outcome?: BetSide;
+  dispute_deadline?: string | null;
+  outcome?: BetSide;
 }
 
 export interface ClaimDailyResponse {
   new_balance: number;
   claimed_at: string;
+}
+
+export interface DisputeResponse {
+  id: string;
+  market_id: string;
+  disputer_id: string;
+  explanation: string;
+  voting_deadline: string;
+  resolved_by_admin: boolean;
+  created_at: string;
+}
+
+export interface VoteResponse {
+  id: string;
+  dispute_id: string;
+  market_id: string;
+  voter_id: string;
+  selected_outcome: BetSide;
+  created_at: string;
 }
 
 export interface PricePoint {

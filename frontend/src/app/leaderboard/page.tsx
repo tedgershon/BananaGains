@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Trophy } from "lucide-react";
+import { useEffect, useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
