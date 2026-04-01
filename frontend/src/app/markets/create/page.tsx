@@ -92,7 +92,10 @@ export default function CreateMarketPage() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+      <form
+        onSubmit={handleSubmit}
+        className="grid gap-4 lg:grid-cols-[2fr_1fr]"
+      >
         <div className="space-y-4">
           <Card size="sm">
             <CardHeader className="pb-0">
@@ -100,7 +103,10 @@ export default function CreateMarketPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1.5">
-                <label htmlFor="title" className="text-sm font-medium text-foreground">
+                <label
+                  htmlFor="title"
+                  className="text-sm font-medium text-foreground"
+                >
                   Title
                 </label>
                 <input
@@ -114,7 +120,10 @@ export default function CreateMarketPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label htmlFor="description" className="text-sm font-medium text-foreground">
+                <label
+                  htmlFor="description"
+                  className="text-sm font-medium text-foreground"
+                >
                   Description
                 </label>
                 <textarea
@@ -128,7 +137,10 @@ export default function CreateMarketPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label htmlFor="resolutionCriteria" className="text-sm font-medium text-foreground">
+                <label
+                  htmlFor="resolutionCriteria"
+                  className="text-sm font-medium text-foreground"
+                >
                   Resolution Criteria
                 </label>
                 <textarea
@@ -151,7 +163,10 @@ export default function CreateMarketPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1.5">
-                <label htmlFor="closeAt" className="text-sm font-medium text-foreground">
+                <label
+                  htmlFor="closeAt"
+                  className="text-sm font-medium text-foreground"
+                >
                   Close Date
                 </label>
                 <input
@@ -164,7 +179,10 @@ export default function CreateMarketPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label htmlFor="category" className="text-sm font-medium text-foreground">
+                <label
+                  htmlFor="category"
+                  className="text-sm font-medium text-foreground"
+                >
                   Category
                 </label>
                 <select
@@ -183,9 +201,7 @@ export default function CreateMarketPage() {
             </CardContent>
           </Card>
 
-          {error && (
-            <p className="text-sm font-medium text-danger">{error}</p>
-          )}
+          {error && <p className="text-sm font-medium text-danger">{error}</p>}
 
           <Button
             type="submit"

@@ -49,14 +49,20 @@ export function Navbar() {
             <>
               <Link
                 href="/portfolio"
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "gap-1.5",
+                )}
               >
                 <BananaCoin size={16} />
                 <span>{user.banana_balance.toLocaleString()}</span>
               </Link>
               <Link
                 href="/markets/create"
-                className={cn(buttonVariants({ variant: "default", size: "sm" }), "px-4")}
+                className={cn(
+                  buttonVariants({ variant: "default", size: "sm" }),
+                  "px-4",
+                )}
               >
                 Create Market
               </Link>
@@ -65,7 +71,10 @@ export function Navbar() {
           {isDemo ? (
             <Link
               href="/auth"
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "px-4")}
+              className={cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                "px-4",
+              )}
             >
               Sign In
             </Link>

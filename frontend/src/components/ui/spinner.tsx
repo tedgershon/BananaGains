@@ -6,7 +6,9 @@ export function Spinner({ className }: { className?: string }) {
       className={cn("size-4 animate-spin", className)}
       viewBox="0 0 24 24"
       fill="none"
+      role="img"
     >
+      <title>Loading</title>
       <circle
         className="opacity-25"
         cx="12"

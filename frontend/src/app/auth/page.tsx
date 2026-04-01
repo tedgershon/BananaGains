@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { supabase } from "@/lib/supabase";
 
 export default function AuthPage() {
   const [error, setError] = useState<string | null>(null);

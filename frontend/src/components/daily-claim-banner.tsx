@@ -24,6 +24,7 @@ export function DailyClaimBanner() {
           </span>
         </Link>
         <button
+          type="button"
           onClick={() => setDismissed(true)}
           className="text-muted-foreground hover:text-foreground text-sm px-1"
         >

@@ -122,7 +122,7 @@ export default function MarketDetailPage({
         });
       refreshVoteTotals();
     }
-  }, [market?.status, refreshVoteTotals]);
+  }, [market?.status, refreshVoteTotals, id]);
 
   if (!market) {
     return (
@@ -248,7 +248,6 @@ export default function MarketDetailPage({
       setVoting(false);
     }
   }
-
 
   const closesAt = new Date(market.close_at).toLocaleDateString("en-US", {
     month: "long",
@@ -440,7 +439,7 @@ export default function MarketDetailPage({
                       </div>
                       {disputeDeadline && (
                         <div className="text-xs text-muted-foreground">
-                          Dispute window ends on {" "}
+                          Dispute window ends on{" "}
                           {disputeDeadline.toLocaleDateString("en-US", {
                             month: "short",
                             day: "numeric",
@@ -509,7 +508,9 @@ export default function MarketDetailPage({
           <div className="space-y-2">
             <span className="text-sm font-medium">Recent Activity</span>
             {betsLoading ? (
-              <div className="flex justify-center py-4"><Spinner className="size-5" /></div>
+              <div className="flex justify-center py-4">
+                <Spinner className="size-5" />
+              </div>
             ) : marketBets.length > 0 ? (
               <div className="space-y-2">
                 {marketBets.map((bet) => (

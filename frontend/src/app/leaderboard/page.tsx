@@ -33,7 +33,9 @@ export default function LeaderboardPage() {
       </section>
 
       {loading ? (
-        <div className="flex justify-center py-12"><Spinner className="size-6" /></div>
+        <div className="flex justify-center py-12">
+          <Spinner className="size-6" />
+        </div>
       ) : (
         <Card size="sm" className="!gap-0 !py-0">
           <CardContent className="divide-y divide-border !p-0">

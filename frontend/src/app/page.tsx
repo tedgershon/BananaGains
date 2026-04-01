@@ -44,7 +44,9 @@ export default function Home() {
         </section>
 
         {loading ? (
-          <div className="flex justify-center py-12"><Spinner className="size-6" /></div>
+          <div className="flex justify-center py-12">
+            <Spinner className="size-6" />
+          </div>
         ) : (
           <>
             <section className="space-y-4">

@@ -32,7 +32,12 @@ export default function PortfolioPage() {
     try {
       await claimDaily();
     } catch (err) {
-      if (err && typeof err === "object" && "status" in err && (err as { status: number }).status === 409) {
+      if (
+        err &&
+        typeof err === "object" &&
+        "status" in err &&
+        (err as { status: number }).status === 409
+      ) {
         setClaimError("Already claimed today!");
       } else {
         setClaimError("Failed to claim. Try again later.");
@@ -52,7 +57,9 @@ export default function PortfolioPage() {
         <section>
           <h1 className="text-3xl font-bold tracking-tight">Portfolio</h1>
         </section>
-        <div className="flex justify-center py-12"><Spinner className="size-6" /></div>
+        <div className="flex justify-center py-12">
+          <Spinner className="size-6" />
+        </div>
       </div>
     );
   }
