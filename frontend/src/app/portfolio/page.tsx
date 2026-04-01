@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { claimDaily } from "@/lib/api";
 import { useData } from "@/lib/DataProvider";
 import { useSession } from "@/lib/SessionProvider";
 import { getMarketProbability } from "@/lib/types";
@@ -22,12 +21,9 @@ const TX_LABELS: Record<string, string> = {
 };
 
 export default function PortfolioPage() {
-  const { user, updateBalance } = useSession();
-  const { markets, bets, transactions: baseTransactions, loading } = useData();
-  const [localTxs, setLocalTxs] = useState<typeof baseTransactions>([]);
-  const transactions = [...localTxs, ...baseTransactions];
+  const { user } = useSession();
+  const { markets, bets, transactions, loading, claimDaily } = useData();
   const [claiming, setClaiming] = useState(false);
-  const [claimed, setClaimed] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
 
   async function handleClaim() {
@@ -35,23 +31,9 @@ export default function PortfolioPage() {
     setClaimError(null);
     try {
       await claimDaily();
-      updateBalance(1000);
-      setClaimed(true);
-      setLocalTxs((prev) => [
-        {
-          id: `daily-${Date.now()}`,
-          user_id: user.id,
-          market_id: null,
-          transaction_type: "daily_claim" as const,
-          amount: 1000,
-          created_at: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
     } catch (err) {
       if (err && typeof err === "object" && "status" in err && (err as { status: number }).status === 409) {
         setClaimError("Already claimed today!");
-        setClaimed(true);
       } else {
         setClaimError("Failed to claim. Try again later.");
       }
@@ -105,7 +87,7 @@ export default function PortfolioPage() {
                 <BananaCoin size={28} />
                 {user.banana_balance.toLocaleString()}
               </div>
-              {claimed ? (
+              {user.claimed_today ? (
                 <p className="text-xs text-muted-foreground">
                   {claimError || "Claimed! Come back tomorrow."}
                 </p>

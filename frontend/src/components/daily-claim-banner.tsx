@@ -1,18 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
 import { useSession } from "@/lib/SessionProvider";
 
 export function DailyClaimBanner() {
-  const { isDemo, isLoading } = useSession();
-  const [mounted, setMounted] = useState(false);
+  const { user, isDemo, isLoading } = useSession();
   const [dismissed, setDismissed] = useState(false);
 
-  useEffect(() => setMounted(true), []);
-
-  if (!mounted || isLoading || isDemo || dismissed) return null;
+  if (isLoading || isDemo || user.claimed_today || dismissed) return null;
 
   return (
     <div className="bg-primary/10 border-b border-primary/20">
