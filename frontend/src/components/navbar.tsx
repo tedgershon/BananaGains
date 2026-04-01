@@ -45,19 +45,23 @@ export function Navbar() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <Link
-            href="/portfolio"
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
-          >
-            <BananaCoin size={16} />
-            <span>{user.banana_balance.toLocaleString()}</span>
-          </Link>
-          <Link
-            href="/markets/create"
-            className={cn(buttonVariants({ variant: "default", size: "sm" }), "px-4")}
-          >
-            Create Market
-          </Link>
+          {!isDemo && (
+            <>
+              <Link
+                href="/portfolio"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
+              >
+                <BananaCoin size={16} />
+                <span>{user.banana_balance.toLocaleString()}</span>
+              </Link>
+              <Link
+                href="/markets/create"
+                className={cn(buttonVariants({ variant: "default", size: "sm" }), "px-4")}
+              >
+                Create Market
+              </Link>
+            </>
+          )}
           {isDemo ? (
             <Link
               href="/auth"
