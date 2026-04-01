@@ -26,6 +26,10 @@ export default function CreateMarketPage() {
   const [description, setDescription] = useState("");
   const [closeAt, setCloseAt] = useState("");
   const [resolutionCriteria, setResolutionCriteria] = useState("");
+  const [officialSource, setOfficialSource] = useState("");
+  const [yesCriteria, setYesCriteria] = useState("");
+  const [noCriteria, setNoCriteria] = useState("");
+  const [ambiguityCriteria, setAmbiguityCriteria] = useState("");
   const [category, setCategory] = useState("General");
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +59,22 @@ export default function CreateMarketPage() {
       setError("Resolution criteria is required.");
       return;
     }
+    if (!officialSource.trim()) {
+      setError("Official source is required.");
+      return;
+    }
+    if (!yesCriteria.trim()) {
+      setError("Yes criteria is required.");
+      return;
+    }
+    if (!noCriteria.trim()) {
+      setError("No criteria is required.");
+      return;
+    }
+    if (!ambiguityCriteria.trim()) {
+      setError("Ambiguity criteria is required.");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -64,6 +84,10 @@ export default function CreateMarketPage() {
         close_at: new Date(closeAt).toISOString(),
         resolution_criteria: resolutionCriteria.trim(),
         category,
+        official_source: officialSource.trim(),
+        yes_criteria: yesCriteria.trim(),
+        no_criteria: noCriteria.trim(),
+        ambiguity_criteria: ambiguityCriteria.trim(),
       });
       router.push(`/markets/${market.id}`);
     } catch (err) {
@@ -149,6 +173,74 @@ export default function CreateMarketPage() {
                   rows={2}
                   value={resolutionCriteria}
                   onChange={(e) => setResolutionCriteria(e.target.value)}
+                  className={`${inputClass} resize-none`}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="officialSource"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Official Source
+                </label>
+                <input
+                  id="officialSource"
+                  type="text"
+                  placeholder="e.g. CMU news, official website, verified report"
+                  value={officialSource}
+                  onChange={(e) => setOfficialSource(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="yesCriteria"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Yes Criteria
+                </label>
+                <textarea
+                  id="yesCriteria"
+                  placeholder="What counts as YES?"
+                  rows={2}
+                  value={yesCriteria}
+                  onChange={(e) => setYesCriteria(e.target.value)}
+                  className={`${inputClass} resize-none`}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="noCriteria"
+                  className="text-sm font-medium text-foreground"
+                >
+                  No Criteria
+                </label>
+                <textarea
+                  id="noCriteria"
+                  placeholder="What counts as NO?"
+                  rows={2}
+                  value={noCriteria}
+                  onChange={(e) => setNoCriteria(e.target.value)}
+                  className={`${inputClass} resize-none`}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="ambiguityCriteria"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Ambiguity Criteria
+                </label>
+                <textarea
+                  id="ambiguityCriteria"
+                  placeholder="How should ambiguous or partial outcomes be handled?"
+                  rows={2}
+                  value={ambiguityCriteria}
+                  onChange={(e) => setAmbiguityCriteria(e.target.value)}
                   className={`${inputClass} resize-none`}
                 />
               </div>
