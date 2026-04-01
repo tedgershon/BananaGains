@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BananaCoin } from "@/components/banana-coin";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useSession } from "@/lib/SessionProvider";
 import { cn } from "@/lib/utils";
 
@@ -32,7 +33,7 @@ export function Navbar() {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  "rounded-full px-3 py-2 text-sm font-medium transition-colors hover:bg-accent",
+                  "rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent",
                   pathname === link.href
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground",
@@ -46,35 +47,35 @@ export function Navbar() {
         <div className="flex items-center gap-4">
           <Link
             href="/portfolio"
-            className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-accent"
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
           >
             <BananaCoin size={16} />
             <span>{user.banana_balance.toLocaleString()}</span>
           </Link>
           <Link
             href="/markets/create"
-            className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className={cn(buttonVariants({ variant: "default", size: "sm" }), "px-4")}
           >
             Create Market
           </Link>
           {isDemo ? (
             <Link
               href="/auth"
-              className="rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "px-4")}
             >
               Sign In
             </Link>
           ) : (
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={async () => {
                 await signOut();
                 router.push("/");
               }}
-              className="rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
             >
               Sign Out
-            </button>
+            </Button>
           )}
         </div>
       </div>
