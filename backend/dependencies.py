@@ -1,5 +1,4 @@
 from contextlib import contextmanager
-from datetime import datetime, timezone
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -11,14 +10,6 @@ _security = HTTPBearer(auto_error=False)
 _security_optional = HTTPBearer(auto_error=False)
 
 _supabase_client: Client | None = None
-
-DEMO_USER_PROFILE: dict = {
-    "id": "00000000-0000-0000-0000-000000000001",
-    "andrew_id": "at2",
-    "display_name": "Aaron Tang",
-    "banana_balance": 1000,
-    "created_at": datetime(2026, 3, 17, tzinfo=timezone.utc).isoformat(),
-}
 
 
 def get_supabase_client() -> Client:
@@ -74,13 +65,7 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_security),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict:
-    """Required auth -- returns the authenticated user's profile or 401.
-
-    In demo mode, returns a hardcoded demo user profile without requiring a JWT.
-    """
-    if get_settings().demo_mode:
-        return DEMO_USER_PROFILE
-
+    """Required auth -- returns the authenticated user's profile or 401."""
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -115,13 +100,7 @@ async def get_current_user_optional(
     credentials: HTTPAuthorizationCredentials | None = Depends(_security_optional),
     supabase: Client = Depends(get_supabase_client),
 ) -> dict | None:
-    """Optional auth -- returns profile if a valid token is present, else None.
-
-    In demo mode, always returns the demo user profile.
-    """
-    if get_settings().demo_mode:
-        return DEMO_USER_PROFILE
-
+    """Optional auth -- returns profile if a valid token is present, else None."""
     if credentials is None:
         return None
     try:
