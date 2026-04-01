@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from supabase import Client
 
 from dependencies import get_current_user, get_supabase_client, get_user_token, user_auth
+from schemas.dispute import ClaimResponse
 from schemas.user import CreateProfileRequest, UserProfileResponse
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -58,3 +59,20 @@ async def create_or_update_profile(
         )
 
     return result.data[0]
+
+
+@router.post("/claim-daily", response_model=ClaimResponse)
+async def claim_daily_bananas(
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """Claim 1000 bananas once per calendar day (America/New_York)."""
+    try:
+        result = supabase.rpc("claim_daily_bananas", {
+            "p_user_id": current_user["id"],
+        }).execute()
+        return result.data
+    except Exception as e:
+        if "already claimed" in str(e).lower():
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Already claimed today.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to claim: {e}")
