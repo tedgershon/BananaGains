@@ -19,6 +19,7 @@ interface SessionContextValue {
   isDemo: boolean;
   isLoading: boolean;
   updateBalance: (delta: number) => void;
+  markClaimedToday: () => void;
   signOut: () => Promise<void>;
 }
 
@@ -27,6 +28,7 @@ const SessionCtx = createContext<SessionContextValue>({
   isDemo: true,
   isLoading: false,
   updateBalance: () => {},
+  markClaimedToday: () => {},
   signOut: async () => {},
 });
 
@@ -34,16 +36,26 @@ export function useSession() {
   return useContext(SessionCtx);
 }
 
-export function SessionProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserProfile>(DEMO_USER);
-  const [isDemo, setIsDemo] = useState(true);
-  const [isLoading, setIsLoading] = useState(!!supabase);
+export function SessionProvider({
+  children,
+  initialUser,
+}: {
+  children: ReactNode;
+  initialUser?: UserProfile | null;
+}) {
+  const [user, setUser] = useState<UserProfile>(initialUser ?? DEMO_USER);
+  const [isDemo, setIsDemo] = useState(!initialUser);
+  const [isLoading, setIsLoading] = useState(!initialUser);
 
   const updateBalance = useCallback((delta: number) => {
     setUser((prev) => ({
       ...prev,
       banana_balance: prev.banana_balance + delta,
     }));
+  }, []);
+
+  const markClaimedToday = useCallback(() => {
+    setUser((prev) => ({ ...prev, claimed_today: true }));
   }, []);
 
   async function loadProfile() {
@@ -96,8 +108,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, isDemo, isLoading, updateBalance, signOut }),
-    [user, isDemo, isLoading, updateBalance, signOut],
+    () => ({ user, isDemo, isLoading, updateBalance, markClaimedToday, signOut }),
+    [user, isDemo, isLoading, updateBalance, markClaimedToday, signOut],
   );
 
   return <SessionCtx.Provider value={value}>{children}</SessionCtx.Provider>;

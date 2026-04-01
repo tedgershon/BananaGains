@@ -10,4 +10,5 @@ export const DEMO_USER: UserProfile = {
   display_name: "Aaron Tang",
   banana_balance: 1000,
   created_at: "2026-03-17T00:00:00Z",
+  claimed_today: false,
 };

@@ -11,6 +11,7 @@ export interface UserProfile {
   display_name: string;
   banana_balance: number;
   created_at: string;
+  claimed_today: boolean;
 }
 
 export interface Market {
