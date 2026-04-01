@@ -1,12 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function AuthPage() {
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const callbackError = searchParams.get("error");
+  const [error, setError] = useState<string | null>(callbackError);
   const [loading, setLoading] = useState(false);
 
   if (!supabase) {
@@ -23,7 +24,10 @@ export default function AuthPage() {
           <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
             NEXT_PUBLIC_SUPABASE_ANON_KEY
           </code>{" "}
-          in <code className="rounded bg-muted px-1.5 py-0.5 text-sm">.env.local</code>{" "}
+          in{" "}
+          <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
+            .env.local
+          </code>{" "}
           to enable authentication.
         </p>
       </div>
@@ -39,7 +43,7 @@ export default function AuthPage() {
       const { error: signInError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth`,
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
       if (signInError) throw signInError;
