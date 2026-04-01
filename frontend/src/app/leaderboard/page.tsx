@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Trophy } from "lucide-react";
 import { BananaCoin } from "@/components/banana-coin";
 import { Card, CardContent } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import { getLeaderboard } from "@/lib/api";
 import { useSession } from "@/lib/SessionProvider";
 import type { LeaderboardEntry } from "@/lib/types";
@@ -32,7 +33,7 @@ export default function LeaderboardPage() {
       </section>
 
       {loading ? (
-        <p className="text-muted-foreground">Loading leaderboard...</p>
+        <div className="flex justify-center py-12"><Spinner className="size-6" /></div>
       ) : (
         <Card size="sm" className="!gap-0 !py-0">
           <CardContent className="divide-y divide-border !p-0">

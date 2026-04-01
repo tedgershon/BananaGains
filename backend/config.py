@@ -8,8 +8,6 @@ class Settings(BaseSettings):
     supabase_key: str = ""
     supabase_jwt_secret: str = ""
 
-    demo_mode: bool = False
-
     cors_origins: list[str] = ["http://localhost:3000"]
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}

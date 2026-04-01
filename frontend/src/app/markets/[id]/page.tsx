@@ -8,6 +8,7 @@ import { ProbabilityChart } from "@/components/probability-chart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import * as api from "@/lib/api";
 import { useData } from "@/lib/DataProvider";
 import { useSession } from "@/lib/SessionProvider";
@@ -253,18 +254,18 @@ export default function MarketDetailPage({
                       setBetError(null);
                       setBetSuccess(null);
                     }}
-                    className="w-full rounded-full border border-border bg-background px-4 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <Button
-                      className="h-14 text-base bg-success text-success-foreground hover:bg-success/80"
+                      className="h-14 text-base bg-success text-success-foreground border-b-success/40 active:border-b-success/40 hover:bg-success/80"
                       onClick={() => handleBet("YES")}
                       disabled={betting}
                     >
                       Yes {probability}%
                     </Button>
                     <Button
-                      className="h-14 text-base bg-danger text-danger-foreground hover:bg-danger/80"
+                      className="h-14 text-base bg-danger text-danger-foreground border-b-danger/40 active:border-b-danger/40 hover:bg-danger/80"
                       onClick={() => handleBet("NO")}
                       disabled={betting}
                     >
@@ -284,7 +285,7 @@ export default function MarketDetailPage({
                       <div className="grid grid-cols-2 gap-2">
                         <Button
                           variant="outline"
-                          className="h-10 text-success border-success hover:bg-success hover:text-success-foreground"
+                          className="h-10 text-success border-success border-b-success/40 active:border-b-success/40 hover:bg-success hover:text-success-foreground"
                           onClick={() => handleResolve("YES")}
                           disabled={resolving}
                         >
@@ -292,7 +293,7 @@ export default function MarketDetailPage({
                         </Button>
                         <Button
                           variant="outline"
-                          className="h-10 text-danger border-danger hover:bg-danger hover:text-danger-foreground"
+                          className="h-10 text-danger border-danger border-b-danger/40 active:border-b-danger/40 hover:bg-danger hover:text-danger-foreground"
                           onClick={() => handleResolve("NO")}
                           disabled={resolving}
                         >
@@ -309,7 +310,7 @@ export default function MarketDetailPage({
           <div className="space-y-2">
             <span className="text-sm font-medium">Recent Activity</span>
             {betsLoading ? (
-              <p className="text-sm text-muted-foreground">Loading...</p>
+              <div className="flex justify-center py-4"><Spinner className="size-5" /></div>
             ) : marketBets.length > 0 ? (
               <div className="space-y-2">
                 {marketBets.map((bet) => (

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function AuthPage() {
   const [error, setError] = useState<string | null>(null);
@@ -74,14 +76,14 @@ export default function AuthPage() {
           </p>
         )}
 
-        <button
-          type="button"
+        <Button
+          size="lg"
           onClick={handleGoogleSignIn}
           disabled={loading}
-          className="w-full rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          className="w-full"
         >
-          {loading ? "Redirecting to Google..." : "Continue with Google"}
-        </button>
+          {loading ? <Spinner /> : "Continue with Google"}
+        </Button>
 
         <p className="text-center text-xs text-muted-foreground">
           Only @andrew.cmu.edu Google accounts are allowed.

@@ -9,6 +9,7 @@ class UserProfileResponse(BaseModel):
     display_name: str
     banana_balance: float
     created_at: datetime
+    claimed_today: bool = False
 
 
 class CreateProfileRequest(BaseModel):

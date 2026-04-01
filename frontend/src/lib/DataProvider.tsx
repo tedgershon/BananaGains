@@ -25,6 +25,7 @@ interface DataContextValue {
   bets: Bet[];
   transactions: Transaction[];
   loading: boolean;
+  claimDaily: () => Promise<void>;
   addMarket: (req: CreateMarketRequest) => Promise<Market>;
   resolveMarket: (marketId: string, outcome: BetSide) => Promise<void>;
   placeBet: (marketId: string, side: BetSide, amount: number) => Promise<void>;
@@ -41,7 +42,7 @@ export function useData(): DataContextValue {
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const { user, isDemo, updateBalance } = useSession();
+  const { user, isDemo, updateBalance, markClaimedToday } = useSession();
   const [markets, setMarkets] = useState<Market[]>([]);
   const [bets, setBets] = useState<Bet[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -193,12 +194,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [user.id, user.banana_balance, updateBalance],
   );
 
+  const claimDaily = useCallback(async () => {
+    await api.claimDaily();
+    updateBalance(1000);
+    markClaimedToday();
+    const now = new Date().toISOString();
+    setTransactions((prev) => [
+      {
+        id: `daily-${Date.now()}`,
+        user_id: user.id,
+        market_id: null,
+        transaction_type: "daily_claim" as const,
+        amount: 1000,
+        created_at: now,
+      },
+      ...prev,
+    ]);
+  }, [user.id, updateBalance, markClaimedToday]);
+
   const value = useMemo(
     () => ({
       markets,
       bets,
       transactions,
       loading,
+      claimDaily,
       addMarket,
       resolveMarket,
       placeBet,
@@ -210,6 +230,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       bets,
       transactions,
       loading,
+      claimDaily,
       addMarket,
       resolveMarket,
       placeBet,

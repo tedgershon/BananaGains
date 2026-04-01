@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import { useData } from "@/lib/DataProvider";
 import { useSession } from "@/lib/SessionProvider";
 import { getMarketProbability } from "@/lib/types";
@@ -14,11 +17,30 @@ const TX_LABELS: Record<string, string> = {
   payout: "Payout",
   voter_stake: "Voter Stake",
   voter_reward: "Voter Reward",
+  daily_claim: "Daily Claim",
 };
 
 export default function PortfolioPage() {
   const { user } = useSession();
-  const { markets, bets, transactions, loading } = useData();
+  const { markets, bets, transactions, loading, claimDaily } = useData();
+  const [claiming, setClaiming] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+
+  async function handleClaim() {
+    setClaiming(true);
+    setClaimError(null);
+    try {
+      await claimDaily();
+    } catch (err) {
+      if (err && typeof err === "object" && "status" in err && (err as { status: number }).status === 409) {
+        setClaimError("Already claimed today!");
+      } else {
+        setClaimError("Failed to claim. Try again later.");
+      }
+    } finally {
+      setClaiming(false);
+    }
+  }
 
   function getMarketById(id: string) {
     return markets.find((m) => m.id === id);
@@ -30,7 +52,7 @@ export default function PortfolioPage() {
         <section>
           <h1 className="text-3xl font-bold tracking-tight">Portfolio</h1>
         </section>
-        <p className="text-muted-foreground">Loading portfolio...</p>
+        <div className="flex justify-center py-12"><Spinner className="size-6" /></div>
       </div>
     );
   }
@@ -60,11 +82,25 @@ export default function PortfolioPage() {
             <CardHeader className="pb-0">
               <span className="text-xs text-muted-foreground">Balance</span>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               <div className="flex items-center gap-2 text-3xl font-bold">
                 <BananaCoin size={28} />
                 {user.banana_balance.toLocaleString()}
               </div>
+              {user.claimed_today ? (
+                <p className="text-xs text-muted-foreground">
+                  {claimError || "Claimed! Come back tomorrow."}
+                </p>
+              ) : (
+                <Button
+                  size="sm"
+                  className="w-full"
+                  onClick={handleClaim}
+                  disabled={claiming}
+                >
+                  {claiming ? <Spinner /> : "Claim 1,000 Daily Bananas"}
+                </Button>
+              )}
             </CardContent>
           </Card>
 
