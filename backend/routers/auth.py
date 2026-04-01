@@ -9,8 +9,13 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.get("/me", response_model=UserProfileResponse)
-async def get_me(current_user: dict = Depends(get_current_user)):
-    """Return the authenticated user's profile."""
+async def get_me(
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """Return the authenticated user's profile with daily claim status."""
+    result = supabase.rpc("check_claimed_today", {"p_user_id": current_user["id"]}).execute()
+    current_user["claimed_today"] = result.data if isinstance(result.data, bool) else False
     return current_user
 
 
