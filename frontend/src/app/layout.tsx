@@ -17,7 +17,9 @@ async function getInitialUser(): Promise<UserProfile | null> {
     const supabase = await createServerSupabase();
     if (!supabase) return null;
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return null;
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";

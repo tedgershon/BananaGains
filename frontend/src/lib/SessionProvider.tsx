@@ -108,7 +108,14 @@ export function SessionProvider({
   }, []);
 
   const value = useMemo(
-    () => ({ user, isDemo, isLoading, updateBalance, markClaimedToday, signOut }),
+    () => ({
+      user,
+      isDemo,
+      isLoading,
+      updateBalance,
+      markClaimedToday,
+      signOut,
+    }),
     [user, isDemo, isLoading, updateBalance, markClaimedToday, signOut],
   );
 
