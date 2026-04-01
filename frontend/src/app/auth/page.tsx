@@ -1,14 +1,16 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function AuthPage() {
-  const searchParams = useSearchParams();
-  const callbackError = searchParams.get("error");
-  const [error, setError] = useState<string | null>(callbackError);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const err = new URLSearchParams(window.location.search).get("error");
+    if (err) setError(err);
+  }, []);
 
   if (!supabase) {
     return (
