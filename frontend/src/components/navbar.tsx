@@ -35,7 +35,7 @@ export function Navbar() {
                 className={cn(
                   "rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent",
                   pathname === link.href
-                    ? "bg-accent text-accent-foreground"
+                    ? "text-foreground"
                     : "text-muted-foreground",
                 )}
               >
