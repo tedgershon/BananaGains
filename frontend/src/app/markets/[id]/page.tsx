@@ -8,6 +8,7 @@ import { ProbabilityChart } from "@/components/probability-chart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import * as api from "@/lib/api";
 import { useData } from "@/lib/DataProvider";
 import { useSession } from "@/lib/SessionProvider";
@@ -309,7 +310,7 @@ export default function MarketDetailPage({
           <div className="space-y-2">
             <span className="text-sm font-medium">Recent Activity</span>
             {betsLoading ? (
-              <p className="text-sm text-muted-foreground">Loading...</p>
+              <div className="flex justify-center py-4"><Spinner className="size-5" /></div>
             ) : marketBets.length > 0 ? (
               <div className="space-y-2">
                 {marketBets.map((bet) => (

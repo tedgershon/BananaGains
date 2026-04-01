@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { DailyClaimBanner } from "@/components/daily-claim-banner";
 import { Navbar } from "@/components/navbar";
 import { DataProvider } from "@/lib/DataProvider";
 import { SessionProvider } from "@/lib/SessionProvider";
@@ -19,6 +20,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-background font-sans antialiased">
         <SessionProvider>
           <DataProvider>
+            <DailyClaimBanner />
             <Navbar />
             <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
           </DataProvider>

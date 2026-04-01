@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { CategoryFilter } from "@/components/category-filter";
 import { MarketCard } from "@/components/market-card";
+import { Spinner } from "@/components/ui/spinner";
 import { useData } from "@/lib/DataProvider";
 
 export default function Home() {
@@ -43,7 +44,7 @@ export default function Home() {
         </section>
 
         {loading ? (
-          <p className="text-muted-foreground">Loading markets...</p>
+          <div className="flex justify-center py-12"><Spinner className="size-6" /></div>
         ) : (
           <>
             <section className="space-y-4">

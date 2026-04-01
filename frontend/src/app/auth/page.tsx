@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function AuthPage() {
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +82,7 @@ export default function AuthPage() {
           disabled={loading}
           className="w-full"
         >
-          {loading ? "Redirecting to Google..." : "Continue with Google"}
+          {loading ? <Spinner /> : "Continue with Google"}
         </Button>
 
         <p className="text-center text-xs text-muted-foreground">

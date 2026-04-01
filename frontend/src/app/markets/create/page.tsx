@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import { useData } from "@/lib/DataProvider";
 
 const CATEGORIES = [
@@ -194,7 +195,7 @@ export default function CreateMarketPage() {
             className="w-full"
             disabled={submitting}
           >
-            {submitting ? "Creating..." : "Create Market"}
+            {submitting ? <Spinner /> : "Create Market"}
           </Button>
         </div>
       </form>

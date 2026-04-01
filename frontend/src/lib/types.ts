@@ -2,7 +2,7 @@
 // Domain types (mirror DATA_MODEL.md and backend response schemas)
 // ---------------------------------------------------------------------------
 
-export type MarketStatus = "open" | "closed" | "resolved" | "disputed";
+export type MarketStatus = "open" | "closed" | "pending_resolution" | "disputed" | "admin_review" | "resolved";
 export type BetSide = "YES" | "NO";
 
 export interface UserProfile {
@@ -48,7 +48,8 @@ export type TransactionType =
   | "bet_placement"
   | "payout"
   | "voter_stake"
-  | "voter_reward";
+  | "voter_reward"
+  | "daily_claim";
 
 export interface Transaction {
   id: string;
@@ -105,6 +106,11 @@ export interface ResolveMarketResponse {
   market_id: string;
   status: string;
   outcome: string;
+}
+
+export interface ClaimDailyResponse {
+  new_balance: number;
+  claimed_at: string;
 }
 
 export interface PricePoint {

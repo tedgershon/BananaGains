@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import type {
   Bet,
+  ClaimDailyResponse,
   CreateMarketRequest,
   CreateProfileRequest,
   LeaderboardEntry,
@@ -72,6 +73,10 @@ export function createProfile(
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+export function claimDaily(): Promise<ClaimDailyResponse> {
+  return apiFetch("/api/auth/claim-daily", { method: "POST" });
 }
 
 // ---------------------------------------------------------------------------
