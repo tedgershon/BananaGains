@@ -123,3 +123,134 @@ Includes:
 - seed data for demo accounts and markets
 - presentation and demo script readiness
 - final verification that the system is usable from a clean browser session
+
+---
+
+## New Feature Backlog (Sprint 4+)
+
+The following items extend the product beyond the initial MVP and main goals. Detailed implementation plans are in `features/`.
+
+### 11. Admin & Super Admin System
+
+Establish role-based access control with user, admin, and super_admin roles. Build admin review infrastructure, super admin user management, role preview toggle, and cumulative statistics dashboard.
+
+Includes:
+
+- role column on profiles replacing boolean is_admin
+- super admin seeded account (tgershon) for user management
+- admin statistics dashboard (user counts, market counts, total trading volume)
+- role preview toggle for admins to see the app as other roles
+- user search and role promotion/demotion (super admin only)
+
+### 12. Market Creation & Admin Review Workflow
+
+All newly created markets start in pending_review status. Admins review, edit, and approve or deny markets through an accordion-style admin panel.
+
+Includes:
+
+- pending_review default status for all new markets
+- admin review page with pending, approved, denied accordion sections
+- editable market fields during review
+- notes/feedback system for admin communication to creators
+- link field with URL validation on market creation
+- visual distinction between public-facing and admin-only fields
+- automatic style linting (capitalization, whitespace, punctuation) before submission
+- pending review count badge in admin navigation
+
+### 13. Non-Binary (Multichoice) Markets
+
+Allow markets with 2–10 non-binary options. Support mutually exclusive and non-exclusive outcome types with appropriate payout schemas.
+
+Includes:
+
+- market type selector (binary vs multichoice) during creation
+- market_options table for multichoice market choices
+- multi-line probability chart with option toggle
+- parimutuel payout distribution across multiple options
+- more bets toggle for markets with many options
+- multichoice bet placement endpoint
+
+### 14. Automated Market Resolution & Community Voting
+
+Add a parallel resolution track alongside creator-resolution. When a market closes, a 24-hour community voting window opens. Voters earn coin rewards for correct votes.
+
+Includes:
+
+- resolution_window_end auto-set when market closes
+- community_votes table for resolution voting
+- Resolutions tab in navbar showing markets in resolution period with countdown timers
+- voter reward distribution (4% of total market pool)
+- fallback to admin review for inconclusive votes
+- dual-track resolution (creator resolution and community voting coexist)
+
+### 15. Coin Claiming Rules Update
+
+Update daily coin claiming to cap at 5,000 coin balance. Dynamic claim amounts when balance is between 4,000 and 5,000.
+
+Includes:
+
+- balance cap check (only claim if balance < 5,000)
+- dynamic claim amount (min of 1,000 or 5,000 minus balance)
+- transparency text explaining rules in UI
+- cap applies to coin balance only, not active bets
+
+### 16. User Profile Dropdown
+
+Replace sign-in/sign-out button with a circular profile avatar. On click, display a GitHub-style dropdown card with navigation items.
+
+Includes:
+
+- circular avatar with initials (default gray)
+- dropdown with profile info, navigation links, and sign out
+- notification indicator dot on avatar
+- sign-in button for unauthenticated users
+
+### 17. In-App & Email Notifications
+
+Notification system with in-app notifications and email via Resend. Triggered by admin market approval/denial events.
+
+Includes:
+
+- notifications table with type, title, body, metadata, read status
+- notification page listing all notifications
+- unread count badge in user menu dropdown
+- red indicator dot on avatar for unread notifications
+- email notifications via Resend API to @andrew.cmu.edu addresses
+- notification types: market_approved, market_denied, market_resolved, payout_received, badge_earned
+
+### 18. Homepage Redesign
+
+Rebuild the homepage with hottest market display, weekly leaderboard, and trending/top markets sections.
+
+Includes:
+
+- hottest market hero display (Kalshi-style) with graph, percentages, volume, and pagination
+- weekly leaderboard based on rolling 7-day gains (with 30-day and all-time fallbacks)
+- progress bars proportional to the leader for leaderboard entries
+- trending markets tab (recency + activity threshold)
+- top markets tab (total coin volume)
+- Kalshi-style numbered list (#1–#3) for trending and top markets
+
+### 19. Claimable Rewards — Badges & Reward Tracks
+
+Gamification layer with 5 badge tracks and 5 tiers each. Badges displayed on leaderboard with hover tooltips.
+
+Includes:
+
+- badge tracks: Banana Baron (coins), Oracle (correct bets), Architect (markets created), Degen (bets placed), Whale (single bet amount)
+- progressive badges within tracks (advancing replaces current badge)
+- rewards page with progress tracking per track
+- badge display on leaderboard with hover tooltips
+- automatic badge checking after relevant events
+
+### 20. Safety Logic & Admin Backroll
+
+Enforce critical safety contracts and add admin backroll for ambiguous timeline markets.
+
+Includes:
+
+- hardened place_bet function with close_at timestamp check
+- removal of creator market update permissions after submission
+- resolved market guard trigger preventing content modification
+- admin backroll function to cancel bets after a cutoff date and refund users
+- concurrent bet safety via PostgreSQL FOR UPDATE locks (verified, already present)

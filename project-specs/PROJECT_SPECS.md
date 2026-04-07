@@ -53,6 +53,21 @@ These are worthwhile features, but they are not required for the project to feel
 - OAuth based auth instead of a simpler local or session-based auth flow, implements non-crypto KYC through verifying Andrew IDs to minimize market manipulation
 - Portfolio analytics, charts, or community stats
 
+### Extended Goals (Sprint 4+)
+
+These features extend the platform significantly beyond the original MVP and main goals:
+
+- Non-binary (multichoice) markets with up to 10 options and multiple payout schemas
+- Admin review workflow for all proposed markets (pending_review → approved/denied)
+- Super admin account with user role management capabilities
+- Automated community resolution voting with voter rewards (4% of pool)
+- Coin claiming rules with a 5,000 balance cap
+- User profile dropdown with GitHub-style avatar menu
+- In-app and email notifications via Resend API
+- Homepage redesign with hottest market display, trending/top markets, and weekly leaderboard
+- Badge and reward track system with 5 tracks and 5 tiers each
+- Safety hardening: admin backroll for ambiguous timelines, concurrent bet protection, market immutability after submission
+
 ## Design Decisions
 
 ### Simple Resolution First
@@ -354,6 +369,39 @@ Scope:
 - Prepare fallback demo scenarios and seeded accounts
 - Ensure the repo has backlog artifacts and run instructions needed for review
 - Do a final code review pass for modularity, clarity, and obvious cleanup opportunities
+
+### Sprint 4 Extension: New Feature Implementation
+
+Scope classification: major feature additions (see `features/` for detailed plans)
+
+Sprint goal:
+Implement 10 new feature areas organized into 4 implementation phases. See `features/instructions.md` for the complete orchestration plan.
+
+#### Phase 1 — Foundation (parallelizable, no dependencies)
+
+- **Admin & Super Admin System** (`features/01-admin-system.md`): Role-based access control with user/admin/super_admin roles, admin review infrastructure, super admin user management, statistics dashboard
+- **Coin Claiming Update** (`features/05-coin-claiming.md`): Daily claim cap at 5,000 coin balance, dynamic claim amounts, transparency text
+- **User Profile Dropdown** (`features/06-user-profile.md`): GitHub-style circular avatar dropdown replacing sign-in/sign-out button
+
+#### Phase 2 — Core Workflow (depends on Phase 1)
+
+- **Market Creation & Admin Review** (`features/02-market-creation-review.md`): All markets start as pending_review, admin approval/denial workflow, link field, style linting
+- **Market Resolution & Community Voting** (`features/04-market-resolution.md`): 24h community voting window, voter rewards (4% of pool), Resolutions tab with countdown
+- **Safety Logic & Admin Backroll** (`features/10-safety-logic.md`): Hardened bet placement, market update restrictions, admin backroll for ambiguous timelines
+
+#### Phase 3 — Extended Features (depends on Phase 2)
+
+- **Multichoice Markets** (`features/03-multichoice-markets.md`): Non-binary markets with 2-10 options, multi-line charts, multichoice payout schema
+- **Notifications** (`features/07-notifications.md`): In-app notification system with email via Resend API
+
+#### Phase 4 — Polish & Display (depends on Phases 2-3)
+
+- **Homepage Redesign** (`features/08-main-page.md`): Hottest market display, weekly leaderboard, trending/top markets sections
+- **Claimable Rewards** (`features/09-claimable-rewards.md`): 5 badge tracks with 5 tiers each, leaderboard badges, rewards page
+
+#### New Migrations
+
+All new database migrations are documented in `project-specs/MIGRATIONS.md`. Migrations must be run manually in the Supabase SQL editor in numeric order, starting at `021`.
 
 ### Final Demo Week: Staff Demo and Buffer
 
