@@ -234,7 +234,8 @@ export default function ResolutionsPage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">Resolutions</h1>
         <p className="text-sm text-muted-foreground">
-          Help resolve markets by voting on the correct outcome.
+          Help resolve markets by voting on the correct outcome. Voters
+          receive a share of each market they help resolve.
         </p>
       </div>
 
@@ -244,8 +245,9 @@ export default function ResolutionsPage() {
           <p className="font-medium text-foreground">Your vote matters!</p>
           <p className="text-muted-foreground">
             Help resolve markets by voting on the correct outcome. Correct
-            voters earn banana coin rewards. Incorrect votes will result in
-            forfeiture of the coin prize for voting.
+            voters receive a percentage of each market they help resolve.
+            Incorrect votes will result in forfeiture of the coin prize for
+            voting.
           </p>
         </div>
       </div>
