@@ -8,23 +8,23 @@ router = APIRouter(prefix="/api", tags=["rewards"])
 TRACK_META = {
     "banana_baron": {
         "display_name": "Banana Baron",
-        "description": "Grow your banana empire",
+        "description": "Grow your banana empire by accumulating coins in your balance",
     },
     "oracle": {
         "display_name": "Oracle",
-        "description": "Predict the future with accuracy",
+        "description": "Prove your foresight by correctly predicting market outcomes",
     },
     "architect": {
         "display_name": "Architect",
-        "description": "Build markets for the community",
+        "description": "Shape the platform by creating markets the community loves",
     },
     "degen": {
         "display_name": "Degen",
-        "description": "You can't stop, won't stop betting",
+        "description": "Go all-in by placing bets across markets of your choosing",
     },
     "whale": {
         "display_name": "Whale",
-        "description": "Go big or go home",
+        "description": "Make waves by placing massive single bets on the markets",
     },
 }
 

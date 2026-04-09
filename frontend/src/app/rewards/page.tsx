@@ -142,6 +142,11 @@ function TrackCard({
                       ({tier.threshold.toLocaleString()})
                     </span>
                   </p>
+                  {tier.description && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {tier.description}
+                    </p>
+                  )}
                 </div>
                 <div className="shrink-0 text-xs text-muted-foreground">
                   {isEarned
@@ -190,7 +195,7 @@ export default function RewardsPage() {
       <section className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight">Rewards</h1>
         <p className="text-sm text-muted-foreground">
-          Track your achievements across BananaGains
+          Level up your badges and show off your BananaGains prowess
         </p>
       </section>
 
