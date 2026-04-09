@@ -12,7 +12,7 @@ import {
 import { getMe } from "./api";
 import { DEMO_USER } from "./mock-data";
 import { supabase } from "./supabase";
-import type { UserProfile } from "./types";
+import type { UserProfile, UserRole } from "./types";
 
 interface SessionContextValue {
   user: UserProfile;
@@ -21,6 +21,8 @@ interface SessionContextValue {
   updateBalance: (delta: number) => void;
   markClaimedToday: () => void;
   signOut: () => Promise<void>;
+  viewAsRole: UserRole;
+  setViewAsRole: (role: UserRole) => void;
 }
 
 const SessionCtx = createContext<SessionContextValue>({
@@ -30,6 +32,8 @@ const SessionCtx = createContext<SessionContextValue>({
   updateBalance: () => {},
   markClaimedToday: () => {},
   signOut: async () => {},
+  viewAsRole: "user",
+  setViewAsRole: () => {},
 });
 
 export function useSession() {
@@ -46,6 +50,9 @@ export function SessionProvider({
   const [user, setUser] = useState<UserProfile>(initialUser ?? DEMO_USER);
   const [isDemo, setIsDemo] = useState(!initialUser);
   const [isLoading, setIsLoading] = useState(!initialUser);
+  const [viewAsRole, setViewAsRole] = useState<UserRole>(
+    initialUser?.role ?? "user",
+  );
 
   const updateBalance = useCallback((delta: number) => {
     setUser((prev) => ({
@@ -63,9 +70,11 @@ export function SessionProvider({
       const profile = await getMe();
       setUser(profile);
       setIsDemo(false);
+      setViewAsRole(profile.role ?? "user");
     } catch {
       setUser(DEMO_USER);
       setIsDemo(true);
+      setViewAsRole("user");
     }
   }, []);
 
@@ -115,8 +124,18 @@ export function SessionProvider({
       updateBalance,
       markClaimedToday,
       signOut,
+      viewAsRole,
+      setViewAsRole,
     }),
-    [user, isDemo, isLoading, updateBalance, markClaimedToday, signOut],
+    [
+      user,
+      isDemo,
+      isLoading,
+      updateBalance,
+      markClaimedToday,
+      signOut,
+      viewAsRole,
+    ],
   );
 
   return <SessionCtx.Provider value={value}>{children}</SessionCtx.Provider>;

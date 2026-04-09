@@ -11,4 +11,6 @@ export const DEMO_USER: UserProfile = {
   banana_balance: 1000,
   created_at: "2026-03-17T00:00:00Z",
   claimed_today: false,
+  role: "user",
+  is_admin: false,
 };
