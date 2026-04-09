@@ -91,12 +91,39 @@ export function createProfile(
 }
 
 export function updateProfile(
-  body: { display_name?: string; equipped_badge_id?: string | null },
+  body: {
+    display_name?: string;
+    equipped_badge_id?: string | null;
+    avatar_url?: string | null;
+  },
 ): Promise<UserProfile> {
   return apiFetch("/api/auth/profile", {
     method: "PATCH",
     body: JSON.stringify(body),
   });
+}
+
+export async function uploadAvatar(
+  userId: string,
+  file: File,
+): Promise<string> {
+  const { supabase } = await import("./supabase");
+  if (!supabase) throw new Error("Supabase not configured");
+
+  const ext = file.name.split(".").pop() ?? "jpg";
+  const path = `${userId}/avatar.${ext}`;
+
+  const { error } = await supabase.storage
+    .from("avatars")
+    .upload(path, file, { upsert: true });
+
+  if (error) throw error;
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("avatars").getPublicUrl(path);
+
+  return publicUrl;
 }
 
 export function claimDaily(): Promise<ClaimDailyResponse> {

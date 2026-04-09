@@ -16,6 +16,7 @@ class UserProfileResponse(BaseModel):
     claim_amount: float = 1000
     above_cap: bool = False
     equipped_badge_id: str | None = None
+    avatar_url: str | None = None
 
 
 class CreateProfileRequest(BaseModel):
@@ -26,6 +27,7 @@ class CreateProfileRequest(BaseModel):
 class UpdateProfileRequest(BaseModel):
     display_name: str | None = None
     equipped_badge_id: str | None = None
+    avatar_url: str | None = None
 
 
 class LeaderboardEntry(BaseModel):
@@ -34,3 +36,4 @@ class LeaderboardEntry(BaseModel):
     display_name: str
     banana_balance: float
     equipped_badge_id: str | None = None
+    avatar_url: str | None = None

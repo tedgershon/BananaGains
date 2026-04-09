@@ -80,7 +80,7 @@ async def update_profile(
     supabase: Client = Depends(get_supabase_client),
     token: str | None = Depends(get_user_token),
 ):
-    """Update mutable profile fields (display_name, equipped_badge_id)."""
+    """Update mutable profile fields (display_name, equipped_badge_id, avatar_url)."""
     updates: dict = {}
 
     if body.display_name is not None:
@@ -96,6 +96,11 @@ async def update_profile(
         updates["equipped_badge_id"] = body.equipped_badge_id
     elif "equipped_badge_id" in (body.model_fields_set or set()):
         updates["equipped_badge_id"] = None
+
+    if body.avatar_url is not None:
+        updates["avatar_url"] = body.avatar_url
+    elif "avatar_url" in (body.model_fields_set or set()):
+        updates["avatar_url"] = None
 
     if not updates:
         raise HTTPException(

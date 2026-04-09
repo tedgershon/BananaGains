@@ -17,4 +17,5 @@ export const DEMO_USER: UserProfile = {
   claim_amount: 1000,
   above_cap: false,
   equipped_badge_id: null,
+  avatar_url: null,
 };
