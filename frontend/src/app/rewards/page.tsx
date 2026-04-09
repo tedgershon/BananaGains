@@ -14,7 +14,11 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { getUserRewards, updateProfile } from "@/lib/api";
 import { useSession } from "@/lib/SessionProvider";
-import type { RewardsResponse, TrackProgress } from "@/lib/types";
+import type {
+  EquippedBadgesMap,
+  RewardsResponse,
+  TrackProgress,
+} from "@/lib/types";
 
 const TRACK_ICONS: Record<string, string> = {
   banana_baron: "🍌",
@@ -24,24 +28,66 @@ const TRACK_ICONS: Record<string, string> = {
   whale: "🐋",
 };
 
+function normalizeEquippedBadges(
+  source: EquippedBadgesMap | null | undefined,
+): EquippedBadgesMap {
+  if (!source) return {};
+
+  const normalized: EquippedBadgesMap = {};
+  for (const [track, badgeId] of Object.entries(source)) {
+    if (!badgeId) continue;
+    normalized[track] = badgeId;
+  }
+  return normalized;
+}
+
+function inferTrackForBadge(
+  rewardsData: RewardsResponse | null,
+  badgeId: string | null,
+): string | null {
+  if (!rewardsData || !badgeId) return null;
+
+  for (const track of rewardsData.tracks) {
+    if (track.tiers.some((tier) => tier.id === badgeId)) {
+      return track.track;
+    }
+  }
+
+  return null;
+}
+
 function TrackCard({
   track,
   equippedBadgeId,
+  isSaving,
   onEquip,
 }: {
   track: TrackProgress;
   equippedBadgeId: string | null;
-  onEquip: (badgeId: string | null) => void;
+  isSaving: boolean;
+  onEquip: (track: string, badgeId: string | null) => void;
 }) {
   const icon = TRACK_ICONS[track.track] ?? "🏆";
+  const currentTierDef = track.tiers.find(
+    (tier) => tier.tier === track.current_tier,
+  );
+  const nextTierDef = track.tiers.find(
+    (tier) => tier.tier > track.current_tier,
+  );
 
+  const segmentStart = currentTierDef?.threshold ?? 0;
+  const segmentEnd = nextTierDef?.threshold ?? null;
+  const segmentProgress = Math.max(0, track.current_value - segmentStart);
+  const segmentSize =
+    segmentEnd !== null ? Math.max(1, segmentEnd - segmentStart) : 1;
   const progressPercent =
-    track.next_threshold !== null
-      ? Math.min(
-          100,
-          Math.round((track.current_value / track.next_threshold) * 100),
-        )
+    segmentEnd !== null
+      ? Math.min(100, Math.round((segmentProgress / segmentSize) * 100))
       : 100;
+  const progressColor =
+    nextTierDef?.color ?? currentTierDef?.color ?? "#eab308";
+
+  const progressValueLabel = `${segmentProgress.toLocaleString()} / ${segmentSize.toLocaleString()}`;
 
   return (
     <Card>
@@ -53,12 +99,11 @@ function TrackCard({
         <CardDescription>{track.track_description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {track.next_threshold !== null ? (
+        {nextTierDef ? (
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
-                {track.current_value.toLocaleString()} /{" "}
-                {track.next_threshold.toLocaleString()}
+                {progressValueLabel} to {nextTierDef.name}
               </span>
               <span className="font-medium">{progressPercent}%</span>
             </div>
@@ -67,8 +112,7 @@ function TrackCard({
                 className="h-2.5 rounded-full transition-all"
                 style={{
                   width: `${progressPercent}%`,
-                  backgroundColor:
-                    track.tiers[track.current_tier]?.color ?? "#eab308",
+                  backgroundColor: progressColor,
                 }}
               />
             </div>
@@ -92,17 +136,23 @@ function TrackCard({
                 key={tier.id}
                 className={`flex items-center gap-3 rounded-lg border px-3 py-2 ${
                   isEquipped
-                    ? "border-green-500/50 bg-green-500/5"
+                    ? "border-green-500 bg-green-500/10"
                     : "border-border"
                 }`}
               >
                 <div className="shrink-0">
-                  {!isEarned &&
-                    (isNext ? (
-                      <Circle size={18} className="text-muted-foreground" />
-                    ) : (
-                      <Lock size={18} className="text-muted-foreground/50" />
-                    ))}
+                  {isEarned ? (
+                    <Check
+                      size={18}
+                      className={
+                        isEquipped ? "text-green-600" : "text-green-500"
+                      }
+                    />
+                  ) : isNext ? (
+                    <Circle size={18} className="text-muted-foreground" />
+                  ) : (
+                    <Lock size={18} className="text-muted-foreground/50" />
+                  )}
                 </div>
                 <div className="shrink-0">
                   <BadgeIcon
@@ -127,11 +177,17 @@ function TrackCard({
                       {tier.description}
                     </p>
                   )}
+                  {isEquipped && (
+                    <p className="mt-0.5 text-xs font-medium text-green-700">
+                      Showing on leaderboard
+                    </p>
+                  )}
                 </div>
                 <div className="shrink-0">
                   {isEarned ? (
                     <Button
                       size="sm"
+                      disabled={isSaving}
                       variant={isEquipped ? "default" : "outline"}
                       className={
                         isEquipped
@@ -139,11 +195,15 @@ function TrackCard({
                           : "gap-1.5"
                       }
                       onClick={() =>
-                        onEquip(isEquipped ? null : tier.id)
+                        onEquip(track.track, isEquipped ? null : tier.id)
                       }
                     >
                       {isEquipped && <Check size={14} />}
-                      {isEquipped ? "Equipped" : "Equip"}
+                      {isSaving
+                        ? "Saving..."
+                        : isEquipped
+                          ? "Equipped"
+                          : "Equip"}
                     </Button>
                   ) : (
                     <span className="text-xs text-muted-foreground">
@@ -166,8 +226,9 @@ export default function RewardsPage() {
   const { user, updateUser } = useSession();
   const [data, setData] = useState<RewardsResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [equippedId, setEquippedId] = useState<string | null>(
-    user.equipped_badge_id,
+  const [savingTrack, setSavingTrack] = useState<string | null>(null);
+  const [equippedByTrack, setEquippedByTrack] = useState<EquippedBadgesMap>(
+    normalizeEquippedBadges(user.equipped_badges),
   );
 
   useEffect(() => {
@@ -177,14 +238,48 @@ export default function RewardsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleEquip(badgeId: string | null) {
-    const prev = equippedId;
-    setEquippedId(badgeId);
+  useEffect(() => {
+    setEquippedByTrack(normalizeEquippedBadges(user.equipped_badges));
+  }, [user.equipped_badges]);
+
+  useEffect(() => {
+    if (!data || !user.equipped_badge_id) return;
+
+    setEquippedByTrack((prev) => {
+      if (Object.keys(prev).length > 0) return prev;
+      const inferredTrack = inferTrackForBadge(data, user.equipped_badge_id);
+      if (!inferredTrack) return prev;
+      return { ...prev, [inferredTrack]: user.equipped_badge_id };
+    });
+  }, [data, user.equipped_badge_id]);
+
+  async function handleEquip(track: string, badgeId: string | null) {
+    const prev = { ...equippedByTrack };
+    const next = { ...equippedByTrack };
+    if (badgeId) {
+      next[track] = badgeId;
+    } else {
+      delete next[track];
+    }
+
+    setSavingTrack(track);
+    setEquippedByTrack(next);
+
+    const legacyBadge = Object.values(next)[0] ?? null;
+
     try {
-      await updateProfile({ equipped_badge_id: badgeId });
-      updateUser({ equipped_badge_id: badgeId });
+      await updateProfile({
+        equipped_badges: next,
+        equipped_badge_id: legacyBadge,
+      });
+      updateUser({
+        equipped_badges: next,
+        equipped_badge_id: legacyBadge,
+      });
     } catch {
-      setEquippedId(prev);
+      setEquippedByTrack(prev);
+    } finally {
+      setSavingTrack(null);
     }
   }
 
@@ -207,7 +302,8 @@ export default function RewardsPage() {
             <TrackCard
               key={track.track}
               track={track}
-              equippedBadgeId={equippedId}
+              equippedBadgeId={equippedByTrack[track.track] ?? null}
+              isSaving={savingTrack === track.track}
               onEquip={handleEquip}
             />
           ))}

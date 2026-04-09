@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UserProfileResponse(BaseModel):
@@ -16,6 +16,7 @@ class UserProfileResponse(BaseModel):
     claim_amount: float = 1000
     above_cap: bool = False
     equipped_badge_id: str | None = None
+    equipped_badges: dict[str, str] = Field(default_factory=dict)
     avatar_url: str | None = None
 
 
@@ -27,6 +28,7 @@ class CreateProfileRequest(BaseModel):
 class UpdateProfileRequest(BaseModel):
     display_name: str | None = None
     equipped_badge_id: str | None = None
+    equipped_badges: dict[str, str | None] | None = None
     avatar_url: str | None = None
 
 
@@ -36,4 +38,5 @@ class LeaderboardEntry(BaseModel):
     display_name: str
     banana_balance: float
     equipped_badge_id: str | None = None
+    equipped_badges: dict[str, str] = Field(default_factory=dict)
     avatar_url: str | None = None

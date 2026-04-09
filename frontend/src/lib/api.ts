@@ -94,6 +94,7 @@ export function updateProfile(
   body: {
     display_name?: string;
     equipped_badge_id?: string | null;
+    equipped_badges?: Record<string, string | null> | null;
     avatar_url?: string | null;
   },
 ): Promise<UserProfile> {

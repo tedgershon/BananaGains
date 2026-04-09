@@ -1916,4 +1916,20 @@ CREATE POLICY "Avatars are publicly accessible"
   USING (bucket_id = 'avatars');
 
 
+-- =========================================================================
+-- 053 — equipped_badges map on profiles
+-- =========================================================================
+ALTER TABLE profiles
+    ADD COLUMN IF NOT EXISTS equipped_badges JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+UPDATE profiles p
+SET equipped_badges = jsonb_build_object(b.track, p.equipped_badge_id::text)
+FROM badge_definitions b
+WHERE p.equipped_badge_id = b.id
+    AND (
+        p.equipped_badges IS NULL
+        OR p.equipped_badges = '{}'::jsonb
+    );
+
+
 COMMIT;

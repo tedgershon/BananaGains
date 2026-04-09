@@ -7,6 +7,9 @@ from schemas.user import CreateProfileRequest, UpdateProfileRequest, UserProfile
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
+TRACK_KEYS = ("banana_baron", "oracle", "architect", "degen", "whale")
+TRACK_SET = set(TRACK_KEYS)
+
 
 @router.get("/me", response_model=UserProfileResponse)
 async def get_me(
@@ -80,8 +83,9 @@ async def update_profile(
     supabase: Client = Depends(get_supabase_client),
     token: str | None = Depends(get_user_token),
 ):
-    """Update mutable profile fields (display_name, equipped_badge_id, avatar_url)."""
+    """Update mutable profile fields (display_name, equipped badges, avatar_url)."""
     updates: dict = {}
+    fields_set = body.model_fields_set or set()
 
     if body.display_name is not None:
         name = body.display_name.strip()
@@ -92,14 +96,107 @@ async def update_profile(
             )
         updates["display_name"] = name
 
-    if body.equipped_badge_id is not None:
-        updates["equipped_badge_id"] = body.equipped_badge_id
-    elif "equipped_badge_id" in (body.model_fields_set or set()):
-        updates["equipped_badge_id"] = None
+    equipped_badges: dict[str, str] | None = None
+    if body.equipped_badges is not None or "equipped_badges" in fields_set:
+        raw_map = body.equipped_badges or {}
+        invalid_tracks = [track for track in raw_map if track not in TRACK_SET]
+        if invalid_tracks:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid badge track(s): {', '.join(sorted(invalid_tracks))}",
+            )
+
+        equipped_badges = {}
+        for track, badge_id in raw_map.items():
+            if badge_id is None:
+                continue
+            badge_id = str(badge_id).strip()
+            if not badge_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Badge id for track '{track}' must not be empty",
+                )
+            equipped_badges[track] = badge_id
+    elif body.equipped_badge_id is not None:
+        # Backward compatibility for older clients that still send one badge id.
+        badge_lookup = (
+            supabase.table("badge_definitions")
+            .select("id, track")
+            .eq("id", body.equipped_badge_id)
+            .limit(1)
+            .execute()
+        )
+        if not badge_lookup.data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid equipped_badge_id",
+            )
+        badge_row = badge_lookup.data[0]
+        equipped_badges = {badge_row["track"]: badge_row["id"]}
+    elif "equipped_badge_id" in fields_set:
+        equipped_badges = {}
+
+    if equipped_badges is not None:
+        if equipped_badges:
+            requested_badge_ids = list(equipped_badges.values())
+            badge_defs = (
+                supabase.table("badge_definitions")
+                .select("id, track, tier")
+                .in_("id", requested_badge_ids)
+                .execute()
+            )
+            defs_by_id = {row["id"]: row for row in (badge_defs.data or [])}
+
+            if len(defs_by_id) != len(set(requested_badge_ids)):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="One or more equipped badge ids are invalid",
+                )
+
+            for track, badge_id in equipped_badges.items():
+                badge_def = defs_by_id[badge_id]
+                if badge_def["track"] != track:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=(
+                            f"Badge {badge_id} belongs to track '{badge_def['track']}', "
+                            f"not '{track}'"
+                        ),
+                    )
+
+            earned = (
+                supabase.table("user_badges")
+                .select("track, tier")
+                .eq("user_id", current_user["id"])
+                .in_("track", list(equipped_badges.keys()))
+                .execute()
+            )
+            earned_by_track = {
+                row["track"]: int(row["tier"])
+                for row in (earned.data or [])
+            }
+
+            for track, badge_id in equipped_badges.items():
+                badge_tier = int(defs_by_id[badge_id]["tier"])
+                if earned_by_track.get(track, 0) < badge_tier:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=(
+                            f"Cannot equip track '{track}' tier {badge_tier} before earning it"
+                        ),
+                    )
+
+        updates["equipped_badges"] = equipped_badges
+
+        # Keep legacy single slot populated for older clients.
+        preferred_badge_id = next(iter(equipped_badges.values()), None)
+        if body.equipped_badge_id is not None and body.equipped_badge_id in equipped_badges.values():
+            preferred_badge_id = body.equipped_badge_id
+        updates["equipped_badge_id"] = preferred_badge_id
 
     if body.avatar_url is not None:
         updates["avatar_url"] = body.avatar_url
-    elif "avatar_url" in (body.model_fields_set or set()):
+    elif "avatar_url" in fields_set:
         updates["avatar_url"] = None
 
     if not updates:
