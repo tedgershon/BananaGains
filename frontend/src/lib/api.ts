@@ -90,14 +90,12 @@ export function createProfile(
   });
 }
 
-export function updateProfile(
-  body: {
-    display_name?: string;
-    equipped_badge_id?: string | null;
-    equipped_badges?: Record<string, string | null> | null;
-    avatar_url?: string | null;
-  },
-): Promise<UserProfile> {
+export function updateProfile(body: {
+  display_name?: string;
+  equipped_badge_id?: string | null;
+  equipped_badges?: Record<string, string | null> | null;
+  avatar_url?: string | null;
+}): Promise<UserProfile> {
   return apiFetch("/api/auth/profile", {
     method: "PATCH",
     body: JSON.stringify(body),

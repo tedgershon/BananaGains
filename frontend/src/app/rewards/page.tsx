@@ -243,13 +243,18 @@ export default function RewardsPage() {
   }, [user.equipped_badges]);
 
   useEffect(() => {
-    if (!data || !user.equipped_badge_id) return;
+    const rewardsData = data;
+    const legacyEquippedBadgeId = user.equipped_badge_id;
+    if (!rewardsData || !legacyEquippedBadgeId) return;
 
     setEquippedByTrack((prev) => {
       if (Object.keys(prev).length > 0) return prev;
-      const inferredTrack = inferTrackForBadge(data, user.equipped_badge_id);
+      const inferredTrack = inferTrackForBadge(
+        rewardsData,
+        legacyEquippedBadgeId,
+      );
       if (!inferredTrack) return prev;
-      return { ...prev, [inferredTrack]: user.equipped_badge_id };
+      return { ...prev, [inferredTrack]: legacyEquippedBadgeId };
     });
   }, [data, user.equipped_badge_id]);
 

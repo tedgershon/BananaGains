@@ -1,6 +1,7 @@
 "use client";
 
 import { Trophy } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { BadgeCircle } from "@/components/badge";
 import { BananaCoin } from "@/components/banana-coin";
@@ -109,7 +110,15 @@ function UserAvatar({
     <div className="relative shrink-0">
       <div className="flex size-10 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted text-sm font-medium text-muted-foreground">
         {avatarUrl ? (
-          <img src={avatarUrl} alt="" className="size-full object-cover" />
+          <Image
+            src={avatarUrl}
+            alt=""
+            width={40}
+            height={40}
+            sizes="40px"
+            quality={100}
+            className="size-full object-cover"
+          />
         ) : (
           initials
         )}
