@@ -2,23 +2,43 @@
 
 import { Trophy } from "lucide-react";
 import { useEffect, useState } from "react";
+import { BadgeCircle } from "@/components/badge";
 import { BananaCoin } from "@/components/banana-coin";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { getLeaderboard } from "@/lib/api";
+import { getLeaderboard, getUserBadges } from "@/lib/api";
 import { useSession } from "@/lib/SessionProvider";
-import type { LeaderboardEntry } from "@/lib/types";
+import type { LeaderboardEntry, UserBadge } from "@/lib/types";
 
 export default function LeaderboardPage() {
   const { user } = useSession();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [badgeMap, setBadgeMap] = useState<Record<string, UserBadge[]>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     getLeaderboard()
-      .then((data) =>
-        setEntries(data.sort((a, b) => b.banana_balance - a.banana_balance)),
-      )
+      .then((data) => {
+        const sorted = data.sort((a, b) => b.banana_balance - a.banana_balance);
+        setEntries(sorted);
+
+        Promise.all(
+          sorted.map((entry) =>
+            getUserBadges(entry.id).then((badges) => ({
+              id: entry.id,
+              badges,
+            })),
+          ),
+        )
+          .then((results) => {
+            const map: Record<string, UserBadge[]> = {};
+            for (const r of results) {
+              map[r.id] = r.badges;
+            }
+            setBadgeMap(map);
+          })
+          .catch(() => {});
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -42,6 +62,7 @@ export default function LeaderboardPage() {
             {entries.map((entry, i) => {
               const rank = i + 1;
               const isCurrentUser = entry.id === user.id;
+              const userBadges = badgeMap[entry.id] ?? [];
 
               return (
                 <div
@@ -65,15 +86,24 @@ export default function LeaderboardPage() {
                     )}
                   </span>
 
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold leading-snug">
-                      {entry.display_name}
-                      {isCurrentUser && (
-                        <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-                          (you)
-                        </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold leading-snug truncate">
+                        {entry.display_name}
+                        {isCurrentUser && (
+                          <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                            (you)
+                          </span>
+                        )}
+                      </p>
+                      {userBadges.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          {userBadges.map((badge) => (
+                            <BadgeCircle key={badge.track} badge={badge} />
+                          ))}
+                        </div>
                       )}
-                    </p>
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       {entry.andrew_id}
                     </p>

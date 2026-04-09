@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Bell, List, LogOut, Wallet } from "lucide-react";
+import { BarChart3, Bell, List, LogOut, Trophy, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -13,6 +13,7 @@ const MENU_ITEMS = [
   { href: "/portfolio", label: "Portfolio", icon: Wallet },
   { href: "/portfolio#positions", label: "Positions", icon: BarChart3 },
   { href: "/portfolio#transactions", label: "Transaction History", icon: List },
+  { href: "/rewards", label: "Rewards", icon: Trophy },
 ];
 
 export function UserMenu() {

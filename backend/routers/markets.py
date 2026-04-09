@@ -46,6 +46,23 @@ DISPUTE_VOTE_QUORUM = 3
 COMMUNITY_VOTE_QUORUM = 3
 
 
+def _check_badges_for_market_participants(supabase: Client, market_id: str):
+    """Check and award badges for all participants of a resolved market."""
+    try:
+        bets = supabase.table("bets").select("user_id").eq("market_id", market_id).execute()
+        user_ids = {b["user_id"] for b in (bets.data or [])}
+        market = supabase.table("markets").select("creator_id").eq("id", market_id).single().execute()
+        if market.data:
+            user_ids.add(market.data["creator_id"])
+        for uid in user_ids:
+            try:
+                supabase.rpc("check_and_award_badges", {"p_user_id": uid}).execute()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
 def _apply_lazy_transitions(markets: list[dict], supabase: Client) -> list[dict]:
     """Lazily apply deadline-based state transitions when markets are fetched."""
     now = datetime.now(tz=timezone.utc)

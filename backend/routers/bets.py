@@ -75,6 +75,7 @@ async def place_bet(
         ) from exc
 
     _check_badges_safe(supabase, current_user["id"])
+
     return result.data
 
 
@@ -132,6 +133,7 @@ async def place_multichoice_bet(
         ) from exc
 
     _check_badges_safe(supabase, current_user["id"])
+
     return result.data
 
 

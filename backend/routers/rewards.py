@@ -115,7 +115,7 @@ def _build_track_progress(
             "current_value": current_value,
             "next_threshold": next_threshold,
             "current_tier": current_tier,
-            "max_tier": 5,
+            "max_tier": max((t["tier"] for t in tiers), default=5),
             "tiers": tiers,
         })
 
