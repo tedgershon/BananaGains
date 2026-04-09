@@ -245,6 +245,13 @@ async def review_market(
 
     if body.action == "approve":
         await notify_market_approved(supabase, market.data, body.notes)
+        # Check Architect track badges for the market creator
+        try:
+            supabase.rpc("check_and_award_badges", {
+                "p_user_id": market.data["creator_id"],
+            }).execute()
+        except Exception:
+            pass
     else:
         await notify_market_denied(supabase, market.data, body.notes or "")
 

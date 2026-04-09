@@ -280,6 +280,42 @@ export interface PricePoint {
   probability: number;
 }
 
+export interface BadgeDefinition {
+  id: string;
+  track: string;
+  tier: number;
+  name: string;
+  description: string;
+  threshold: number;
+  color: string;
+}
+
+export interface UserBadge {
+  id: string;
+  user_id: string;
+  badge_id: string;
+  track: string;
+  tier: number;
+  earned_at: string;
+  badge_definitions: BadgeDefinition;
+}
+
+export interface TrackProgress {
+  track: string;
+  track_display_name: string;
+  track_description: string;
+  current_value: number;
+  next_threshold: number | null;
+  current_tier: number;
+  max_tier: number;
+  tiers: BadgeDefinition[];
+}
+
+export interface RewardsResponse {
+  tracks: TrackProgress[];
+  badges: UserBadge[];
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
