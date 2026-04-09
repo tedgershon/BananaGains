@@ -3,15 +3,19 @@ import re
 
 def lint_market_fields(body):
     """Apply style conformity rules to market text fields."""
-    return body.model_copy(update={
+    updates = {
         "title": _lint_title(body.title),
         "description": _lint_body_text(body.description),
         "resolution_criteria": _lint_body_text(body.resolution_criteria),
-        "yes_criteria": _lint_body_text(body.yes_criteria),
-        "no_criteria": _lint_body_text(body.no_criteria),
-        "ambiguity_criteria": _lint_body_text(body.ambiguity_criteria),
         "official_source": body.official_source.strip(),
-    })
+    }
+    if body.yes_criteria:
+        updates["yes_criteria"] = _lint_body_text(body.yes_criteria)
+    if body.no_criteria:
+        updates["no_criteria"] = _lint_body_text(body.no_criteria)
+    if body.ambiguity_criteria:
+        updates["ambiguity_criteria"] = _lint_body_text(body.ambiguity_criteria)
+    return body.model_copy(update=updates)
 
 
 def _lint_title(text: str) -> str:

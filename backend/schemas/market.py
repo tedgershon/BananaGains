@@ -23,17 +23,27 @@ class CreateMarketRequest(BaseModel):
     resolution_criteria: str
     category: str = "General"
     official_source: str
-    yes_criteria: str
-    no_criteria: str
-    ambiguity_criteria: str
+    yes_criteria: str | None = None
+    no_criteria: str | None = None
+    ambiguity_criteria: str | None = None
     link: str | None = None
+    market_type: Literal["binary", "multichoice"] = "binary"
+    multichoice_type: Literal["exclusive", "non_exclusive"] | None = None
+    options: list[str] | None = None
 
-    @field_validator("title", "official_source", "yes_criteria", "no_criteria", "ambiguity_criteria")
+    @field_validator("title", "official_source")
     @classmethod
     def not_empty(cls, v: str) -> str:
         if not v.strip():
             raise ValueError("Field must not be empty")
         return v.strip()
+
+    @field_validator("yes_criteria", "no_criteria", "ambiguity_criteria")
+    @classmethod
+    def not_empty_if_present(cls, v: str | None) -> str | None:
+        if v is not None and not v.strip():
+            raise ValueError("Field must not be empty if provided")
+        return v.strip() if v else v
 
     @field_validator("close_at")
     @classmethod
@@ -53,6 +63,35 @@ class CreateMarketRequest(BaseModel):
         if not re.match(url_pattern, v):
             raise ValueError("Invalid URL format. Must start with http:// or https://")
         return v
+
+    @field_validator("options")
+    @classmethod
+    def validate_options(cls, v, info):
+        if info.data.get("market_type") == "multichoice":
+            if v is None or len(v) < 2:
+                raise ValueError("Multichoice markets require at least 2 options")
+            if len(v) > 10:
+                raise ValueError("Maximum 10 options allowed")
+            if len(set(v)) != len(v):
+                raise ValueError("Option labels must be unique")
+        return v
+
+    @field_validator("multichoice_type")
+    @classmethod
+    def validate_multichoice_type(cls, v, info):
+        if info.data.get("market_type") == "multichoice" and v is None:
+            raise ValueError("multichoice_type is required for multichoice markets")
+        return v
+
+
+class MarketOptionResponse(BaseModel):
+    id: str
+    market_id: str
+    label: str
+    pool_total: float
+    sort_order: int
+    is_winner: bool | None = None
+    created_at: datetime
 
 
 class MarketResponse(BaseModel):
@@ -84,6 +123,9 @@ class MarketResponse(BaseModel):
     review_date: datetime | None = None
     review_notes: str | None = None
     resolution_window_end: datetime | None = None
+    market_type: str = "binary"
+    multichoice_type: str | None = None
+    options: list[MarketOptionResponse] | None = None
 
 
 class ReviewMarketRequest(BaseModel):

@@ -16,11 +16,24 @@ class PlaceBetRequest(BaseModel):
         return v
 
 
+class PlaceMultichoiceBetRequest(BaseModel):
+    option_id: str
+    amount: float
+
+    @field_validator("amount")
+    @classmethod
+    def amount_positive(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("Bet amount must be positive")
+        return v
+
+
 class BetResponse(BaseModel):
     id: str
     user_id: str
     market_id: str
-    side: Literal["YES", "NO"]
+    side: Literal["YES", "NO"] | None = None
+    option_id: str | None = None
     amount: float
     created_at: datetime
 

@@ -31,6 +31,11 @@ interface DataContextValue {
   disputeMarket: (marketId: string, explanation: string) => Promise<void>;
   castDisputeVote: (marketId: string, vote: BetSide) => Promise<void>;
   placeBet: (marketId: string, side: BetSide, amount: number) => Promise<void>;
+  placeMultichoiceBet: (
+    marketId: string,
+    optionId: string,
+    amount: number,
+  ) => Promise<void>;
   refreshMarkets: () => Promise<void>;
   fetchMarket: (id: string) => Promise<Market>;
 }
@@ -201,6 +206,63 @@ export function DataProvider({ children }: { children: ReactNode }) {
           user_id: user.id,
           market_id: marketId,
           side,
+          option_id: null,
+          amount,
+          created_at: now,
+        },
+        ...prev,
+      ]);
+      setTransactions((prev) => [
+        {
+          id: `tx-${res.bet_id}`,
+          user_id: user.id,
+          market_id: marketId,
+          transaction_type: "bet_placement" as const,
+          amount: -amount,
+          created_at: now,
+        },
+        ...prev,
+      ]);
+    },
+    [user.id, user.banana_balance, updateBalance],
+  );
+
+  const placeMultichoiceBet = useCallback(
+    async (
+      marketId: string,
+      optionId: string,
+      amount: number,
+    ): Promise<void> => {
+      const res = await api.placeMultichoiceBet(marketId, {
+        option_id: optionId,
+        amount,
+      });
+
+      setMarkets((prev) =>
+        prev.map((m) => {
+          if (m.id !== marketId) return m;
+          if (!m.options) return m;
+          return {
+            ...m,
+            options: m.options.map((opt) =>
+              opt.id === optionId
+                ? { ...opt, pool_total: opt.pool_total + amount }
+                : opt,
+            ),
+          };
+        }),
+      );
+
+      updateBalance(res.new_balance - user.banana_balance);
+
+      const now = new Date().toISOString();
+      setBets((prev) => [
+        {
+          id: res.bet_id,
+          user_id: user.id,
+          market_id: marketId,
+          side: null,
+          option_id: optionId,
           amount,
           created_at: now,
         },
@@ -252,6 +314,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       disputeMarket,
       castDisputeVote,
       placeBet,
+      placeMultichoiceBet,
       refreshMarkets,
       fetchMarket,
     }),
@@ -266,6 +329,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       disputeMarket,
       castDisputeVote,
       placeBet,
+      placeMultichoiceBet,
       refreshMarkets,
       fetchMarket,
     ],

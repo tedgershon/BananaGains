@@ -46,6 +46,16 @@ export interface UserSearchResult {
   created_at: string;
 }
 
+export interface MarketOption {
+  id: string;
+  market_id: string;
+  label: string;
+  pool_total: number;
+  sort_order: number;
+  is_winner: boolean | null;
+  created_at: string;
+}
+
 export interface Market {
   id: string;
   title: string;
@@ -79,6 +89,9 @@ export interface Market {
   review_date?: string | null;
   review_notes?: string | null;
   resolution_window_end?: string | null;
+  market_type: "binary" | "multichoice";
+  multichoice_type: "exclusive" | "non_exclusive" | null;
+  options?: MarketOption[] | null;
 }
 
 export interface Bet {
@@ -86,7 +99,8 @@ export interface Bet {
   user_id: string;
   market_id: string;
 
-  side: BetSide;
+  side: BetSide | null;
+  option_id: string | null;
   amount: number;
   created_at: string;
 }
@@ -131,6 +145,9 @@ export interface CreateMarketRequest {
   no_criteria?: string;
   ambiguity_criteria?: string;
   link?: string;
+  market_type?: "binary" | "multichoice";
+  multichoice_type?: "exclusive" | "non_exclusive";
+  options?: string[];
 }
 
 export interface ReviewMarketRequest {
@@ -158,6 +175,11 @@ export interface CastVoteRequest {
 
 export interface PlaceBetRequest {
   side: BetSide;
+  amount: number;
+}
+
+export interface PlaceMultichoiceBetRequest {
+  option_id: string;
   amount: number;
 }
 

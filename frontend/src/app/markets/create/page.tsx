@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Info } from "lucide-react";
+import { ArrowLeft, Info, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ const CATEGORIES = [
 ];
 
 const URL_REGEX = /^https?:\/\/[^\s/$.?#].[^\s]*$/;
+const MAX_OPTIONS = 10;
+const MIN_OPTIONS = 2;
 
 export default function CreateMarketPage() {
   const { addMarket } = useData();
@@ -36,9 +38,31 @@ export default function CreateMarketPage() {
   const [marketType, setMarketType] = useState<"binary" | "multichoice">(
     "binary",
   );
+  const [multichoiceType, setMultichoiceType] = useState<
+    "exclusive" | "non_exclusive"
+  >("exclusive");
+  const [options, setOptions] = useState<string[]>(["", ""]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  function addOption() {
+    if (options.length < MAX_OPTIONS) {
+      setOptions([...options, ""]);
+    }
+  }
+
+  function removeOption(index: number) {
+    if (options.length > MIN_OPTIONS) {
+      setOptions(options.filter((_, i) => i !== index));
+    }
+  }
+
+  function updateOption(index: number, value: string) {
+    const next = [...options];
+    next[index] = value;
+    setOptions(next);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -73,33 +97,61 @@ export default function CreateMarketPage() {
       setError("Official source is required.");
       return;
     }
-    if (!yesCriteria.trim()) {
-      setError("Yes criteria is required.");
-      return;
+
+    if (marketType === "binary") {
+      if (!yesCriteria.trim()) {
+        setError("Yes criteria is required.");
+        return;
+      }
+      if (!noCriteria.trim()) {
+        setError("No criteria is required.");
+        return;
+      }
+      if (!ambiguityCriteria.trim()) {
+        setError("Ambiguity criteria is required.");
+        return;
+      }
     }
-    if (!noCriteria.trim()) {
-      setError("No criteria is required.");
-      return;
-    }
-    if (!ambiguityCriteria.trim()) {
-      setError("Ambiguity criteria is required.");
-      return;
+
+    if (marketType === "multichoice") {
+      const filledOptions = options.filter((o) => o.trim());
+      if (filledOptions.length < MIN_OPTIONS) {
+        setError(`At least ${MIN_OPTIONS} options are required.`);
+        return;
+      }
+      if (new Set(filledOptions).size !== filledOptions.length) {
+        setError("Option labels must be unique.");
+        return;
+      }
     }
 
     setSubmitting(true);
     try {
-      await addMarket({
+      const base = {
         title: title.trim(),
         description: description.trim(),
         close_at: new Date(closeAt).toISOString(),
         resolution_criteria: resolutionCriteria.trim(),
         category,
         official_source: officialSource.trim(),
-        yes_criteria: yesCriteria.trim(),
-        no_criteria: noCriteria.trim(),
-        ambiguity_criteria: ambiguityCriteria.trim(),
         link: link.trim() || undefined,
-      });
+        market_type: marketType,
+      };
+
+      if (marketType === "binary") {
+        await addMarket({
+          ...base,
+          yes_criteria: yesCriteria.trim(),
+          no_criteria: noCriteria.trim(),
+          ambiguity_criteria: ambiguityCriteria.trim(),
+        });
+      } else {
+        await addMarket({
+          ...base,
+          multichoice_type: multichoiceType,
+          options: options.filter((o) => o.trim()).map((o) => o.trim()),
+        });
+      }
       setSubmitted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create market.");
@@ -170,18 +222,16 @@ export default function CreateMarketPage() {
                   />
                   <span className="text-sm font-medium">Binary (Yes / No)</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-not-allowed opacity-50">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
                     name="marketType"
                     value="multichoice"
                     checked={marketType === "multichoice"}
-                    disabled
+                    onChange={() => setMarketType("multichoice")}
                     className="accent-primary"
                   />
-                  <span className="text-sm font-medium">
-                    Multiple Choice (coming soon)
-                  </span>
+                  <span className="text-sm font-medium">Multiple Choice</span>
                 </label>
               </div>
             </CardContent>
@@ -271,6 +321,96 @@ export default function CreateMarketPage() {
             </CardContent>
           </Card>
 
+          {/* Multichoice options */}
+          {marketType === "multichoice" && (
+            <Card size="sm">
+              <CardHeader className="pb-0">
+                <span className="text-sm font-medium">
+                  Multiple Choice Settings
+                </span>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-1.5">
+                  <span className="text-sm font-medium text-foreground">
+                    Outcome Type
+                  </span>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="multichoiceType"
+                        value="exclusive"
+                        checked={multichoiceType === "exclusive"}
+                        onChange={() => setMultichoiceType("exclusive")}
+                        className="accent-primary"
+                      />
+                      <span className="text-sm">Mutually Exclusive</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="multichoiceType"
+                        value="non_exclusive"
+                        checked={multichoiceType === "non_exclusive"}
+                        onChange={() => setMultichoiceType("non_exclusive")}
+                        className="accent-primary"
+                      />
+                      <span className="text-sm">Multiple Can Win</span>
+                    </label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {multichoiceType === "exclusive"
+                      ? "Exactly one option wins (e.g., election, competition)"
+                      : "Any number of options can be true (e.g., threshold events)"}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground">
+                      Options
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {options.length} of {MAX_OPTIONS} options
+                    </span>
+                  </div>
+                  {options.map((opt, idx) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: options list is reordered by user
+                    <div key={idx} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder={`Option ${idx + 1}`}
+                        value={opt}
+                        onChange={(e) => updateOption(idx, e.target.value)}
+                        className={inputClass}
+                      />
+                      {options.length > MIN_OPTIONS && (
+                        <button
+                          type="button"
+                          onClick={() => removeOption(idx)}
+                          className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        >
+                          <X className="size-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={addOption}
+                    disabled={options.length >= MAX_OPTIONS}
+                  >
+                    <Plus className="mr-1 size-4" />
+                    Add Option
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Admin-only fields */}
           <Card size="sm" className="border-dashed bg-muted/50">
             <CardHeader className="pb-0">
@@ -302,56 +442,60 @@ export default function CreateMarketPage() {
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="yesCriteria"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Yes Criteria
-                </label>
-                <textarea
-                  id="yesCriteria"
-                  placeholder="What counts as YES?"
-                  rows={2}
-                  value={yesCriteria}
-                  onChange={(e) => setYesCriteria(e.target.value)}
-                  className={`${inputClass} resize-none`}
-                />
-              </div>
+              {marketType === "binary" && (
+                <>
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor="yesCriteria"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Yes Criteria
+                    </label>
+                    <textarea
+                      id="yesCriteria"
+                      placeholder="What counts as YES?"
+                      rows={2}
+                      value={yesCriteria}
+                      onChange={(e) => setYesCriteria(e.target.value)}
+                      className={`${inputClass} resize-none`}
+                    />
+                  </div>
 
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="noCriteria"
-                  className="text-sm font-medium text-foreground"
-                >
-                  No Criteria
-                </label>
-                <textarea
-                  id="noCriteria"
-                  placeholder="What counts as NO?"
-                  rows={2}
-                  value={noCriteria}
-                  onChange={(e) => setNoCriteria(e.target.value)}
-                  className={`${inputClass} resize-none`}
-                />
-              </div>
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor="noCriteria"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      No Criteria
+                    </label>
+                    <textarea
+                      id="noCriteria"
+                      placeholder="What counts as NO?"
+                      rows={2}
+                      value={noCriteria}
+                      onChange={(e) => setNoCriteria(e.target.value)}
+                      className={`${inputClass} resize-none`}
+                    />
+                  </div>
 
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="ambiguityCriteria"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Ambiguity Criteria
-                </label>
-                <textarea
-                  id="ambiguityCriteria"
-                  placeholder="How should ambiguous or partial outcomes be handled?"
-                  rows={2}
-                  value={ambiguityCriteria}
-                  onChange={(e) => setAmbiguityCriteria(e.target.value)}
-                  className={`${inputClass} resize-none`}
-                />
-              </div>
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor="ambiguityCriteria"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Ambiguity Criteria
+                    </label>
+                    <textarea
+                      id="ambiguityCriteria"
+                      placeholder="How should ambiguous or partial outcomes be handled?"
+                      rows={2}
+                      value={ambiguityCriteria}
+                      onChange={(e) => setAmbiguityCriteria(e.target.value)}
+                      className={`${inputClass} resize-none`}
+                    />
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
