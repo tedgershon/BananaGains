@@ -1,8 +1,9 @@
 "use client";
 
-import { Circle, Lock, Trophy } from "lucide-react";
+import { Check, Circle, Lock, Trophy } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BadgeIcon } from "@/components/badge-icon";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -84,45 +85,24 @@ function TrackCard({
             const isEarned = tier.tier <= track.current_tier;
             const isNext = tier.tier === track.current_tier + 1;
             const remaining = tier.threshold - track.current_value;
+            const isEquipped = equippedBadgeId === tier.id;
 
             return (
               <div
                 key={tier.id}
-                className="flex items-center gap-3 rounded-lg border border-border px-3 py-2"
+                className={`flex items-center gap-3 rounded-lg border px-3 py-2 ${
+                  isEquipped
+                    ? "border-green-500/50 bg-green-500/5"
+                    : "border-border"
+                }`}
               >
                 <div className="shrink-0">
-                  {isEarned ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onEquip(
-                          equippedBadgeId === tier.id ? null : tier.id,
-                        )
-                      }
-                      className="flex items-center justify-center"
-                      title={
-                        equippedBadgeId === tier.id
-                          ? "Unequip badge"
-                          : "Equip badge"
-                      }
-                    >
-                      <div
-                        className={`size-[18px] rounded-full border-2 ${
-                          equippedBadgeId === tier.id
-                            ? "border-green-500 bg-green-500"
-                            : "border-muted-foreground"
-                        } flex items-center justify-center`}
-                      >
-                        {equippedBadgeId === tier.id && (
-                          <div className="size-2 rounded-full bg-white" />
-                        )}
-                      </div>
-                    </button>
-                  ) : isNext ? (
-                    <Circle size={18} className="text-muted-foreground" />
-                  ) : (
-                    <Lock size={18} className="text-muted-foreground/50" />
-                  )}
+                  {!isEarned &&
+                    (isNext ? (
+                      <Circle size={18} className="text-muted-foreground" />
+                    ) : (
+                      <Lock size={18} className="text-muted-foreground/50" />
+                    ))}
                 </div>
                 <div className="shrink-0">
                   <BadgeIcon
@@ -148,12 +128,30 @@ function TrackCard({
                     </p>
                   )}
                 </div>
-                <div className="shrink-0 text-xs text-muted-foreground">
-                  {isEarned
-                    ? "Earned!"
-                    : isNext
-                      ? `${Math.max(0, remaining).toLocaleString()} to go`
-                      : "Locked"}
+                <div className="shrink-0">
+                  {isEarned ? (
+                    <Button
+                      size="sm"
+                      variant={isEquipped ? "default" : "outline"}
+                      className={
+                        isEquipped
+                          ? "bg-green-600 hover:bg-green-700 text-white gap-1.5"
+                          : "gap-1.5"
+                      }
+                      onClick={() =>
+                        onEquip(isEquipped ? null : tier.id)
+                      }
+                    >
+                      {isEquipped && <Check size={14} />}
+                      {isEquipped ? "Equipped" : "Equip"}
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      {isNext
+                        ? `${Math.max(0, remaining).toLocaleString()} to go`
+                        : "Locked"}
+                    </span>
+                  )}
                 </div>
               </div>
             );

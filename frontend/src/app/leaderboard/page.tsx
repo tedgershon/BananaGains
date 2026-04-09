@@ -77,10 +77,14 @@ export default function LeaderboardPage() {
         const sorted = data.sort((a, b) => b.banana_balance - a.banana_balance);
         setEntries(sorted);
 
+        const withEquipped = sorted.filter((e) => e.equipped_badge_id);
+        if (withEquipped.length === 0) return;
+
         Promise.all(
-          sorted.map((entry) =>
+          withEquipped.map((entry) =>
             getUserBadges(entry.id).then((badges) => ({
               id: entry.id,
+              equippedBadgeId: entry.equipped_badge_id,
               badges,
             })),
           ),
@@ -88,7 +92,12 @@ export default function LeaderboardPage() {
           .then((results) => {
             const map: Record<string, UserBadge[]> = {};
             for (const r of results) {
-              map[r.id] = r.badges;
+              const equipped = r.badges.filter(
+                (b) => b.badge_id === r.equippedBadgeId,
+              );
+              if (equipped.length > 0) {
+                map[r.id] = equipped;
+              }
             }
             setBadgeMap(map);
           })

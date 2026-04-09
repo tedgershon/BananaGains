@@ -16,12 +16,12 @@ app.add_middleware(
 
 app.include_router(admin.router)
 app.include_router(auth.router)
+app.include_router(resolution.router)
 app.include_router(markets.router)
 app.include_router(bets.router)
 app.include_router(notifications.router)
 app.include_router(portfolio.router)
 app.include_router(leaderboard.router)
-app.include_router(resolution.router)
 app.include_router(rewards.router)
 
 
