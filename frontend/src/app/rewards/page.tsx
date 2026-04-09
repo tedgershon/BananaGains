@@ -148,7 +148,7 @@ function TrackCard({
                 key={tier.id}
                 disabled={!canCardEquip}
                 onClick={activateCardEquip}
-                className={`flex items-center gap-3 rounded-lg border px-3 py-2 ${
+                className={`grid w-full min-h-24 grid-cols-[auto_auto_1fr_auto] items-center gap-3 rounded-lg border px-3 py-2 text-left ${
                   isEquipped
                     ? "border-green-500 bg-green-500/10"
                     : canCardEquip
@@ -199,13 +199,13 @@ function TrackCard({
                     </p>
                   )}
                 </div>
-                <div className="shrink-0">
+                <div className="flex w-24 justify-end">
                   {isEarned ? (
                     <span
                       className={
                         isEquipped
-                          ? "inline-flex items-center gap-1.5 rounded-md bg-green-600 px-2.5 py-1 text-xs font-medium text-white"
-                          : "inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium"
+                          ? "inline-flex w-20 items-center justify-center gap-1.5 rounded-md bg-green-600 px-2.5 py-1 text-xs font-medium text-white"
+                          : "inline-flex w-20 items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium"
                       }
                     >
                       {isEquipped && <Check size={14} />}
@@ -216,7 +216,7 @@ function TrackCard({
                           : "Equip"}
                     </span>
                   ) : (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-right text-xs text-muted-foreground">
                       {isNext
                         ? `${Math.max(1, Math.ceil(remaining)).toLocaleString()} to go`
                         : "Locked"}

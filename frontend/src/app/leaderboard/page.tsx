@@ -19,17 +19,6 @@ const TRACK_ORDER = [
   "whale",
 ] as const;
 
-const TRACK_META: Record<
-  (typeof TRACK_ORDER)[number],
-  { label: string; icon: string }
-> = {
-  banana_baron: { label: "Banana Baron", icon: "🍌" },
-  oracle: { label: "Oracle", icon: "🔮" },
-  architect: { label: "Architect", icon: "🏗️" },
-  degen: { label: "Degen", icon: "🎲" },
-  whale: { label: "Whale", icon: "🐋" },
-};
-
 function getEquippedIds(entry: LeaderboardEntry): string[] {
   const selected = Object.values(entry.equipped_badges ?? {}).filter(
     (value): value is string => Boolean(value),
@@ -65,6 +54,25 @@ function getSelectedByTrack(
   }
 
   return selected;
+}
+
+function getEquippedBadges(
+  entry: LeaderboardEntry,
+  userBadges: UserBadge[],
+): UserBadge[] {
+  const selectedByTrack = getSelectedByTrack(entry, userBadges);
+
+  return TRACK_ORDER.map((track) => {
+    const selectedBadgeId = selectedByTrack[track];
+    if (!selectedBadgeId) return null;
+
+    return (
+      userBadges.find(
+        (candidate) =>
+          candidate.track === track && candidate.badge_id === selectedBadgeId,
+      ) ?? null
+    );
+  }).filter((badge): badge is UserBadge => Boolean(badge));
 }
 
 function RankBadge({ rank }: { rank: number }) {
@@ -198,7 +206,7 @@ export default function LeaderboardPage() {
               const rank = i + 1;
               const isCurrentUser = entry.id === user.id;
               const userBadges = badgeMap[entry.id] ?? [];
-              const selectedByTrack = getSelectedByTrack(entry, userBadges);
+              const equippedBadges = getEquippedBadges(entry, userBadges);
 
               return (
                 <div
@@ -221,33 +229,17 @@ export default function LeaderboardPage() {
                           </span>
                         )}
                       </p>
-                      <div className="flex items-center gap-1">
-                        {TRACK_ORDER.map((track) => {
-                          const selectedBadgeId = selectedByTrack[track];
-                          const badge = selectedBadgeId
-                            ? userBadges.find(
-                                (candidate) =>
-                                  candidate.track === track &&
-                                  candidate.badge_id === selectedBadgeId,
-                              )
-                            : undefined;
-
-                          if (badge) {
-                            return <BadgeCircle key={track} badge={badge} />;
-                          }
-
-                          const meta = TRACK_META[track];
-                          return (
-                            <div
-                              key={track}
-                              className="flex size-6 items-center justify-center rounded-full border border-dashed border-muted-foreground/30 bg-muted/40 text-[10px] opacity-60"
-                              title={`${meta.label}: none equipped`}
-                            >
-                              <span aria-hidden>{meta.icon}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      {equippedBadges.length > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          {equippedBadges.map((badge) => (
+                            <BadgeCircle
+                              key={badge.track}
+                              badge={badge}
+                              size={30}
+                            />
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {entry.andrew_id}

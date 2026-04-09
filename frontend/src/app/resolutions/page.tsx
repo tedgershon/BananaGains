@@ -244,7 +244,7 @@ export default function ResolutionsPage() {
         <div className="text-sm">
           <p className="font-medium text-foreground">Your vote matters!</p>
           <p className="text-muted-foreground">
-            Help resolve markets by voting on the correct outcome. Correct
+            Help resolve markets by voting. Correct
             voters receive a percentage of each market they help resolve.
             Incorrect votes will result in forfeiture of the coin prize for
             voting.
