@@ -147,13 +147,23 @@ export function HottestMarketDisplay() {
   return (
     <Link href={`/markets/${market.id}`} className="block">
       <div className="relative rounded-xl border bg-card p-6 transition-colors hover:bg-accent/50">
-        <div className="absolute top-4 right-4 flex items-center gap-2 text-sm text-muted-foreground">
+        {/* biome-ignore lint: click handler stops navigation to parent Link */}
+        <div
+          className="absolute top-4 right-4 z-10 flex items-center gap-2 text-sm text-muted-foreground"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }}
+        >
           <button
             type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              setCurrentIndex((i) => Math.max(0, i - 1));
-            }}
+            onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
             disabled={currentIndex === 0}
             className="rounded p-1 hover:bg-accent disabled:opacity-30"
           >
@@ -164,10 +174,7 @@ export function HottestMarketDisplay() {
           </span>
           <button
             type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              setCurrentIndex((i) => Math.min(total - 1, i + 1));
-            }}
+            onClick={() => setCurrentIndex((i) => Math.min(total - 1, i + 1))}
             disabled={currentIndex === total - 1}
             className="rounded p-1 hover:bg-accent disabled:opacity-30"
           >

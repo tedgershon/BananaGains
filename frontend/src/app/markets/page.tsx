@@ -19,8 +19,20 @@ export default function MarketsPage() {
     ? markets.filter((m) => m.category === selectedCategory)
     : markets;
 
+  const RESOLUTION_STATUSES = new Set([
+    "closed",
+    "pending_resolution",
+    "disputed",
+    "admin_review",
+  ]);
+
   const openMarkets = filtered.filter((m) => m.status === "open");
-  const closedMarkets = filtered.filter((m) => m.status !== "open");
+  const inResolutionMarkets = filtered.filter((m) =>
+    RESOLUTION_STATUSES.has(m.status),
+  );
+  const closedMarkets = filtered.filter(
+    (m) => m.status !== "open" && !RESOLUTION_STATUSES.has(m.status),
+  );
 
   return (
     <>
@@ -60,10 +72,23 @@ export default function MarketsPage() {
               </div>
             </section>
 
+            {inResolutionMarkets.length > 0 && (
+              <section className="space-y-4">
+                <h2 className="text-lg font-semibold">
+                  In Resolution ({inResolutionMarkets.length})
+                </h2>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {inResolutionMarkets.map((market) => (
+                    <MarketCard key={market.id} market={market} />
+                  ))}
+                </div>
+              </section>
+            )}
+
             {closedMarkets.length > 0 && (
               <section className="space-y-4">
                 <h2 className="text-lg font-semibold">
-                  Closed & Resolved ({closedMarkets.length})
+                  Closed ({closedMarkets.length})
                 </h2>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {closedMarkets.map((market) => (

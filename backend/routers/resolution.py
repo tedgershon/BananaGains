@@ -15,12 +15,30 @@ async def list_resolution_markets(
     _current_user: dict | None = Depends(get_current_user_optional),
 ):
     """List markets currently in their resolution period, sorted by expiration (soonest first)."""
+    now = datetime.now(tz=timezone.utc)
+
+    # Lazily close markets whose close_at has passed but are still marked open.
+    # The DB trigger set_resolution_window fires on open→closed and sets
+    # resolution_window_end = now() + 24h automatically.
+    open_expired = (
+        supabase.table("markets")
+        .select("id")
+        .eq("status", "open")
+        .lte("close_at", now.isoformat())
+        .execute()
+    )
+    if open_expired.data:
+        expired_ids = [m["id"] for m in open_expired.data]
+        supabase.table("markets").update({"status": "closed"}).in_(
+            "id", expired_ids
+        ).execute()
+
     result = (
         supabase.table("markets")
         .select("*")
         .in_("status", ["closed", "pending_resolution"])
         .not_.is_("resolution_window_end", "null")
-        .gt("resolution_window_end", datetime.now(tz=timezone.utc).isoformat())
+        .gt("resolution_window_end", now.isoformat())
         .order("resolution_window_end", desc=False)
         .execute()
     )
