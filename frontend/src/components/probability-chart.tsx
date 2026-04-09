@@ -171,9 +171,9 @@ export function MultiProbabilityChart({
             fontSize: "13px",
           }}
           labelFormatter={(label) => formatDate(String(label))}
-          formatter={(value: number, name: string) => [
-            `${value}%`,
-            optionMap.get(name)?.label ?? name,
+          formatter={(value, name) => [
+            `${Number(value)}%`,
+            optionMap.get(String(name))?.label ?? String(name),
           ]}
         />
         <Legend

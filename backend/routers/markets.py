@@ -4,8 +4,30 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
 
 import asyncio
+import logging
 
 from dependencies import get_current_user, get_current_user_optional, get_supabase_client, get_user_token, user_auth
+
+logger = logging.getLogger(__name__)
+
+
+def _check_badges_for_market_participants(supabase: Client, market_id: str) -> None:
+    """Check badges for all users who bet on a resolved market."""
+    try:
+        bettors = (
+            supabase.table("bets")
+            .select("user_id")
+            .eq("market_id", market_id)
+            .execute()
+        )
+        user_ids = {row["user_id"] for row in (bettors.data or [])}
+        for uid in user_ids:
+            try:
+                supabase.rpc("check_and_award_badges", {"p_user_id": uid}).execute()
+            except Exception:
+                logger.warning("Badge check failed for user %s", uid, exc_info=True)
+    except Exception:
+        logger.warning("Failed to check badges for market %s participants", market_id, exc_info=True)
 from market_linter import lint_market_fields
 from notification_service import notify_market_closed
 from schemas.dispute import CastVoteRequest, DisputeResponse, FileDisputeRequest, VoteResponse
@@ -78,6 +100,7 @@ def _apply_lazy_transitions(markets: list[dict], supabase: Client) -> list[dict]
             }).execute()
             m["status"] = "resolved"
             m["resolved_outcome"] = m["proposed_outcome"]
+            _check_badges_for_market_participants(supabase, m["id"])
         except Exception:
             pass  # Already resolved or state changed concurrently
 
@@ -118,6 +141,7 @@ def _apply_lazy_transitions(markets: list[dict], supabase: Client) -> list[dict]
                 }).execute()
                 m["status"] = "resolved"
                 m["resolved_outcome"] = winning
+                _check_badges_for_market_participants(supabase, m["id"])
             except Exception:
                 pass
         else:
@@ -161,6 +185,7 @@ def _apply_lazy_transitions(markets: list[dict], supabase: Client) -> list[dict]
                         "p_market_id": m["id"],
                         "p_winning_outcome": winning,
                     }).execute()
+                    _check_badges_for_market_participants(supabase, m["id"])
                 except Exception:
                     pass
             else:
