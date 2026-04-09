@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
 
 from dependencies import get_current_user, get_current_user_optional, get_supabase_client
-from schemas.bet import BetResponse, PlaceBetRequest, PlaceBetResponse
+from schemas.bet import BetResponse, PlaceBetRequest, PlaceMultichoiceBetRequest, PlaceBetResponse
 
 router = APIRouter(prefix="/api/markets", tags=["bets"])
 
@@ -56,6 +56,62 @@ async def place_bet(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Market or user not found",
+            ) from exc
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to place bet",
+        ) from exc
+
+    return result.data
+
+
+@router.post(
+    "/{market_id}/bets/option",
+    response_model=PlaceBetResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def place_multichoice_bet(
+    market_id: str,
+    body: PlaceMultichoiceBetRequest,
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client),
+):
+    try:
+        result = supabase.rpc(
+            "place_multichoice_bet",
+            {
+                "p_user_id": current_user["id"],
+                "p_market_id": market_id,
+                "p_option_id": body.option_id,
+                "p_amount": body.amount,
+            },
+        ).execute()
+    except Exception as exc:
+        detail = str(exc)
+        if "Insufficient balance" in detail:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Insufficient banana balance",
+            ) from exc
+        if "Market is not open" in detail:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Market is not open for betting",
+            ) from exc
+        if "not found" in detail.lower():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Market, option, or user not found",
+            ) from exc
+        if "not multichoice" in detail.lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Market is not a multichoice market",
+            ) from exc
+        if "does not belong" in detail.lower():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Option does not belong to this market",
             ) from exc
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

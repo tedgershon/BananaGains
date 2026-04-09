@@ -159,6 +159,30 @@ def _apply_lazy_transitions(markets: list[dict], supabase: Client) -> list[dict]
 # ── Market CRUD ──────────────────────────────────────────────
 
 
+def _attach_options(markets: list[dict], supabase: Client) -> list[dict]:
+    """For multichoice markets, fetch and attach their options."""
+    mc_ids = [m["id"] for m in markets if m.get("market_type") == "multichoice"]
+    if not mc_ids:
+        return markets
+
+    options_result = (
+        supabase.table("market_options")
+        .select("*")
+        .in_("market_id", mc_ids)
+        .order("sort_order")
+        .execute()
+    )
+    options_by_market: dict[str, list[dict]] = {}
+    for opt in options_result.data or []:
+        options_by_market.setdefault(opt["market_id"], []).append(opt)
+
+    for m in markets:
+        if m.get("market_type") == "multichoice":
+            m["options"] = options_by_market.get(m["id"], [])
+
+    return markets
+
+
 @router.get("", response_model=list[MarketResponse])
 async def list_markets(
     market_status: str | None = Query(None, alias="status"),
@@ -180,7 +204,8 @@ async def list_markets(
     query = query.order("created_at", desc=True).range(offset, offset + limit - 1)
     result = query.execute()
 
-    return _apply_lazy_transitions(result.data or [], supabase)
+    markets = _apply_lazy_transitions(result.data or [], supabase)
+    return _attach_options(markets, supabase)
 
 
 @router.get("/{market_id}", response_model=MarketResponse)
@@ -196,7 +221,8 @@ async def get_market(
     if result.data is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Market not found")
 
-    return _apply_lazy_transitions([result.data], supabase)[0]
+    markets = _apply_lazy_transitions([result.data], supabase)
+    return _attach_options(markets, supabase)[0]
 
 
 @router.post("", response_model=MarketResponse, status_code=status.HTTP_201_CREATED)
@@ -208,30 +234,46 @@ async def create_market(
 ):
     linted = lint_market_fields(body)
 
+    market_row = {
+        "title": linted.title,
+        "description": linted.description,
+        "creator_id": current_user["id"],
+        "close_at": linted.close_at.isoformat(),
+        "resolution_criteria": linted.resolution_criteria,
+        "category": linted.category,
+        "official_source": linted.official_source,
+        "yes_criteria": linted.yes_criteria,
+        "no_criteria": linted.no_criteria,
+        "ambiguity_criteria": linted.ambiguity_criteria,
+        "link": linted.link,
+        "status": "pending_review",
+        "market_type": linted.market_type,
+    }
+
+    if linted.market_type == "multichoice":
+        market_row["multichoice_type"] = linted.multichoice_type
+
     with user_auth(supabase, token):
-        result = (
-            supabase.table("markets")
-            .insert({
-                "title": linted.title,
-                "description": linted.description,
-                "creator_id": current_user["id"],
-                "close_at": linted.close_at.isoformat(),
-                "resolution_criteria": linted.resolution_criteria,
-                "category": linted.category,
-                "official_source": linted.official_source,
-                "yes_criteria": linted.yes_criteria,
-                "no_criteria": linted.no_criteria,
-                "ambiguity_criteria": linted.ambiguity_criteria,
-                "link": linted.link,
-                "status": "pending_review",
-            })
-            .execute()
-        )
+        result = supabase.table("markets").insert(market_row).execute()
 
-    if not result.data:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create market")
+        if not result.data:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create market")
 
-    return result.data[0]
+        market = result.data[0]
+
+        if linted.market_type == "multichoice" and linted.options:
+            option_rows = [
+                {
+                    "market_id": market["id"],
+                    "label": label,
+                    "sort_order": idx,
+                }
+                for idx, label in enumerate(linted.options)
+            ]
+            options_result = supabase.table("market_options").insert(option_rows).execute()
+            market["options"] = options_result.data or []
+
+    return market
 
 
 # ── Resolution Flow ──────────────────────────────────────────

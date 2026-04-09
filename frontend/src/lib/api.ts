@@ -15,6 +15,7 @@ import type {
   Market,
   PlaceBetRequest,
   PlaceBetResponse,
+  PlaceMultichoiceBetRequest,
   ResolveMarketRequest,
   ResolveMarketResponse,
   ReviewMarketRequest,
@@ -190,6 +191,16 @@ export function placeBet(
   body: PlaceBetRequest,
 ): Promise<PlaceBetResponse> {
   return apiFetch(`/api/markets/${marketId}/bets`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function placeMultichoiceBet(
+  marketId: string,
+  body: PlaceMultichoiceBetRequest,
+): Promise<PlaceBetResponse> {
+  return apiFetch(`/api/markets/${marketId}/bets/option`, {
     method: "POST",
     body: JSON.stringify(body),
   });

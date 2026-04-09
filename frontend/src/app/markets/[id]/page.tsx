@@ -1,10 +1,23 @@
 "use client";
 
-import { AlertTriangle, ArrowLeft, ExternalLink, Timer } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  ExternalLink,
+  Timer,
+  X,
+} from "lucide-react";
 import Link from "next/link";
-import { use, useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
-import { ProbabilityChart } from "@/components/probability-chart";
+import {
+  buildMultiOptionPriceHistory,
+  getOptionColor,
+  MultiProbabilityChart,
+  ProbabilityChart,
+} from "@/components/probability-chart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -17,6 +30,7 @@ import type {
   BetSide,
   CommunityVote,
   DisputeResponse,
+  MarketOption,
   PricePoint,
 } from "@/lib/types";
 import { getMarketProbability } from "@/lib/types";
@@ -57,6 +71,7 @@ export default function MarketDetailPage({
     markets,
     bets: userBets,
     placeBet,
+    placeMultichoiceBet,
     fetchMarket,
     resolveMarket,
     disputeMarket,
@@ -119,6 +134,10 @@ export default function MarketDetailPage({
   const [backrolling, setBackrolling] = useState(false);
   const [backrollResult, setBackrollResult] = useState<string | null>(null);
   const [backrollError, setBackrollError] = useState<string | null>(null);
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
+  const [showAllOptions, setShowAllOptions] = useState(false);
+  const [chartOptionDropdownOpen, setChartOptionDropdownOpen] = useState(false);
+  const [visibleOptionIds, setVisibleOptionIds] = useState<string[]>([]);
 
   const refreshVoteTotals = useCallback(async () => {
     try {
@@ -197,6 +216,34 @@ export default function MarketDetailPage({
     return () => clearInterval(interval);
   }, [market?.resolution_window_end]);
 
+  const isMultichoice = market?.market_type === "multichoice";
+  const marketOptions = market?.options ?? [];
+  const mcTotalPool = marketOptions.reduce((s, o) => s + o.pool_total, 0);
+  const sortedOptions = useMemo(
+    () => [...marketOptions].sort((a, b) => b.pool_total - a.pool_total),
+    [marketOptions],
+  );
+  const multiChartData = useMemo(
+    () =>
+      isMultichoice
+        ? buildMultiOptionPriceHistory(marketOptions, marketBets)
+        : [],
+    [isMultichoice, marketOptions, marketBets],
+  );
+
+  useEffect(() => {
+    if (
+      isMultichoice &&
+      marketOptions.length > 0 &&
+      visibleOptionIds.length === 0
+    ) {
+      const sorted = [...marketOptions].sort(
+        (a, b) => b.pool_total - a.pool_total,
+      );
+      setVisibleOptionIds(sorted.slice(0, 3).map((o) => o.id));
+    }
+  }, [isMultichoice, marketOptions, visibleOptionIds.length]);
+
   if (!market) {
     return (
       <div className="space-y-4 py-12 text-center">
@@ -230,6 +277,53 @@ export default function MarketDetailPage({
   const isAdmin = user.role === "admin" || user.role === "super_admin";
   const canBackroll = isAdmin && market.status !== "resolved";
   const voterRewardPool = Math.round(total * 0.04);
+  const topOptions = showAllOptions ? sortedOptions : sortedOptions.slice(0, 3);
+
+  function toggleChartOption(optId: string) {
+    setVisibleOptionIds((prev) =>
+      prev.includes(optId)
+        ? prev.filter((id) => id !== optId)
+        : [...prev, optId],
+    );
+  }
+
+  function getOptionPct(opt: MarketOption) {
+    return mcTotalPool > 0
+      ? Math.round((opt.pool_total / mcTotalPool) * 100)
+      : 0;
+  }
+
+  async function handleMultichoiceBet(optionId: string) {
+    if (!market) return;
+    setBetError(null);
+    setBetSuccess(null);
+    const amount = Number(betAmount);
+    if (!betAmount || Number.isNaN(amount) || amount <= 0) {
+      setBetError("Enter a valid positive amount.");
+      return;
+    }
+    if (amount > user.banana_balance) {
+      setBetError("Insufficient banana balance.");
+      return;
+    }
+    setBetting(true);
+    try {
+      await placeMultichoiceBet(market.id, optionId, amount);
+      const optLabel =
+        marketOptions.find((o) => o.id === optionId)?.label ?? "option";
+      setBetSuccess(`Placed ${amount} on ${optLabel}!`);
+      setBetAmount("");
+      setSelectedOptionId(null);
+      api
+        .listBetsForMarket(id)
+        .then(setMarketBets)
+        .catch(() => {});
+    } catch (err) {
+      setBetError(err instanceof Error ? err.message : "Failed to place bet.");
+    } finally {
+      setBetting(false);
+    }
+  }
 
   async function handleBackroll() {
     if (!market || !backrollDate) return;
@@ -416,12 +510,65 @@ export default function MarketDetailPage({
           <Card size="sm">
             <CardHeader className="flex flex-row items-center justify-between pb-0">
               <span className="text-sm font-medium">Probability</span>
-              <span className="text-2xl font-bold text-success">
-                {probability}%
-              </span>
+              {!isMultichoice && (
+                <span className="text-2xl font-bold text-success">
+                  {probability}%
+                </span>
+              )}
             </CardHeader>
             <CardContent>
-              {chartData.length > 1 ? (
+              {isMultichoice ? (
+                multiChartData.length > 1 ? (
+                  <div className="space-y-2">
+                    <MultiProbabilityChart
+                      options={marketOptions}
+                      data={multiChartData}
+                      visibleOptionIds={visibleOptionIds}
+                    />
+                    <div className="relative">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() =>
+                          setChartOptionDropdownOpen(!chartOptionDropdownOpen)
+                        }
+                      >
+                        Showing {visibleOptionIds.length} of{" "}
+                        {marketOptions.length} options
+                        <ChevronDown className="size-3" />
+                      </button>
+                      {chartOptionDropdownOpen && (
+                        <div className="absolute left-0 top-full z-10 mt-1 w-56 rounded-lg border bg-card p-2 shadow-md">
+                          {marketOptions.map((opt, idx) => (
+                            <label
+                              key={opt.id}
+                              className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={visibleOptionIds.includes(opt.id)}
+                                onChange={() => toggleChartOption(opt.id)}
+                                className="rounded border-border"
+                              />
+                              <span
+                                className="w-2 h-2 rounded-full shrink-0"
+                                style={{
+                                  backgroundColor: getOptionColor(idx),
+                                }}
+                              />
+                              <span className="truncate">{opt.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex h-[280px] items-center justify-center text-muted-foreground">
+                    Not enough activity for a chart yet
+                  </div>
+                )
+              ) : chartData.length > 1 ? (
                 <ProbabilityChart data={chartData} />
               ) : (
                 <div className="flex h-[280px] items-center justify-center text-muted-foreground">
@@ -439,6 +586,18 @@ export default function MarketDetailPage({
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 <dt className="text-muted-foreground">Status</dt>
                 <dd className="font-medium capitalize">{market.status}</dd>
+                {isMultichoice && (
+                  <>
+                    <dt className="text-muted-foreground">Market Type</dt>
+                    <dd className="font-medium">
+                      Multiple Choice (
+                      {market.multichoice_type === "exclusive"
+                        ? "Exclusive"
+                        : "Non-Exclusive"}
+                      )
+                    </dd>
+                  </>
+                )}
                 {isDisputed && votingEndsAt && (
                   <>
                     <dt className="text-muted-foreground">Voting ends</dt>
@@ -457,18 +616,65 @@ export default function MarketDetailPage({
                 <dt className="text-muted-foreground">Total Pool</dt>
                 <dd className="inline-flex items-center gap-0.5 font-medium">
                   <BananaCoin size={14} />
-                  {total.toLocaleString()}
+                  {isMultichoice
+                    ? mcTotalPool.toLocaleString()
+                    : total.toLocaleString()}
                 </dd>
-                <dt className="text-muted-foreground">Yes Pool</dt>
-                <dd className="inline-flex items-center gap-0.5 font-medium text-success">
-                  <BananaCoin size={14} />
-                  {market.yes_pool_total.toLocaleString()}
-                </dd>
-                <dt className="text-muted-foreground">No Pool</dt>
-                <dd className="inline-flex items-center gap-0.5 font-medium text-danger">
-                  <BananaCoin size={14} />
-                  {market.no_pool_total.toLocaleString()}
-                </dd>
+                {isMultichoice ? (
+                  <>
+                    <dt className="col-span-2 mt-2 text-muted-foreground font-medium">
+                      Option Pools
+                    </dt>
+                    {sortedOptions.map((opt) => (
+                      <div
+                        key={opt.id}
+                        className="col-span-2 flex items-center justify-between"
+                      >
+                        <span
+                          className={cn(
+                            "flex items-center gap-1.5 text-sm",
+                            market.status === "resolved" &&
+                              opt.is_winner === true &&
+                              "text-success font-semibold",
+                            market.status === "resolved" &&
+                              opt.is_winner === false &&
+                              "text-muted-foreground line-through",
+                          )}
+                        >
+                          {market.status === "resolved" &&
+                            opt.is_winner === true && (
+                              <Check className="size-3.5 text-success" />
+                            )}
+                          {market.status === "resolved" &&
+                            opt.is_winner === false && (
+                              <X className="size-3.5 text-danger" />
+                            )}
+                          {opt.label}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-sm font-medium">
+                          <BananaCoin size={14} />
+                          {opt.pool_total.toLocaleString()}
+                          <span className="text-xs text-muted-foreground">
+                            ({getOptionPct(opt)}%)
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    <dt className="text-muted-foreground">Yes Pool</dt>
+                    <dd className="inline-flex items-center gap-0.5 font-medium text-success">
+                      <BananaCoin size={14} />
+                      {market.yes_pool_total.toLocaleString()}
+                    </dd>
+                    <dt className="text-muted-foreground">No Pool</dt>
+                    <dd className="inline-flex items-center gap-0.5 font-medium text-danger">
+                      <BananaCoin size={14} />
+                      {market.no_pool_total.toLocaleString()}
+                    </dd>
+                  </>
+                )}
                 {hasResolutionWindow && (
                   <>
                     <dt className="text-muted-foreground">Voter Reward Pool</dt>
@@ -523,6 +729,102 @@ export default function MarketDetailPage({
                     You will be able to propose a resolution once the market
                     closes.
                   </p>
+                ) : isMultichoice ? (
+                  <>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      Your balance: <BananaCoin size={12} />
+                      <span className="font-medium text-foreground">
+                        {user.banana_balance.toLocaleString()}
+                      </span>
+                    </div>
+                    {selectedOptionId && (
+                      <div className="space-y-2">
+                        <input
+                          type="number"
+                          placeholder="Amount"
+                          min={1}
+                          value={betAmount}
+                          onChange={(e) => {
+                            setBetAmount(e.target.value);
+                            setBetError(null);
+                            setBetSuccess(null);
+                          }}
+                          className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            className="flex-1"
+                            onClick={() =>
+                              handleMultichoiceBet(selectedOptionId)
+                            }
+                            disabled={betting}
+                          >
+                            {betting ? (
+                              <Spinner className="size-4" />
+                            ) : (
+                              `Confirm Bet`
+                            )}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => setSelectedOptionId(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    <div className="space-y-1.5">
+                      {topOptions.map((opt) => {
+                        const pct = getOptionPct(opt);
+                        const originalIdx = marketOptions.findIndex(
+                          (o) => o.id === opt.id,
+                        );
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            className={cn(
+                              "flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-sm transition-colors hover:bg-muted",
+                              selectedOptionId === opt.id &&
+                                "border-primary ring-2 ring-primary/20",
+                            )}
+                            onClick={() => {
+                              setSelectedOptionId(
+                                selectedOptionId === opt.id ? null : opt.id,
+                              );
+                              setBetError(null);
+                              setBetSuccess(null);
+                            }}
+                          >
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{
+                                backgroundColor: getOptionColor(originalIdx),
+                              }}
+                            />
+                            <span className="flex-1 text-left font-medium truncate">
+                              {opt.label}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {pct}%
+                            </span>
+                          </button>
+                        );
+                      })}
+                      {sortedOptions.length > 3 && (
+                        <button
+                          type="button"
+                          className="w-full text-center text-xs text-primary hover:underline py-1"
+                          onClick={() => setShowAllOptions(!showAllOptions)}
+                        >
+                          {showAllOptions
+                            ? "Show fewer options"
+                            : `Show all ${sortedOptions.length} options`}
+                        </button>
+                      )}
+                    </div>
+                  </>
                 ) : (
                   <>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -783,35 +1085,47 @@ export default function MarketDetailPage({
               </div>
             ) : marketBets.length > 0 ? (
               <div className="space-y-2">
-                {marketBets.map((bet) => (
-                  <div
-                    key={bet.id}
-                    className="flex items-center justify-between text-sm"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className={
-                          bet.side === "YES"
-                            ? "bg-success-foreground text-success"
-                            : "bg-danger-foreground text-danger"
-                        }
-                      >
-                        {bet.side}
-                      </Badge>
-                      <span className="text-muted-foreground">
-                        {new Date(bet.created_at).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })}
+                {marketBets.map((bet) => {
+                  const optionLabel = bet.option_id
+                    ? marketOptions.find((o) => o.id === bet.option_id)?.label
+                    : null;
+                  return (
+                    <div
+                      key={bet.id}
+                      className="flex items-center justify-between text-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        {optionLabel ? (
+                          <Badge variant="outline">{optionLabel}</Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className={
+                              bet.side === "YES"
+                                ? "bg-success-foreground text-success"
+                                : "bg-danger-foreground text-danger"
+                            }
+                          >
+                            {bet.side}
+                          </Badge>
+                        )}
+                        <span className="text-muted-foreground">
+                          {new Date(bet.created_at).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                            },
+                          )}
+                        </span>
+                      </div>
+                      <span className="inline-flex items-center gap-0.5 font-medium">
+                        <BananaCoin size={14} />
+                        {bet.amount.toLocaleString()}
                       </span>
                     </div>
-                    <span className="inline-flex items-center gap-0.5 font-medium">
-                      <BananaCoin size={14} />
-                      {bet.amount.toLocaleString()}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">No activity yet.</p>

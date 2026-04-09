@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BananaCoin } from "@/components/banana-coin";
+import { getOptionColor } from "@/components/probability-chart";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { Market } from "@/lib/types";
@@ -39,10 +40,113 @@ function StatusDot({ status }: { status: Market["status"] }) {
   return <span className="size-2.5 rounded-full bg-muted-foreground/40" />;
 }
 
+function getMultichoiceLeader(market: Market) {
+  const opts = market.options;
+  if (!opts || opts.length === 0) return null;
+  const totalPool = opts.reduce((s, o) => s + o.pool_total, 0);
+  const sorted = [...opts].sort((a, b) => b.pool_total - a.pool_total);
+  const leader = sorted[0];
+  const pct =
+    totalPool > 0 ? Math.round((leader.pool_total / totalPool) * 100) : 0;
+  return { label: leader.label, pct, totalPool };
+}
+
 export function MarketCard({ market }: { market: Market }) {
+  const isMultichoice = market.market_type === "multichoice";
   const probability = getMarketProbability(market);
-  const total = market.yes_pool_total + market.no_pool_total;
   const isOpen = market.status === "open";
+
+  if (isMultichoice) {
+    const leader = getMultichoiceLeader(market);
+    const opts = market.options ?? [];
+    const totalPool = opts.reduce((s, o) => s + o.pool_total, 0);
+    const sorted = [...opts].sort((a, b) => b.pool_total - a.pool_total);
+    const topOptions = sorted.slice(0, 3);
+
+    return (
+      <Link href={`/markets/${market.id}`}>
+        <Card
+          className={cn(
+            "h-full",
+            isOpen ? "market-card-open border-0 rounded-xl" : "",
+          )}
+        >
+          <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 pb-3">
+            <div className="flex-1 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <StatusDot status={market.status} />
+                <Badge variant="outline">{market.category}</Badge>
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  MC
+                </Badge>
+              </div>
+              <h3 className="text-base font-semibold leading-snug">
+                {market.title}
+              </h3>
+            </div>
+            {leader && (
+              <div className="flex flex-col items-center rounded-lg bg-accent px-3 py-2">
+                <span className="text-2xl font-bold">{leader.pct}%</span>
+                <span className="text-xs text-muted-foreground truncate max-w-[80px]">
+                  {leader.label}
+                </span>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                {topOptions.map((opt) => {
+                  const optPct =
+                    totalPool > 0
+                      ? Math.round((opt.pool_total / totalPool) * 100)
+                      : 0;
+                  const originalIdx = opts.findIndex((o) => o.id === opt.id);
+                  return (
+                    <div
+                      key={opt.id}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{
+                          backgroundColor: getOptionColor(originalIdx),
+                        }}
+                      />
+                      <span className="flex-1 truncate font-medium">
+                        {opt.label}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {optPct}%
+                      </span>
+                      <span className="inline-flex w-16 items-center justify-end gap-0.5 font-medium text-sm">
+                        <BananaCoin size={14} />
+                        {opt.pool_total.toLocaleString()}
+                      </span>
+                    </div>
+                  );
+                })}
+                {sorted.length > 3 && (
+                  <span className="text-xs text-muted-foreground">
+                    +{sorted.length - 3} more options
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span className="inline-flex items-center gap-0.5">
+                  <BananaCoin size={14} />
+                  {totalPool.toLocaleString()} pool
+                </span>
+                <span>{formatCloseDate(market.close_at)}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+    );
+  }
+
+  const total = market.yes_pool_total + market.no_pool_total;
 
   return (
     <Link href={`/markets/${market.id}`}>
