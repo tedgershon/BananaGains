@@ -11,6 +11,8 @@ export type MarketStatus =
   | "resolved";
 export type BetSide = "YES" | "NO";
 
+export type UserRole = "user" | "admin" | "super_admin";
+
 export interface UserProfile {
   id: string;
   andrew_id: string;
@@ -18,6 +20,25 @@ export interface UserProfile {
   banana_balance: number;
   created_at: string;
   claimed_today: boolean;
+  role: UserRole;
+  is_admin: boolean;
+}
+
+export interface AdminStats {
+  total_users: number;
+  users_by_role: Record<string, number>;
+  total_markets: number;
+  markets_by_status: Record<string, number>;
+  total_banana_traded: number;
+  total_active_bets: number;
+}
+
+export interface UserSearchResult {
+  id: string;
+  andrew_id: string;
+  display_name: string;
+  role: string;
+  created_at: string;
 }
 
 export interface Market {

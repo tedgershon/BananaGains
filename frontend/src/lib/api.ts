@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import type {
+  AdminStats,
   Bet,
   CastVoteRequest,
   ClaimDailyResponse,
@@ -15,6 +16,7 @@ import type {
   ResolveMarketResponse,
   Transaction,
   UserProfile,
+  UserSearchResult,
   VoteResponse,
 } from "./types";
 
@@ -217,4 +219,26 @@ export function getLeaderboard(params?: {
   if (params?.limit != null) sp.set("limit", String(params.limit));
   const qs = sp.toString();
   return apiFetch(`/api/leaderboard${qs ? `?${qs}` : ""}`);
+}
+
+// ---------------------------------------------------------------------------
+// Admin  –  /api/admin
+// ---------------------------------------------------------------------------
+
+export function getAdminStats(): Promise<AdminStats> {
+  return apiFetch("/api/admin/stats");
+}
+
+export function searchUsers(query: string): Promise<UserSearchResult[]> {
+  return apiFetch(`/api/admin/users/search?q=${encodeURIComponent(query)}`);
+}
+
+export function updateUserRole(
+  userId: string,
+  role: string,
+): Promise<UserSearchResult> {
+  return apiFetch(`/api/admin/users/${userId}/role`, {
+    method: "PUT",
+    body: JSON.stringify({ role }),
+  });
 }

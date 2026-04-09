@@ -12,5 +12,8 @@ node_modules/
 .env
 .env.*
 
+# Super admin credentials
+.super_admin
+
 # macOS
 .DS_Store
