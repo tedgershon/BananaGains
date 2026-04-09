@@ -30,28 +30,22 @@ TRACK_META = {
 
 
 def _get_user_stats(supabase: Client, user_id: str) -> dict[str, float]:
-    """Compute current stat values for each badge track."""
-    profile = (
-        supabase.table("profiles")
-        .select("banana_balance")
-        .eq("id", user_id)
-        .single()
-        .execute()
-    )
+    """Compute live stats for badge progress display."""
+    profile = supabase.table("profiles").select("banana_balance").eq("id", user_id).single().execute()
     balance = float(profile.data["banana_balance"]) if profile.data else 0
 
-    correct_bets = (
+    correct_bets_result = (
         supabase.table("bets")
         .select("id, market_id, markets!inner(status, resolved_outcome)")
         .eq("user_id", user_id)
         .eq("markets.status", "resolved")
         .execute()
     )
-    correct_count = 0
-    for row in correct_bets.data or []:
-        market = row.get("markets", {})
-        if market and row.get("side") == market.get("resolved_outcome"):
-            correct_count += 1
+    correct_bets = 0
+    for row in correct_bets_result.data or []:
+        market_data = row.get("markets", {})
+        if isinstance(market_data, dict) and row.get("side") == market_data.get("resolved_outcome"):
+            correct_bets += 1
 
     markets_created = (
         supabase.table("markets")
@@ -68,7 +62,7 @@ def _get_user_stats(supabase: Client, user_id: str) -> dict[str, float]:
         .execute()
     )
 
-    max_bet = (
+    max_bet_result = (
         supabase.table("bets")
         .select("amount")
         .eq("user_id", user_id)
@@ -76,11 +70,11 @@ def _get_user_stats(supabase: Client, user_id: str) -> dict[str, float]:
         .limit(1)
         .execute()
     )
-    max_single_bet = float(max_bet.data[0]["amount"]) if max_bet.data else 0
+    max_single_bet = float(max_bet_result.data[0]["amount"]) if max_bet_result.data else 0
 
     return {
         "banana_baron": balance,
-        "oracle": correct_count,
+        "oracle": correct_bets,
         "architect": markets_created.count or 0,
         "degen": total_bets.count or 0,
         "whale": max_single_bet,
@@ -92,7 +86,7 @@ def _build_track_progress(
     earned: list[dict],
     stats: dict[str, float],
 ) -> list[dict]:
-    """Organize badge definitions into track progress objects."""
+    """Build per-track progress data for the rewards page."""
     earned_by_track = {b["track"]: b for b in earned}
 
     tracks_map: dict[str, list[dict]] = {}
@@ -102,9 +96,9 @@ def _build_track_progress(
     result = []
     for track_key in ("banana_baron", "oracle", "architect", "degen", "whale"):
         tiers = sorted(tracks_map.get(track_key, []), key=lambda t: t["tier"])
-        meta = TRACK_META.get(track_key, {"display_name": track_key, "description": ""})
-
+        meta = TRACK_META.get(track_key, {})
         current_value = stats.get(track_key, 0)
+
         earned_badge = earned_by_track.get(track_key)
         current_tier = earned_badge["tier"] if earned_badge else 0
 
@@ -116,8 +110,8 @@ def _build_track_progress(
 
         result.append({
             "track": track_key,
-            "track_display_name": meta["display_name"],
-            "track_description": meta["description"],
+            "track_display_name": meta.get("display_name", track_key),
+            "track_description": meta.get("description", ""),
             "current_value": current_value,
             "next_threshold": next_threshold,
             "current_tier": current_tier,

@@ -1,8 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
 
+import logging
+
 from dependencies import get_current_user, get_current_user_optional, get_supabase_client
 from schemas.bet import BetResponse, PlaceBetRequest, PlaceMultichoiceBetRequest, PlaceBetResponse
+
+logger = logging.getLogger(__name__)
+
+
+def _check_badges_safe(supabase: Client, user_id: str) -> None:
+    """Fire-and-forget badge check; never let it break the main flow."""
+    try:
+        supabase.rpc("check_and_award_badges", {"p_user_id": user_id}).execute()
+    except Exception:
+        logger.warning("Badge check failed for user %s", user_id, exc_info=True)
 
 router = APIRouter(prefix="/api/markets", tags=["bets"])
 
@@ -62,11 +74,7 @@ async def place_bet(
             detail="Failed to place bet",
         ) from exc
 
-    # Check badges after bet placement (Degen & Whale tracks)
-    try:
-        supabase.rpc("check_and_award_badges", {"p_user_id": current_user["id"]}).execute()
-    except Exception:
-        pass
+    _check_badges_safe(supabase, current_user["id"])
 
     return result.data
 
@@ -124,11 +132,7 @@ async def place_multichoice_bet(
             detail="Failed to place bet",
         ) from exc
 
-    # Check badges after multichoice bet placement (Degen & Whale tracks)
-    try:
-        supabase.rpc("check_and_award_badges", {"p_user_id": current_user["id"]}).execute()
-    except Exception:
-        pass
+    _check_badges_safe(supabase, current_user["id"])
 
     return result.data
 

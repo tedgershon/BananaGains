@@ -1,7 +1,11 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
 
 from dependencies import get_supabase_client, require_admin, require_super_admin
+
+logger = logging.getLogger(__name__)
 from notification_service import notify_market_approved, notify_market_denied
 from schemas.admin import (
     BackrollRequest,
@@ -245,13 +249,12 @@ async def review_market(
 
     if body.action == "approve":
         await notify_market_approved(supabase, market.data, body.notes)
-        # Check Architect track badges for the market creator
         try:
             supabase.rpc("check_and_award_badges", {
                 "p_user_id": market.data["creator_id"],
             }).execute()
         except Exception:
-            pass
+            logger.warning("Badge check failed for creator %s", market.data["creator_id"], exc_info=True)
     else:
         await notify_market_denied(supabase, market.data, body.notes or "")
 
