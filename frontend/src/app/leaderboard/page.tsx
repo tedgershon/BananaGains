@@ -103,7 +103,7 @@ export default function LeaderboardPage() {
       <section className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight">Leaderboard</h1>
         <p className="text-sm text-muted-foreground">
-          Top banana holders on BananaGains
+          Who's got the biggest bunch? See who's ruling the banana republic
         </p>
       </section>
 
