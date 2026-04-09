@@ -70,8 +70,12 @@ export function UserMenu() {
         onClick={() => setOpen(!open)}
         className="relative flex items-center"
       >
-        <div className="flex size-9 items-center justify-center rounded-full border-2 border-border bg-muted text-sm font-medium text-muted-foreground transition-colors hover:bg-accent">
-          {initials}
+        <div className="flex size-9 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted text-sm font-medium text-muted-foreground transition-colors hover:bg-accent">
+          {user.avatar_url ? (
+            <img src={user.avatar_url} alt="" className="size-full object-cover" />
+          ) : (
+            initials
+          )}
         </div>
         {unreadCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 size-3 rounded-full bg-danger border-2 border-white" />
@@ -81,8 +85,12 @@ export function UserMenu() {
       {open && (
         <div className="absolute right-0 z-50 mt-2 w-64 rounded-xl border border-border bg-card shadow-lg">
           <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-            <div className="flex size-10 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
-              {initials}
+            <div className="flex size-10 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-medium text-muted-foreground">
+              {user.avatar_url ? (
+                <img src={user.avatar_url} alt="" className="size-full object-cover" />
+              ) : (
+                initials
+              )}
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">
