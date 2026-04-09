@@ -14,6 +14,7 @@ export type MarketStatus =
 export type BetSide = "YES" | "NO";
 
 export type UserRole = "user" | "admin" | "super_admin";
+export type EquippedBadgesMap = Record<string, string>;
 
 export interface UserProfile {
   id: string;
@@ -28,6 +29,7 @@ export interface UserProfile {
   claim_amount: number;
   above_cap: boolean;
   equipped_badge_id: string | null;
+  equipped_badges: EquippedBadgesMap;
   avatar_url: string | null;
 }
 
@@ -131,6 +133,7 @@ export interface LeaderboardEntry {
   display_name: string;
   banana_balance: number;
   equipped_badge_id: string | null;
+  equipped_badges: EquippedBadgesMap;
   avatar_url: string | null;
 }
 

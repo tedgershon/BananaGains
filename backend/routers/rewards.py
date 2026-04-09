@@ -36,7 +36,7 @@ def _get_user_stats(supabase: Client, user_id: str) -> dict[str, float]:
 
     correct_bets_result = (
         supabase.table("bets")
-        .select("id, market_id, markets!inner(status, resolved_outcome)")
+        .select("id, market_id, side, markets!inner(status, resolved_outcome)")
         .eq("user_id", user_id)
         .eq("markets.status", "resolved")
         .execute()
@@ -163,7 +163,7 @@ async def get_user_badges(
     """Get badges for any user (for leaderboard display)."""
     result = (
         supabase.table("user_badges")
-        .select("*, badge_definitions(name, color, track, tier, description)")
+        .select("*, badge_definitions(*)")
         .eq("user_id", user_id)
         .execute()
     )
