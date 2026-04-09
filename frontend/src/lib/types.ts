@@ -251,6 +251,17 @@ export interface CommunityVote {
   created_at: string;
 }
 
+export interface NotificationResponse {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  body: string;
+  metadata: Record<string, string>;
+  is_read: boolean;
+  created_at: string;
+}
+
 export interface PricePoint {
   timestamp: string;
   probability: number;

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
+import * as api from "@/lib/api";
 import { useSession } from "@/lib/SessionProvider";
 import { cn } from "@/lib/utils";
 
@@ -12,13 +13,13 @@ const MENU_ITEMS = [
   { href: "/portfolio", label: "Portfolio", icon: Wallet },
   { href: "/portfolio#positions", label: "Positions", icon: BarChart3 },
   { href: "/portfolio#transactions", label: "Transaction History", icon: List },
-  { href: "/notifications", label: "Notifications", icon: Bell },
 ];
 
 export function UserMenu() {
   const { user, isDemo, signOut } = useSession();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -30,6 +31,15 @@ export function UserMenu() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!isDemo) {
+      api
+        .getUnreadNotificationCount()
+        .then((data) => setUnreadCount(data.count))
+        .catch(() => {});
+    }
+  }, [isDemo]);
 
   if (isDemo) {
     return (
@@ -62,6 +72,9 @@ export function UserMenu() {
         <div className="flex size-9 items-center justify-center rounded-full border-2 border-border bg-muted text-sm font-medium text-muted-foreground transition-colors hover:bg-accent">
           {initials}
         </div>
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 size-3 rounded-full bg-danger border-2 border-white" />
+        )}
       </button>
 
       {open && (
@@ -92,6 +105,21 @@ export function UserMenu() {
                 <span>{item.label}</span>
               </Link>
             ))}
+            <Link
+              href="/notifications"
+              onClick={() => setOpen(false)}
+              className="flex items-center justify-between px-4 py-2.5 text-sm transition-colors hover:bg-accent"
+            >
+              <div className="flex items-center gap-3">
+                <Bell size={16} className="text-muted-foreground" />
+                <span>Notifications</span>
+              </div>
+              {unreadCount > 0 && (
+                <span className="inline-flex items-center justify-center size-5 rounded-full bg-danger text-danger-foreground text-xs font-bold">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </Link>
           </div>
 
           <div className="border-t border-border py-1">

@@ -13,6 +13,7 @@ import type {
   FileDisputeRequest,
   LeaderboardEntry,
   Market,
+  NotificationResponse,
   PlaceBetRequest,
   PlaceBetResponse,
   PlaceMultichoiceBetRequest,
@@ -306,4 +307,27 @@ export function backrollMarket(
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Notifications  –  /api/notifications
+// ---------------------------------------------------------------------------
+
+export function listNotifications(params?: {
+  limit?: number;
+  offset?: number;
+}): Promise<NotificationResponse[]> {
+  const sp = new URLSearchParams();
+  if (params?.limit != null) sp.set("limit", String(params.limit));
+  if (params?.offset != null) sp.set("offset", String(params.offset));
+  const qs = sp.toString();
+  return apiFetch(`/api/notifications${qs ? `?${qs}` : ""}`);
+}
+
+export function getUnreadNotificationCount(): Promise<{ count: number }> {
+  return apiFetch("/api/notifications/unread-count");
+}
+
+export function markNotificationsRead(): Promise<{ status: string }> {
+  return apiFetch("/api/notifications/read", { method: "POST" });
 }
