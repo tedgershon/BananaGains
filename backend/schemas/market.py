@@ -83,6 +83,7 @@ class MarketResponse(BaseModel):
     reviewed_by: str | None = None
     review_date: datetime | None = None
     review_notes: str | None = None
+    resolution_window_end: datetime | None = None
 
 
 class ReviewMarketRequest(BaseModel):

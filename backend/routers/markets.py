@@ -18,6 +18,7 @@ from schemas.market import (
 router = APIRouter(prefix="/api/markets", tags=["markets"])
 
 DISPUTE_VOTE_QUORUM = 3
+COMMUNITY_VOTE_QUORUM = 3
 
 
 def _apply_lazy_transitions(markets: list[dict], supabase: Client) -> list[dict]:
@@ -109,6 +110,48 @@ def _apply_lazy_transitions(markets: list[dict], supabase: Client) -> list[dict]
             # Tie, low quorum — escalate to admin
             supabase.table("markets").update({"status": "admin_review"}).eq("id", m["id"]).execute()
             m["status"] = "admin_review"
+
+    # Auto-finalize markets whose community resolution window has expired
+    for m in markets:
+        if (
+            m.get("status") in ("closed", "pending_resolution")
+            and m.get("resolution_window_end")
+        ):
+            window_end = datetime.fromisoformat(m["resolution_window_end"])
+            if window_end > now:
+                continue
+            if m["status"] in ("resolved", "admin_review"):
+                continue
+
+            votes = (
+                supabase.table("community_votes")
+                .select("selected_outcome")
+                .eq("market_id", m["id"])
+                .execute()
+            )
+            yes_votes = sum(1 for v in (votes.data or []) if v["selected_outcome"] == "YES")
+            no_votes = sum(1 for v in (votes.data or []) if v["selected_outcome"] == "NO")
+            total_votes = yes_votes + no_votes
+
+            if total_votes >= COMMUNITY_VOTE_QUORUM and yes_votes != no_votes:
+                winning = "YES" if yes_votes > no_votes else "NO"
+                try:
+                    supabase.rpc("finalize_resolution", {
+                        "p_market_id": m["id"],
+                        "p_outcome": winning,
+                    }).execute()
+                    m["status"] = "resolved"
+                    m["resolved_outcome"] = winning
+
+                    supabase.rpc("distribute_voter_rewards", {
+                        "p_market_id": m["id"],
+                        "p_winning_outcome": winning,
+                    }).execute()
+                except Exception:
+                    pass
+            else:
+                supabase.table("markets").update({"status": "admin_review"}).eq("id", m["id"]).execute()
+                m["status"] = "admin_review"
 
     return markets
 

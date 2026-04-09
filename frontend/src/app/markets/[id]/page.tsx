@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, ExternalLink, Timer } from "lucide-react";
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
@@ -12,8 +12,15 @@ import { Spinner } from "@/components/ui/spinner";
 import * as api from "@/lib/api";
 import { useData } from "@/lib/DataProvider";
 import { useSession } from "@/lib/SessionProvider";
-import type { Bet, BetSide, DisputeResponse, PricePoint } from "@/lib/types";
+import type {
+  Bet,
+  BetSide,
+  CommunityVote,
+  DisputeResponse,
+  PricePoint,
+} from "@/lib/types";
 import { getMarketProbability } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 function buildPriceHistory(bets: Bet[]): PricePoint[] {
   if (bets.length === 0) return [];
@@ -96,6 +103,17 @@ export default function MarketDetailPage({
     yes: 0,
     no: 0,
   });
+  const [communityTally, setCommunityTally] = useState<{
+    yes: number;
+    no: number;
+  }>({ yes: 0, no: 0 });
+  const [userCommunityVote, setUserCommunityVote] = useState<string | null>(
+    null,
+  );
+  const [communityVoting, setCommunityVoting] = useState(false);
+  const [communityError, setCommunityError] = useState<string | null>(null);
+  const [resolutionCountdown, setResolutionCountdown] = useState("");
+  const [resolutionUrgent, setResolutionUrgent] = useState(false);
 
   const refreshVoteTotals = useCallback(async () => {
     try {
@@ -112,6 +130,23 @@ export default function MarketDetailPage({
     }
   }, [id]);
 
+  const refreshCommunityVotes = useCallback(async () => {
+    try {
+      const votes: CommunityVote[] = await api.listCommunityVotes(id);
+      let yes = 0;
+      let no = 0;
+      for (const v of votes) {
+        if (v.selected_outcome === "YES") yes++;
+        else no++;
+      }
+      setCommunityTally({ yes, no });
+      const existing = votes.find((v) => v.voter_id === user.id);
+      if (existing) setUserCommunityVote(existing.selected_outcome);
+    } catch {
+      // ignore
+    }
+  }, [id, user.id]);
+
   useEffect(() => {
     if (market?.status === "disputed") {
       api
@@ -123,6 +158,39 @@ export default function MarketDetailPage({
       refreshVoteTotals();
     }
   }, [market?.status, refreshVoteTotals, id]);
+
+  useEffect(() => {
+    const inResolution =
+      market?.status === "closed" || market?.status === "pending_resolution";
+    if (inResolution && market?.resolution_window_end) {
+      refreshCommunityVotes();
+    }
+  }, [market?.status, market?.resolution_window_end, refreshCommunityVotes]);
+
+  useEffect(() => {
+    const end = market?.resolution_window_end;
+    if (!end) return;
+    function tick() {
+      const diff = new Date(end as string).getTime() - Date.now();
+      if (diff <= 0) {
+        setResolutionCountdown("Expired");
+        setResolutionUrgent(false);
+        return;
+      }
+      const hours = Math.floor(diff / 3_600_000);
+      const minutes = Math.floor((diff % 3_600_000) / 60_000);
+      const seconds = Math.floor((diff % 60_000) / 1_000);
+      setResolutionUrgent(hours < 1);
+      setResolutionCountdown(
+        hours > 0
+          ? `${hours}h ${minutes}m ${seconds}s`
+          : `${minutes}m ${seconds}s`,
+      );
+    }
+    tick();
+    const interval = setInterval(tick, 1_000);
+    return () => clearInterval(interval);
+  }, [market?.resolution_window_end]);
 
   if (!market) {
     return (
@@ -149,6 +217,29 @@ export default function MarketDetailPage({
   const disputeDeadline = market.dispute_deadline
     ? new Date(market.dispute_deadline)
     : null;
+  const hasResolutionWindow =
+    (market.status === "closed" || market.status === "pending_resolution") &&
+    !!market.resolution_window_end;
+  const resolutionWindowExpired = resolutionCountdown === "Expired";
+  const isCreator = user.id === market.creator_id;
+  const voterRewardPool = Math.round(total * 0.04);
+
+  async function handleCommunityVote(side: BetSide) {
+    if (!market) return;
+    setCommunityError(null);
+    setCommunityVoting(true);
+    try {
+      await api.castCommunityVote(market.id, { vote: side });
+      setUserCommunityVote(side);
+      await refreshCommunityVotes();
+    } catch (err) {
+      setCommunityError(
+        err instanceof Error ? err.message : "Failed to cast vote.",
+      );
+    } finally {
+      setCommunityVoting(false);
+    }
+  }
 
   async function handleBet(side: BetSide) {
     if (!market) return;
@@ -338,6 +429,15 @@ export default function MarketDetailPage({
                   <BananaCoin size={14} />
                   {market.no_pool_total.toLocaleString()}
                 </dd>
+                {hasResolutionWindow && (
+                  <>
+                    <dt className="text-muted-foreground">Voter Reward Pool</dt>
+                    <dd className="inline-flex items-center gap-0.5 font-medium">
+                      <BananaCoin size={14} />
+                      {voterRewardPool.toLocaleString()}
+                    </dd>
+                  </>
+                )}
                 <dt className="text-muted-foreground">Resolution</dt>
                 <dd className="col-span-1 font-medium">
                   {market.resolution_criteria}
@@ -418,6 +518,112 @@ export default function MarketDetailPage({
                   <p className="text-sm text-muted-foreground">
                     This market is {market.status} and no longer accepting bets.
                   </p>
+
+                  {hasResolutionWindow && (
+                    <div className="space-y-3 mt-4 pt-4 border-t">
+                      <p className="text-sm font-medium">
+                        Community Resolution
+                      </p>
+
+                      {/* Creator's Call */}
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">
+                          Creator&apos;s Call:
+                        </span>
+                        {market.proposed_outcome ? (
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-xs font-semibold",
+                              market.proposed_outcome === "YES"
+                                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+                            )}
+                          >
+                            {market.proposed_outcome}
+                          </span>
+                        ) : (
+                          <span className="italic text-muted-foreground">
+                            Undecided
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Countdown */}
+                      <div className="flex items-center gap-2 text-sm">
+                        <Timer className="size-4 text-muted-foreground" />
+                        <span
+                          className={cn(
+                            "font-medium",
+                            resolutionUrgent && "text-danger",
+                          )}
+                        >
+                          {resolutionWindowExpired
+                            ? "Expired"
+                            : `Resolves in ${resolutionCountdown}`}
+                        </span>
+                      </div>
+
+                      {/* Vote tally */}
+                      <div className="flex items-center justify-between text-xs">
+                        <span>YES votes: {communityTally.yes}</span>
+                        <span>NO votes: {communityTally.no}</span>
+                      </div>
+
+                      {/* Reward hint */}
+                      <p className="text-xs text-muted-foreground">
+                        Earn ~
+                        {communityTally.yes + communityTally.no > 0
+                          ? Math.round(
+                              voterRewardPool /
+                                (communityTally.yes + communityTally.no),
+                            ).toLocaleString()
+                          : voterRewardPool.toLocaleString()}{" "}
+                        bananas for voting correctly
+                      </p>
+
+                      {/* Vote buttons or status */}
+                      {isCreator ? (
+                        <p className="text-xs italic text-muted-foreground">
+                          As the market creator, you propose a resolution via
+                          the Creator Resolution section below.
+                        </p>
+                      ) : userCommunityVote ? (
+                        <p className="text-xs font-medium text-muted-foreground">
+                          You voted {userCommunityVote}
+                        </p>
+                      ) : resolutionWindowExpired ? (
+                        <p className="text-xs italic text-muted-foreground">
+                          Resolution window has expired
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {communityError && (
+                            <p className="text-xs font-medium text-danger">
+                              {communityError}
+                            </p>
+                          )}
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button
+                              size="sm"
+                              className="bg-success text-success-foreground hover:bg-success/80"
+                              onClick={() => handleCommunityVote("YES")}
+                              disabled={communityVoting}
+                            >
+                              Vote YES
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="bg-danger text-danger-foreground hover:bg-danger/80"
+                              onClick={() => handleCommunityVote("NO")}
+                              disabled={communityVoting}
+                            >
+                              Vote NO
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {market.status === "closed" &&
                     user.id === market.creator_id && (

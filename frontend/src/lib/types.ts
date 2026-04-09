@@ -78,6 +78,7 @@ export interface Market {
   reviewed_by?: string | null;
   review_date?: string | null;
   review_notes?: string | null;
+  resolution_window_end?: string | null;
 }
 
 export interface Bet {
@@ -96,7 +97,8 @@ export type TransactionType =
   | "payout"
   | "voter_stake"
   | "voter_reward"
-  | "daily_claim";
+  | "daily_claim"
+  | "resolution_vote_reward";
 
 export interface Transaction {
   id: string;
@@ -200,6 +202,14 @@ export interface DisputeResponse {
 export interface VoteResponse {
   id: string;
   dispute_id: string;
+  market_id: string;
+  voter_id: string;
+  selected_outcome: BetSide;
+  created_at: string;
+}
+
+export interface CommunityVote {
+  id: string;
   market_id: string;
   voter_id: string;
   selected_outcome: BetSide;
