@@ -32,6 +32,9 @@ async def list_resolution_markets(
         supabase.table("markets").update({"status": "closed"}).in_(
             "id", expired_ids
         ).execute()
+        # The DB trigger set_resolution_window fires on open→closed and sets
+        # resolution_window_end = now() + 24h, so re-querying below will pick
+        # up the newly set values.
 
     result = (
         supabase.table("markets")

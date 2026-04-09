@@ -85,7 +85,8 @@ export default function ProfilePage() {
 
       setAvatarFile(null);
       setMessage({ type: "success", text: "Profile updated!" });
-    } catch {
+    } catch (err) {
+      console.error("Profile save error:", err);
       setMessage({ type: "error", text: "Failed to update profile." });
     } finally {
       setSaving(false);
