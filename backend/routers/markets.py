@@ -95,7 +95,15 @@ def _apply_lazy_transitions(markets: list[dict], supabase: Client) -> list[dict]
 
     # Batch close expired open markets
     if close_ids:
-        supabase.table("markets").update({"status": "closed"}).in_("id", close_ids).execute()
+        close_result = supabase.table("markets").update({"status": "closed"}).in_("id", close_ids).execute()
+
+        # The DB trigger set_resolution_window sets resolution_window_end on
+        # the row, but our in-memory dicts still have the old null value.
+        # Sync them from the update response so the frontend sees the window.
+        updated_map = {row["id"]: row for row in (close_result.data or [])}
+        for m in markets:
+            if m["id"] in updated_map:
+                m["resolution_window_end"] = updated_map[m["id"]].get("resolution_window_end")
 
         for m in markets:
             if m["id"] in close_ids:

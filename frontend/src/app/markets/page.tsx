@@ -19,19 +19,21 @@ export default function MarketsPage() {
     ? markets.filter((m) => m.category === selectedCategory)
     : markets;
 
-  const RESOLUTION_STATUSES = new Set([
-    "closed",
-    "pending_resolution",
-    "disputed",
-    "admin_review",
-  ]);
+  const now = Date.now();
+
+  function isInResolutionWindow(m: { resolution_window_end?: string | null }) {
+    return (
+      m.resolution_window_end != null &&
+      new Date(m.resolution_window_end).getTime() > now
+    );
+  }
 
   const openMarkets = filtered.filter((m) => m.status === "open");
-  const inResolutionMarkets = filtered.filter((m) =>
-    RESOLUTION_STATUSES.has(m.status),
+  const inResolutionMarkets = filtered.filter(
+    (m) => m.status !== "open" && isInResolutionWindow(m),
   );
   const closedMarkets = filtered.filter(
-    (m) => m.status !== "open" && !RESOLUTION_STATUSES.has(m.status),
+    (m) => m.status !== "open" && !isInResolutionWindow(m),
   );
 
   return (
