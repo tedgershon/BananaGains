@@ -22,10 +22,12 @@ const CATEGORIES = [
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString("en-US", {
+  return new Date(dateStr).toLocaleString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   });
 }
 
@@ -287,6 +289,90 @@ function ReviewPanel({ market, onAction }: ReviewPanelProps) {
   );
 }
 
+function DetailPanel({ market }: { market: Market & Record<string, unknown> }) {
+  const fieldClass =
+    "text-sm rounded-lg border border-border bg-muted/30 px-4 py-2.5";
+
+  return (
+    <div className="space-y-4 border-t pt-4 px-4 pb-4">
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              Title
+            </span>
+            <p className={fieldClass}>{market.title}</p>
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              Description
+            </span>
+            <p className={fieldClass}>{market.description}</p>
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              Resolution Criteria
+            </span>
+            <p className={fieldClass}>{market.resolution_criteria}</p>
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              Close Date
+            </span>
+            <p className={fieldClass}>{formatDate(market.close_at)}</p>
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              Category
+            </span>
+            <p className={fieldClass}>{market.category}</p>
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              Link
+            </span>
+            <p className={fieldClass}>{market.link ?? "—"}</p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              Official Source
+            </span>
+            <p className={fieldClass}>{market.official_source ?? "—"}</p>
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              Yes Criteria
+            </span>
+            <p className={fieldClass}>{market.yes_criteria ?? "—"}</p>
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              No Criteria
+            </span>
+            <p className={fieldClass}>{market.no_criteria ?? "—"}</p>
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              Ambiguity Criteria
+            </span>
+            <p className={fieldClass}>{market.ambiguity_criteria ?? "—"}</p>
+          </div>
+        </div>
+      </div>
+      {(market.review_notes as string | null) && (
+        <div className="space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">
+            Reviewer Comment
+          </span>
+          <p className={fieldClass}>{market.review_notes as string}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface AccordionSectionProps {
   title: string;
   count: number;
@@ -387,7 +473,7 @@ export default function AdminReviewPage() {
   function renderTable(
     markets: Market[],
     showReviewer: boolean,
-    expandable: boolean,
+    mode: "review" | "detail",
   ) {
     if (markets.length === 0) {
       return (
@@ -414,12 +500,10 @@ export default function AdminReviewPage() {
             <div key={market.id}>
               <button
                 type="button"
-                onClick={() => {
-                  if (expandable) {
-                    setExpandedId(isExpanded ? null : market.id);
-                  }
-                }}
-                className={`grid w-full grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-2 px-2 py-2.5 text-left text-sm ${expandable ? "cursor-pointer hover:bg-muted/50" : ""}`}
+                onClick={() =>
+                  setExpandedId(isExpanded ? null : market.id)
+                }
+                className="grid w-full grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-2 px-2 py-2.5 text-left text-sm cursor-pointer hover:bg-muted/50"
               >
                 <span className="font-medium truncate">{market.title}</span>
                 <span className="text-muted-foreground">
@@ -435,9 +519,12 @@ export default function AdminReviewPage() {
                   {showReviewer ? formatDate(market.review_date) : "—"}
                 </span>
               </button>
-              {expandable && isExpanded && (
-                <ReviewPanel market={m} onAction={handleAction} />
-              )}
+              {isExpanded &&
+                (mode === "review" ? (
+                  <ReviewPanel market={m} onAction={handleAction} />
+                ) : (
+                  <DetailPanel market={m} />
+                ))}
             </div>
           );
         })}
@@ -465,15 +552,15 @@ export default function AdminReviewPage() {
           count={pending.length}
           defaultOpen
         >
-          {renderTable(pending, false, true)}
+          {renderTable(pending, false, "review")}
         </AccordionSection>
 
         <AccordionSection title="Approved" count={approved.length}>
-          {renderTable(approved, true, false)}
+          {renderTable(approved, true, "detail")}
         </AccordionSection>
 
         <AccordionSection title="Denied" count={denied.length}>
-          {renderTable(denied, true, false)}
+          {renderTable(denied, true, "detail")}
         </AccordionSection>
       </div>
     </div>

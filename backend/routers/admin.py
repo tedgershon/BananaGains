@@ -165,9 +165,11 @@ async def list_markets_for_review(
     supabase: Client = Depends(get_supabase_client),
 ):
     """List all markets organized by review status."""
+    review_select = "*, profiles!creator_id(andrew_id, display_name), reviewer:profiles!reviewed_by(andrew_id, display_name)"
+
     pending = (
         supabase.table("markets")
-        .select("*, profiles!creator_id(andrew_id, display_name)")
+        .select(review_select)
         .eq("status", "pending_review")
         .order("created_at", desc=False)
         .execute()
@@ -175,7 +177,7 @@ async def list_markets_for_review(
 
     approved = (
         supabase.table("markets")
-        .select("*, profiles!creator_id(andrew_id, display_name)")
+        .select(review_select)
         .eq("status", "open")
         .not_.is_("reviewed_by", "null")
         .order("review_date", desc=True)
@@ -185,7 +187,7 @@ async def list_markets_for_review(
 
     denied = (
         supabase.table("markets")
-        .select("*, profiles!creator_id(andrew_id, display_name)")
+        .select(review_select)
         .eq("status", "denied")
         .order("review_date", desc=True)
         .limit(50)
