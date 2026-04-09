@@ -2,6 +2,7 @@
 
 import { CheckCircle2, Circle, Lock, Trophy } from "lucide-react";
 import { useEffect, useState } from "react";
+import { BadgeIcon } from "@/components/badge-icon";
 import {
   Card,
   CardContent,
@@ -89,14 +90,15 @@ function TrackCard({ track }: { track: TrackProgress }) {
                     <Lock size={18} className="text-muted-foreground/50" />
                   )}
                 </div>
-                <div
-                  className="size-5 shrink-0 rounded-full"
-                  style={{
-                    backgroundColor: isEarned
-                      ? tier.color
-                      : "var(--color-muted)",
-                  }}
-                />
+                <div className="shrink-0">
+                  <BadgeIcon
+                    track={track.track}
+                    tier={tier.tier}
+                    color={tier.color}
+                    earned={isEarned}
+                    size={28}
+                  />
+                </div>
                 <div className="flex-1 min-w-0">
                   <p
                     className={`text-sm font-medium ${!isEarned && !isNext ? "text-muted-foreground" : ""}`}
