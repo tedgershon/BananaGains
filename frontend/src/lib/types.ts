@@ -130,6 +130,19 @@ export interface LeaderboardEntry {
   banana_balance: number;
 }
 
+export interface WeeklyLeaderboardEntry {
+  id: string;
+  andrew_id: string;
+  display_name: string;
+  banana_balance: number;
+  gains: number;
+}
+
+export interface WeeklyLeaderboardResponse {
+  period: "7d" | "30d" | "all_time";
+  entries: WeeklyLeaderboardEntry[];
+}
+
 // ---------------------------------------------------------------------------
 // Request types (match backend Pydantic request schemas)
 // ---------------------------------------------------------------------------

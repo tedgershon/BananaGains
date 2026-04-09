@@ -24,6 +24,7 @@ import type {
   UserProfile,
   UserSearchResult,
   VoteResponse,
+  WeeklyLeaderboardResponse,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -183,6 +184,18 @@ export function listResolutionMarkets(): Promise<Market[]> {
   return apiFetch("/api/markets/resolutions");
 }
 
+export function getHotMarkets(limit = 5): Promise<Market[]> {
+  return apiFetch(`/api/markets/hot?limit=${limit}`);
+}
+
+export function getTrendingMarkets(limit = 3): Promise<Market[]> {
+  return apiFetch(`/api/markets/trending?limit=${limit}`);
+}
+
+export function getTopMarkets(limit = 3): Promise<Market[]> {
+  return apiFetch(`/api/markets/top?limit=${limit}`);
+}
+
 // ---------------------------------------------------------------------------
 // Bets  –  /api/markets/:id/bets
 // ---------------------------------------------------------------------------
@@ -257,6 +270,12 @@ export function getLeaderboard(params?: {
   if (params?.limit != null) sp.set("limit", String(params.limit));
   const qs = sp.toString();
   return apiFetch(`/api/leaderboard${qs ? `?${qs}` : ""}`);
+}
+
+export function getWeeklyLeaderboard(
+  limit = 10,
+): Promise<WeeklyLeaderboardResponse> {
+  return apiFetch(`/api/leaderboard/weekly?limit=${limit}`);
 }
 
 // ---------------------------------------------------------------------------
