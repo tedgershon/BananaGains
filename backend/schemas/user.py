@@ -12,6 +12,9 @@ class UserProfileResponse(BaseModel):
     claimed_today: bool = False
     role: str = "user"
     is_admin: bool = False
+    claim_eligible: bool = True
+    claim_amount: float = 1000
+    above_cap: bool = False
 
 
 class CreateProfileRequest(BaseModel):

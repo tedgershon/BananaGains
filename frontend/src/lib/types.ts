@@ -22,6 +22,9 @@ export interface UserProfile {
   claimed_today: boolean;
   role: UserRole;
   is_admin: boolean;
+  claim_eligible: boolean;
+  claim_amount: number;
+  above_cap: boolean;
 }
 
 export interface AdminStats {
@@ -162,6 +165,7 @@ export interface ResolveMarketResponse {
 
 export interface ClaimDailyResponse {
   new_balance: number;
+  claimed_amount: number;
   claimed_at: string;
 }
 

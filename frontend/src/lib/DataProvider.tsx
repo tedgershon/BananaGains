@@ -222,8 +222,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   );
 
   const claimDaily = useCallback(async () => {
-    await api.claimDaily();
-    updateBalance(1000);
+    const result = await api.claimDaily();
+    const claimedAmount = result.claimed_amount ?? 1000;
+    updateBalance(claimedAmount);
     markClaimedToday();
     const now = new Date().toISOString();
     setTransactions((prev) => [
@@ -232,7 +233,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         user_id: user.id,
         market_id: null,
         transaction_type: "daily_claim" as const,
-        amount: 1000,
+        amount: claimedAmount,
         created_at: now,
       },
       ...prev,

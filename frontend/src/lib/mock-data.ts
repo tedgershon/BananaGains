@@ -13,4 +13,7 @@ export const DEMO_USER: UserProfile = {
   claimed_today: false,
   role: "user",
   is_admin: false,
+  claim_eligible: true,
+  claim_amount: 1000,
+  above_cap: false,
 };
