@@ -2,9 +2,11 @@
 
 ## Overview
 
-This document orchestrates the implementation of **10 new feature areas** for BananaGains. Each feature has its own detailed instruction file in this `features/` directory. Features are organized into **four implementation phases** based on dependencies.
+This document orchestrates the implementation of **10 new feature areas** for BananaGains. Each feature has its own detailed instruction file in this `features/` directory (numbered `01`–`10`). Features are organized into **four implementation phases** based on dependencies.
 
-Subagents implementing a later phase **must wait** for all earlier phases to be merged and tested before beginning work. Within a phase, features marked as **parallelizable** may be implemented concurrently by separate subagents.
+**Note:** `11-redis-websockets.md` exists in this folder but is **not** part of the 01–10 phased plan below; treat it as a separate initiative unless you explicitly scope it in.
+
+Subagents implementing a later phase **must wait** for all earlier phases to be merged and tested before beginning work. Within a phase, features marked as **parallelizable** have **no dependencies on each other** (so the team *could* split them across people or branches). If you use the **`LLM-instructions.md` orchestrator**, follow that doc instead: **one feature at a time, no parallel feature work** — subagents are still encouraged for delegation within a feature.
 
 ---
 
@@ -18,7 +20,7 @@ Subagents implementing a later phase **must wait** for all earlier phases to be 
 | `05-coin-claiming.md` | Coin Claiming Rules Update | Backend logic change, frontend text update |
 | `06-user-profile.md` | User Profile Dropdown | Frontend-only: profile avatar, dropdown menu |
 
-**Notes for subagents:** These three features have zero cross-dependencies. They can be implemented by three separate subagents simultaneously. None depends on any other feature in this batch.
+**Notes for subagents:** These three features have zero cross-dependencies. Human teams may implement them in parallel on separate branches. **`LLM-instructions.md` orchestrator:** one feature at a time (subagents still used inside each feature), in table order (`01` → `05` → `06`). None depends on any other feature in this batch.
 
 ---
 
@@ -34,6 +36,7 @@ Subagents implementing a later phase **must wait** for all earlier phases to be 
 - All three depend on `01-admin-system` being complete (admin role checks, admin review page infrastructure).
 - `02` and `04` can be parallelized with each other since they touch different parts of the market lifecycle (creation vs. close/resolution).
 - `10` should be started after `02` and `04` are at least schema-complete, since safety logic validates constraints introduced by those features.
+- **`LLM-instructions.md` orchestrator:** implement **one at a time** in table order (`02` → `04` → `10`); that satisfies the dependency on `02`/`04` before `10`.
 
 ---
 
@@ -48,6 +51,7 @@ Subagents implementing a later phase **must wait** for all earlier phases to be 
 - `03` extends the market creation form and display from `02`. It adds new DB tables and significantly changes the betting/pool model for multichoice markets.
 - `07` triggers notifications based on admin approval events from `02`. It also requires the user profile dropdown from `06` to display the notification indicator.
 - These two can be parallelized with each other.
+- **`LLM-instructions.md` orchestrator:** implement **one at a time** in table order (`03` → `07`).
 
 ---
 
@@ -62,6 +66,7 @@ Subagents implementing a later phase **must wait** for all earlier phases to be 
 - `08` rebuilds the homepage with new sections. It reads from market and leaderboard data but doesn't change core business logic.
 - `09` adds a gamification layer. It needs user activity data (bets, markets created, coins earned) that must be tracked by the time this is implemented.
 - These two can be parallelized with each other.
+- **`LLM-instructions.md` orchestrator:** implement **one at a time** in table order (`08` → `09`).
 
 ---
 
@@ -106,6 +111,10 @@ Phase 4 (parallel):                                           ▼
 
 8. **Update the feature file** — mark any implementation notes, deviations, or follow-up tasks at the bottom of the feature file.
 9. **Update `project-specs/`** — if your feature changes the data model, API surface, or market lifecycle, update the corresponding spec files.
+
+### Commits and pull requests (orchestrator / LLM runs)
+
+For automated or LLM-assisted implementation, use `LLM-instructions.md` as the source of truth. In short: **one PR per feature (01–10)**; **many small commits** inside each feature; **subagents encouraged** but **no parallelizing different features**; the agent should **prompt the user periodically** with files to stage and a concise commit message, and **wait between features** so the user can open a PR. Do **not** implement `11-redis-websockets.md` as part of the 01–10 batch.
 
 ---
 

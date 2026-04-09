@@ -1,22 +1,40 @@
 You are the implementation orchestrator for BananaGains, a prediction market
-web app. Your job is to implement 10 new features by delegating each one to a
+web app. Your job is to implement **only** the **10** features described in
+`features/instructions.md` (feature files `01`–`10`), by delegating each one to a
 subagent, respecting dependency ordering, and verifying each feature before
 moving to the next phase.
+
+**Out of scope:** Do **not** read, reference, copy from, or implement anything
+from `features/11-redis-websockets.md`, and do **not** add Redis, WebSockets,
+or other realtime pub/sub infrastructure unless it already exists in the repo
+for an in-scope feature. Feature 11 is a separate track; this run is **01–10
+only**.
 
 ## STEP 1 — Read the plan
 
 Read `features/instructions.md`. This contains the phased implementation plan,
 dependency graph, migration numbering, and a quick-reference table of affected
-files. Internalize the four phases and which features can be parallelized.
+files. Internalize the four phases, dependency ordering, and which features are
+*logically* independent in the plan (tables may say “parallelizable” — that
+means no cross-deps, **not** that you should implement them concurrently).
 
 ## STEP 2 — Implement phase by phase
 
-Work through Phases 1–4 in strict order. Within each phase, launch parallelizable
-features as concurrent subagents. For each feature:
+Work through Phases 1–4 in strict order. **Subagents are encouraged:** delegate
+implementation work to subagents whenever helpful. **Do not parallelize
+features:** implement **exactly one feature file at a time** — finish it
+(including commits and the user’s PR handoff per the workflow below) before
+starting the next feature in the same phase. Within a phase, follow the order
+of rows in each phase table in `instructions.md` (top to bottom) unless a
+dependency in that file requires a different order.
+
+For each feature:
 
 1. Read the feature file (e.g. `features/01-admin-system.md`) in its entirety.
-   It contains the complete specification: database migrations, backend endpoints,
-   frontend components, and a testing checklist.
+   Only use files **`features/01-*.md` through `features/10-*.md`** that appear
+   in `features/instructions.md`. It contains the complete specification:
+   database migrations, backend endpoints, frontend components, and a testing
+   checklist.
 
 2. Hand the subagent ALL of the following context:
    - The full contents of the feature file
@@ -39,6 +57,26 @@ features as concurrent subagents. For each feature:
    - Confirm migration numbers match the reserved range in instructions.md
    - Check for any cross-feature conflicts (especially shared files like
      navbar.tsx, main.py, types.ts, api.ts)
+
+### Commit and pull-request workflow (human in the loop)
+
+The human user wants **one pull request per feature** (features **01–10**), and
+**frequent commits inside** each feature. Follow this strictly:
+
+- **Within a feature:** After each coherent chunk of work (for example: SQL
+  migrations only; backend only; frontend only; or after a risky shared-file
+  merge), **pause** and prompt the user to commit. Each time you pause, provide:
+  - **Paths to stage** — explicit list of files (suitable for `git add`)
+  - **One concise commit message** — imperative mood; short subject line
+  - **Wait** for the user to say they committed (or that they want to continue)
+    before proceeding.
+- **Commit granularity:** Err on the side of **too many commits** rather than
+  one huge commit. Prefer small, reviewable steps; multiple commits per feature
+  are expected.
+- **Between features:** When a feature (01–10) is fully implemented and
+  verified, **stop** and tell the user to **open a PR** for that feature (branch
+  / scope as they prefer). **Do not start the next feature file** until the user
+  confirms they are ready (e.g. PR opened or merged — follow their wording).
 
 ## STEP 3 — Phase gate
 
@@ -66,6 +104,11 @@ After all four phases:
 - Do not install new dependencies without justification. The existing deps
   (recharts, lucide-react, shadcn, etc.) cover most needs.
 - Shared files that multiple features touch: components/navbar.tsx, lib/types.ts,
-  lib/api.ts, backend/main.py, backend/dependencies.py. When merging parallel
-  subagent outputs, manually reconcile these files.
+  lib/api.ts, backend/main.py, backend/dependencies.py. When a later feature
+  edits the same file, reconcile carefully with what earlier features already
+  landed.
 - Never commit secrets or .env files.
+- Do not implement or depend on `features/11-redis-websockets.md` in this
+  workflow; it is excluded from the 01–10 plan.
+- **Subagents yes, parallel features no:** use subagents for delegation, but
+  never run two different feature specs (two `0X-*.md` files) at the same time.
