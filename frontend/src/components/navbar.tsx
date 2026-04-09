@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { BananaCoin } from "@/components/banana-coin";
 import { RoleToggle } from "@/components/role-toggle";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { UserMenu } from "@/components/user-menu";
 import { useSession } from "@/lib/SessionProvider";
 import { cn } from "@/lib/utils";
 
@@ -16,8 +17,7 @@ const NAV_LINKS: { href: string; label: string; adminOnly?: boolean }[] = [
 
 export function Navbar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { user, isDemo, signOut, viewAsRole } = useSession();
+  const { user, isDemo, viewAsRole } = useSession();
 
   const isAdminView = viewAsRole === "admin" || viewAsRole === "super_admin";
 
@@ -76,28 +76,7 @@ export function Navbar() {
               </Link>
             </>
           )}
-          {isDemo ? (
-            <Link
-              href="/auth"
-              className={cn(
-                buttonVariants({ variant: "outline", size: "sm" }),
-                "px-4",
-              )}
-            >
-              Sign In
-            </Link>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={async () => {
-                await signOut();
-                router.push("/");
-              }}
-            >
-              Sign Out
-            </Button>
-          )}
+          <UserMenu />
         </div>
       </div>
     </header>
