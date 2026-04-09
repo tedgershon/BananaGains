@@ -3,8 +3,11 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
 
+import asyncio
+
 from dependencies import get_current_user, get_current_user_optional, get_supabase_client, get_user_token, user_auth
 from market_linter import lint_market_fields
+from notification_service import notify_market_closed
 from schemas.dispute import CastVoteRequest, DisputeResponse, FileDisputeRequest, VoteResponse
 from schemas.market import (
     CreateMarketRequest,
@@ -54,6 +57,17 @@ def _apply_lazy_transitions(markets: list[dict], supabase: Client) -> list[dict]
     # Batch close expired open markets
     if close_ids:
         supabase.table("markets").update({"status": "closed"}).in_("id", close_ids).execute()
+
+        for m in markets:
+            if m["id"] in close_ids:
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        loop.create_task(notify_market_closed(supabase, m))
+                    else:
+                        loop.run_until_complete(notify_market_closed(supabase, m))
+                except RuntimeError:
+                    asyncio.run(notify_market_closed(supabase, m))
 
     # Auto-finalize markets whose dispute window expired with no dispute
     for m in finalize_markets:

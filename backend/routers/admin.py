@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
 
 from dependencies import get_supabase_client, require_admin, require_super_admin
+from notification_service import notify_market_approved, notify_market_denied
 from schemas.admin import (
     BackrollRequest,
     StatsResponse,
@@ -239,5 +240,12 @@ async def review_market(
             if "notes are required" in msg:
                 raise HTTPException(status_code=400, detail="Notes are required when denying a market.")
             raise HTTPException(status_code=500, detail=f"Failed to deny market: {e}")
+
+    market = supabase.table("markets").select("*").eq("id", market_id).single().execute()
+
+    if body.action == "approve":
+        await notify_market_approved(supabase, market.data, body.notes)
+    else:
+        await notify_market_denied(supabase, market.data, body.notes or "")
 
     return result.data
