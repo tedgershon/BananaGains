@@ -219,29 +219,31 @@ export default function LeaderboardPage() {
                     rank={rank}
                   />
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold leading-snug truncate">
-                        {entry.display_name}
-                        {isCurrentUser && (
-                          <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-                            (you)
-                          </span>
-                        )}
+                  <div className="flex flex-1 min-w-0 items-center gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold leading-snug truncate">
+                          {entry.display_name}
+                          {isCurrentUser && (
+                            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                              (you)
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {entry.andrew_id}
                       </p>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {entry.andrew_id}
-                    </p>
-                  </div>
 
-                  {equippedBadges.length > 0 && (
-                    <div className="flex shrink-0 items-center justify-start gap-2 self-center">
-                      {equippedBadges.map((badge) => (
-                        <BadgeCircle key={badge.track} badge={badge} size={36} />
-                      ))}
-                    </div>
-                  )}
+                    {equippedBadges.length > 0 && (
+                      <div className="flex shrink-0 items-center justify-start gap-2">
+                        {equippedBadges.map((badge) => (
+                          <BadgeCircle key={badge.track} badge={badge} size={36} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
                   <div className="flex items-center gap-1 text-base font-semibold">
                     <BananaCoin size={16} />
