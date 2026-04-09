@@ -20,7 +20,9 @@ import type {
   ResolveMarketRequest,
   ResolveMarketResponse,
   ReviewMarketRequest,
+  RewardsResponse,
   Transaction,
+  UserBadge,
   UserProfile,
   UserSearchResult,
   VoteResponse,
@@ -349,4 +351,20 @@ export function getUnreadNotificationCount(): Promise<{ count: number }> {
 
 export function markNotificationsRead(): Promise<{ status: string }> {
   return apiFetch("/api/notifications/read", { method: "POST" });
+}
+
+// ---------------------------------------------------------------------------
+// Rewards  –  /api/rewards
+// ---------------------------------------------------------------------------
+
+export function getUserRewards(): Promise<RewardsResponse> {
+  return apiFetch("/api/rewards");
+}
+
+export function getUserBadges(userId: string): Promise<UserBadge[]> {
+  return apiFetch(`/api/rewards/badges/${userId}`);
+}
+
+export function checkBadges(): Promise<{ new_badges: unknown[] }> {
+  return apiFetch("/api/rewards/check", { method: "POST" });
 }

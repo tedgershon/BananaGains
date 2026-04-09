@@ -62,6 +62,12 @@ async def place_bet(
             detail="Failed to place bet",
         ) from exc
 
+    # Check badges after bet placement (Degen & Whale tracks)
+    try:
+        supabase.rpc("check_and_award_badges", {"p_user_id": current_user["id"]}).execute()
+    except Exception:
+        pass
+
     return result.data
 
 
@@ -117,6 +123,12 @@ async def place_multichoice_bet(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to place bet",
         ) from exc
+
+    # Check badges after multichoice bet placement (Degen & Whale tracks)
+    try:
+        supabase.rpc("check_and_award_badges", {"p_user_id": current_user["id"]}).execute()
+    except Exception:
+        pass
 
     return result.data
 
