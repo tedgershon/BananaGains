@@ -3,7 +3,6 @@
 import { Check, Circle, Lock, Trophy } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BadgeIcon } from "@/components/badge-icon";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -68,12 +67,18 @@ function TrackCard({
   onEquip: (track: string, badgeId: string | null) => void;
 }) {
   const icon = TRACK_ICONS[track.track] ?? "🏆";
+  const valueTier = track.tiers.reduce((bestTier, tier) => {
+    if (track.current_value >= tier.threshold) {
+      return Math.max(bestTier, tier.tier);
+    }
+    return bestTier;
+  }, 0);
+  const effectiveTier = Math.max(track.current_tier, valueTier);
+
   const currentTierDef = track.tiers.find(
-    (tier) => tier.tier === track.current_tier,
+    (tier) => tier.tier === effectiveTier,
   );
-  const nextTierDef = track.tiers.find(
-    (tier) => tier.tier > track.current_tier,
-  );
+  const nextTierDef = track.tiers.find((tier) => tier.tier > effectiveTier);
 
   const segmentStart = currentTierDef?.threshold ?? 0;
   const segmentEnd = nextTierDef?.threshold ?? null;
@@ -126,18 +131,29 @@ function TrackCard({
 
         <div className="space-y-2">
           {track.tiers.map((tier) => {
-            const isEarned = tier.tier <= track.current_tier;
-            const isNext = tier.tier === track.current_tier + 1;
+            const isEarned = tier.tier <= effectiveTier;
+            const isNext = tier.tier === effectiveTier + 1;
             const remaining = tier.threshold - track.current_value;
             const isEquipped = equippedBadgeId === tier.id;
+            const canCardEquip = isEarned && !isSaving;
+
+            const activateCardEquip = () => {
+              if (!canCardEquip) return;
+              onEquip(track.track, isEquipped ? null : tier.id);
+            };
 
             return (
-              <div
+              <button
+                type="button"
                 key={tier.id}
+                disabled={!canCardEquip}
+                onClick={activateCardEquip}
                 className={`flex items-center gap-3 rounded-lg border px-3 py-2 ${
                   isEquipped
                     ? "border-green-500 bg-green-500/10"
-                    : "border-border"
+                    : canCardEquip
+                      ? "border-border cursor-pointer hover:border-green-300 hover:bg-green-50/40"
+                      : "border-border"
                 }`}
               >
                 <div className="shrink-0">
@@ -185,17 +201,11 @@ function TrackCard({
                 </div>
                 <div className="shrink-0">
                   {isEarned ? (
-                    <Button
-                      size="sm"
-                      disabled={isSaving}
-                      variant={isEquipped ? "default" : "outline"}
+                    <span
                       className={
                         isEquipped
-                          ? "bg-green-600 hover:bg-green-700 text-white gap-1.5"
-                          : "gap-1.5"
-                      }
-                      onClick={() =>
-                        onEquip(track.track, isEquipped ? null : tier.id)
+                          ? "inline-flex items-center gap-1.5 rounded-md bg-green-600 px-2.5 py-1 text-xs font-medium text-white"
+                          : "inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium"
                       }
                     >
                       {isEquipped && <Check size={14} />}
@@ -204,16 +214,16 @@ function TrackCard({
                         : isEquipped
                           ? "Equipped"
                           : "Equip"}
-                    </Button>
+                    </span>
                   ) : (
                     <span className="text-xs text-muted-foreground">
                       {isNext
-                        ? `${Math.max(0, remaining).toLocaleString()} to go`
+                        ? `${Math.max(1, Math.ceil(remaining)).toLocaleString()} to go`
                         : "Locked"}
                     </span>
                   )}
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>

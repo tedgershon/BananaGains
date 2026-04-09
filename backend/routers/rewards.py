@@ -100,7 +100,12 @@ def _build_track_progress(
         current_value = stats.get(track_key, 0)
 
         earned_badge = earned_by_track.get(track_key)
-        current_tier = earned_badge["tier"] if earned_badge else 0
+        earned_tier = int(earned_badge["tier"]) if earned_badge else 0
+        value_tier = max(
+            (int(t["tier"]) for t in tiers if current_value >= float(t["threshold"])),
+            default=0,
+        )
+        current_tier = max(earned_tier, value_tier)
 
         next_threshold = None
         for t in tiers:
@@ -128,6 +133,11 @@ async def get_user_rewards(
     supabase: Client = Depends(get_supabase_client),
 ):
     """Get the user's badge progress across all tracks."""
+    # Ensure tier state is up-to-date before returning rewards/progress.
+    supabase.rpc("check_and_award_badges", {
+        "p_user_id": current_user["id"],
+    }).execute()
+
     definitions = (
         supabase.table("badge_definitions")
         .select("*")
