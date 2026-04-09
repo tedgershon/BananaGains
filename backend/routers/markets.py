@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
@@ -220,6 +220,78 @@ async def list_markets(
 
     markets = _apply_lazy_transitions(result.data or [], supabase)
     return _attach_options(markets, supabase)
+
+
+TRENDING_MIN_VOLUME = 100
+TRENDING_RECENCY_DAYS = 7
+
+
+@router.get("/hot", response_model=list[MarketResponse])
+async def get_hot_markets(
+    limit: int = Query(5, ge=1, le=10),
+    supabase: Client = Depends(get_supabase_client),
+    _current_user: dict | None = Depends(get_current_user_optional),
+):
+    """Top markets by total coin volume (yes_pool + no_pool)."""
+    result = (
+        supabase.table("markets")
+        .select("*")
+        .eq("status", "open")
+        .execute()
+    )
+    markets = result.data or []
+    markets.sort(key=lambda m: m["yes_pool_total"] + m["no_pool_total"], reverse=True)
+    transitioned = _apply_lazy_transitions(markets[:limit], supabase)
+    return _attach_options(transitioned, supabase)
+
+
+@router.get("/trending", response_model=list[MarketResponse])
+async def get_trending_markets(
+    limit: int = Query(3, ge=1, le=10),
+    supabase: Client = Depends(get_supabase_client),
+    _current_user: dict | None = Depends(get_current_user_optional),
+):
+    """Trending markets: recently created + minimum activity threshold."""
+    cutoff = (datetime.now(tz=timezone.utc) - timedelta(days=TRENDING_RECENCY_DAYS)).isoformat()
+
+    result = (
+        supabase.table("markets")
+        .select("*")
+        .eq("status", "open")
+        .gte("created_at", cutoff)
+        .execute()
+    )
+    markets = result.data or []
+
+    qualified = [m for m in markets if (m["yes_pool_total"] + m["no_pool_total"]) >= TRENDING_MIN_VOLUME]
+    qualified.sort(key=lambda m: (m["created_at"], m["yes_pool_total"] + m["no_pool_total"]), reverse=True)
+
+    if len(qualified) < limit:
+        remaining = [m for m in markets if m not in qualified]
+        remaining.sort(key=lambda m: m["created_at"], reverse=True)
+        qualified.extend(remaining[:limit - len(qualified)])
+
+    transitioned = _apply_lazy_transitions(qualified[:limit], supabase)
+    return _attach_options(transitioned, supabase)
+
+
+@router.get("/top", response_model=list[MarketResponse])
+async def get_top_markets(
+    limit: int = Query(3, ge=1, le=10),
+    supabase: Client = Depends(get_supabase_client),
+    _current_user: dict | None = Depends(get_current_user_optional),
+):
+    """Top markets by total coin investment volume."""
+    result = (
+        supabase.table("markets")
+        .select("*")
+        .eq("status", "open")
+        .execute()
+    )
+    markets = result.data or []
+    markets.sort(key=lambda m: m["yes_pool_total"] + m["no_pool_total"], reverse=True)
+    transitioned = _apply_lazy_transitions(markets[:limit], supabase)
+    return _attach_options(transitioned, supabase)
 
 
 @router.get("/{market_id}", response_model=MarketResponse)

@@ -2,8 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { CategoryFilter } from "@/components/category-filter";
+import { HottestMarketDisplay } from "@/components/hottest-market";
 import { MarketCard } from "@/components/market-card";
+import { TrendingTopMarkets } from "@/components/trending-markets";
 import { Spinner } from "@/components/ui/spinner";
+import { WeeklyLeaderboard } from "@/components/weekly-leaderboard";
 import { useData } from "@/lib/DataProvider";
 
 export default function Home() {
@@ -24,8 +27,17 @@ export default function Home() {
 
   return (
     <>
+      <div className="mt-2 space-y-8">
+        <HottestMarketDisplay />
+
+        <div className="grid gap-8 lg:grid-cols-2">
+          <WeeklyLeaderboard />
+          <TrendingTopMarkets />
+        </div>
+      </div>
+
       <div
-        className="-mt-6"
+        className="mt-8 -mx-4 sm:-mx-6 lg:-mx-8"
         style={{
           marginLeft: "calc(-50vw + 50%)",
           marginRight: "calc(-50vw + 50%)",
