@@ -117,12 +117,7 @@ export default function PortfolioPage() {
                   Claimed! Come back tomorrow.
                 </p>
               ) : user.above_cap ? (
-                <p className="text-xs text-muted-foreground">
-                  Daily claiming is available when your balance is below 5,000
-                  coins. Your current balance (
-                  {user.banana_balance.toLocaleString()}) exceeds this
-                  threshold.
-                </p>
+                <></>
               ) : (
                 <>
                   <Button
@@ -139,19 +134,6 @@ export default function PortfolioPage() {
                       "Claim 1,000 Daily Bananas"
                     )}
                   </Button>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Daily coin claiming is available until your balance reaches
-                    5,000 coins.
-                    {user.banana_balance > 4000 &&
-                      user.banana_balance < 5000 && (
-                        <>
-                          {" "}
-                          You can claim{" "}
-                          {(5000 - user.banana_balance).toLocaleString()} more
-                          coins today.
-                        </>
-                      )}
-                  </p>
                 </>
               )}
             </CardContent>
