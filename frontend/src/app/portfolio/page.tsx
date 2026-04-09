@@ -112,7 +112,7 @@ export default function PortfolioPage() {
               {claimError && (
                 <p className="text-xs text-destructive">{claimError}</p>
               )}
-              {user.claimed_today ? (
+              {user.claimed_today && user.banana_balance <= 5000 ? (
                 <p className="text-xs text-muted-foreground">
                   Claimed! Come back tomorrow.
                 </p>
