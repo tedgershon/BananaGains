@@ -94,19 +94,50 @@ export default function PortfolioPage() {
                 <BananaCoin size={28} />
                 {user.banana_balance.toLocaleString()}
               </div>
+              {claimError && (
+                <p className="text-xs text-destructive">{claimError}</p>
+              )}
               {user.claimed_today ? (
                 <p className="text-xs text-muted-foreground">
-                  {claimError || "Claimed! Come back tomorrow."}
+                  Claimed! Come back tomorrow.
+                </p>
+              ) : user.above_cap ? (
+                <p className="text-xs text-muted-foreground">
+                  Daily claiming is available when your balance is below 5,000
+                  coins. Your current balance (
+                  {user.banana_balance.toLocaleString()}) exceeds this
+                  threshold.
                 </p>
               ) : (
-                <Button
-                  size="sm"
-                  className="w-full"
-                  onClick={handleClaim}
-                  disabled={claiming}
-                >
-                  {claiming ? <Spinner /> : "Claim 1,000 Daily Bananas"}
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={handleClaim}
+                    disabled={claiming}
+                  >
+                    {claiming ? (
+                      <Spinner />
+                    ) : user.claim_amount < 1000 ? (
+                      `Claim ${user.claim_amount.toLocaleString()} Daily Bananas`
+                    ) : (
+                      "Claim 1,000 Daily Bananas"
+                    )}
+                  </Button>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Daily coin claiming is available until your balance reaches
+                    5,000 coins.
+                    {user.banana_balance > 4000 &&
+                      user.banana_balance < 5000 && (
+                        <>
+                          {" "}
+                          You can claim{" "}
+                          {(5000 - user.banana_balance).toLocaleString()} more
+                          coins today.
+                        </>
+                      )}
+                  </p>
+                </>
               )}
             </CardContent>
           </Card>

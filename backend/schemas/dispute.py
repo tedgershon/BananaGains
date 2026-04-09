@@ -43,4 +43,5 @@ class VoteResponse(BaseModel):
 
 class ClaimResponse(BaseModel):
     new_balance: float
+    claimed_amount: float = 1000
     claimed_at: datetime

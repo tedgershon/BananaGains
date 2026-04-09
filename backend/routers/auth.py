@@ -14,8 +14,15 @@ async def get_me(
     supabase: Client = Depends(get_supabase_client),
 ):
     """Return the authenticated user's profile with daily claim status."""
-    result = supabase.rpc("check_claimed_today", {"p_user_id": current_user["id"]}).execute()
-    current_user["claimed_today"] = result.data if isinstance(result.data, bool) else False
+    eligibility = supabase.rpc("check_claim_eligibility", {
+        "p_user_id": current_user["id"]
+    }).execute()
+
+    claim_info = eligibility.data if eligibility.data else {}
+    current_user["claimed_today"] = claim_info.get("claimed_today", False)
+    current_user["claim_eligible"] = claim_info.get("eligible", False)
+    current_user["claim_amount"] = claim_info.get("claim_amount", 0)
+    current_user["above_cap"] = claim_info.get("above_cap", False)
     return current_user
 
 
@@ -71,13 +78,16 @@ async def claim_daily_bananas(
     current_user: dict = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_client),
 ):
-    """Claim 1000 bananas once per calendar day (America/New_York)."""
+    """Claim daily bananas (up to 1000, capped at 5000 balance)."""
     try:
         result = supabase.rpc("claim_daily_bananas", {
             "p_user_id": current_user["id"],
         }).execute()
         return result.data
     except Exception as e:
-        if "already claimed" in str(e).lower():
+        msg = str(e).lower()
+        if "already claimed" in msg:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Already claimed today.")
+        if "cap" in msg or "above" in msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Balance is at or above the 5,000 coin daily claim cap.")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to claim: {e}")
