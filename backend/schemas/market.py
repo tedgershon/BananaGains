@@ -6,12 +6,14 @@ from pydantic import BaseModel, field_validator
 
 
 class MarketStatus(str, Enum):
+    PENDING_REVIEW = "pending_review"
     OPEN = "open"
     CLOSED = "closed"
     PENDING_RESOLUTION = "pending_resolution"
     DISPUTED = "disputed"
     ADMIN_REVIEW = "admin_review"
     RESOLVED = "resolved"
+    DENIED = "denied"
 
 
 class CreateMarketRequest(BaseModel):
@@ -24,6 +26,7 @@ class CreateMarketRequest(BaseModel):
     yes_criteria: str
     no_criteria: str
     ambiguity_criteria: str
+    link: str | None = None
 
     @field_validator("title", "official_source", "yes_criteria", "no_criteria", "ambiguity_criteria")
     @classmethod
@@ -37,6 +40,18 @@ class CreateMarketRequest(BaseModel):
     def close_at_in_future(cls, v: datetime) -> datetime:
         if v <= datetime.now(tz=v.tzinfo):
             raise ValueError("close_at must be in the future")
+        return v
+
+    @field_validator("link")
+    @classmethod
+    def validate_link(cls, v: str | None) -> str | None:
+        if v is None or v.strip() == "":
+            return None
+        v = v.strip()
+        import re
+        url_pattern = r"^https?://[^\s/$.?#].[^\s]*$"
+        if not re.match(url_pattern, v):
+            raise ValueError("Invalid URL format. Must start with http:// or https://")
         return v
 
 
@@ -64,6 +79,28 @@ class MarketResponse(BaseModel):
     disputed_at: datetime | None = None
     disputed_by: str | None = None
     voting_ends_at: datetime | None = None
+    link: str | None = None
+    reviewed_by: str | None = None
+    review_date: datetime | None = None
+    review_notes: str | None = None
+
+
+class ReviewMarketRequest(BaseModel):
+    action: Literal["approve", "deny"]
+    notes: str | None = None
+    title: str | None = None
+    description: str | None = None
+    resolution_criteria: str | None = None
+    close_at: datetime | None = None
+    category: str | None = None
+    link: str | None = None
+
+    @field_validator("notes")
+    @classmethod
+    def notes_required_for_deny(cls, v, info):
+        if info.data.get("action") == "deny" and (v is None or v.strip() == ""):
+            raise ValueError("Notes are required when denying a market")
+        return v
 
 
 class ProposeResolutionRequest(BaseModel):
