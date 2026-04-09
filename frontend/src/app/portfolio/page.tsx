@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import * as api from "@/lib/api";
 import { useData } from "@/lib/DataProvider";
 import { useSession } from "@/lib/SessionProvider";
+import type { Market } from "@/lib/types";
 import { getMarketProbability } from "@/lib/types";
 
 const TX_LABELS: Record<string, string> = {
@@ -25,6 +27,19 @@ export default function PortfolioPage() {
   const { markets, bets, transactions, loading, claimDaily } = useData();
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
+  const [pendingMarkets, setPendingMarkets] = useState<Market[]>([]);
+  const [deniedMarkets, setDeniedMarkets] = useState<Market[]>([]);
+
+  useEffect(() => {
+    api
+      .listMarkets({ status: "pending_review" })
+      .then(setPendingMarkets)
+      .catch(() => {});
+    api
+      .listMarkets({ status: "denied" })
+      .then(setDeniedMarkets)
+      .catch(() => {});
+  }, []);
 
   async function handleClaim() {
     setClaiming(true);
@@ -210,6 +225,50 @@ export default function PortfolioPage() {
           </div>
         </div>
       </div>
+
+      {(pendingMarkets.length > 0 || deniedMarkets.length > 0) && (
+        <section className="space-y-2">
+          <h2 className="text-lg font-semibold">Pending Markets</h2>
+          <div className="grid gap-2">
+            {pendingMarkets.map((market) => (
+              <Card key={market.id} size="sm">
+                <CardContent className="flex items-center justify-between">
+                  <div className="flex-1 space-y-0.5">
+                    <p className="text-sm font-medium leading-snug">
+                      {market.title}
+                    </p>
+                    <Badge
+                      variant="outline"
+                      className="border-amber-500 text-amber-500"
+                    >
+                      Pending Review
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {deniedMarkets.map((market) => (
+              <Card key={market.id} size="sm">
+                <CardContent className="flex items-center justify-between">
+                  <div className="flex-1 space-y-0.5">
+                    <p className="text-sm font-medium leading-snug">
+                      {market.title}
+                    </p>
+                    <div className="space-y-1">
+                      <Badge variant="destructive">Denied</Badge>
+                      {market.review_notes && (
+                        <p className="text-xs text-muted-foreground">
+                          {market.review_notes}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Transaction History</h2>

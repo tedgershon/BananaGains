@@ -26,6 +26,16 @@ function StatusDot({ status }: { status: Market["status"] }) {
   if (status === "disputed") {
     return <Badge variant="destructive">disputed</Badge>;
   }
+  if (status === "pending_review") {
+    return (
+      <Badge variant="outline" className="border-amber-500 text-amber-500">
+        Under Review
+      </Badge>
+    );
+  }
+  if (status === "denied") {
+    return <Badge variant="destructive">Denied</Badge>;
+  }
   return <span className="size-2.5 rounded-full bg-muted-foreground/40" />;
 }
 
