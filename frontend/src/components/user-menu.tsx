@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Bell, List, LogOut, Trophy, Wallet } from "lucide-react";
+import { BarChart3, Bell, List, LogOut, Trophy, User, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -95,6 +95,15 @@ export function UserMenu() {
           </div>
 
           <div className="py-1">
+            <Link
+              href="/profile"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-accent"
+            >
+              <User size={16} className="text-muted-foreground" />
+              <span>Profile</span>
+            </Link>
+            <div className="border-t border-border" />
             {MENU_ITEMS.map((item) => (
               <Link
                 key={item.href}
