@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ExternalLink, Timer } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ExternalLink, Timer } from "lucide-react";
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
@@ -114,6 +114,11 @@ export default function MarketDetailPage({
   const [communityError, setCommunityError] = useState<string | null>(null);
   const [resolutionCountdown, setResolutionCountdown] = useState("");
   const [resolutionUrgent, setResolutionUrgent] = useState(false);
+  const [backrollDate, setBackrollDate] = useState("");
+  const [backrollClose, setBackrollClose] = useState(true);
+  const [backrolling, setBackrolling] = useState(false);
+  const [backrollResult, setBackrollResult] = useState<string | null>(null);
+  const [backrollError, setBackrollError] = useState<string | null>(null);
 
   const refreshVoteTotals = useCallback(async () => {
     try {
@@ -222,7 +227,42 @@ export default function MarketDetailPage({
     !!market.resolution_window_end;
   const resolutionWindowExpired = resolutionCountdown === "Expired";
   const isCreator = user.id === market.creator_id;
+  const isAdmin = user.role === "admin" || user.role === "super_admin";
+  const canBackroll = isAdmin && market.status !== "resolved";
   const voterRewardPool = Math.round(total * 0.04);
+
+  async function handleBackroll() {
+    if (!market || !backrollDate) return;
+    if (
+      !confirm(
+        "This will cancel all bets placed after the specified date and refund those users. This action cannot be undone. Continue?",
+      )
+    )
+      return;
+    setBackrolling(true);
+    setBackrollError(null);
+    setBackrollResult(null);
+    try {
+      const result = await api.backrollMarket(market.id, {
+        cutoff_date: new Date(backrollDate).toISOString(),
+        close_market: backrollClose,
+      });
+      setBackrollResult(
+        `Backroll complete: ${result.bets_cancelled} bet(s) cancelled, ${result.total_refunded} banana(s) refunded.`,
+      );
+      fetchMarket(id)
+        .then(setFetchedMarket)
+        .catch(() => {});
+      api
+        .listBetsForMarket(id)
+        .then(setMarketBets)
+        .catch(() => {});
+    } catch (err) {
+      setBackrollError(err instanceof Error ? err.message : "Backroll failed.");
+    } finally {
+      setBackrolling(false);
+    }
+  }
 
   async function handleCommunityVote(side: BetSide) {
     if (!market) return;
@@ -477,42 +517,50 @@ export default function MarketDetailPage({
               )}
 
               {isOpen ? (
-                <>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    Your balance: <BananaCoin size={12} />
-                    <span className="font-medium text-foreground">
-                      {user.banana_balance.toLocaleString()}
-                    </span>
-                  </div>
-                  <input
-                    type="number"
-                    placeholder="Amount"
-                    min={1}
-                    value={betAmount}
-                    onChange={(e) => {
-                      setBetAmount(e.target.value);
-                      setBetError(null);
-                      setBetSuccess(null);
-                    }}
-                    className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      className="h-14 text-base bg-success text-success-foreground border-b-success/40 active:border-b-success/40 hover:bg-success/80"
-                      onClick={() => handleBet("YES")}
-                      disabled={betting}
-                    >
-                      Yes {probability}%
-                    </Button>
-                    <Button
-                      className="h-14 text-base bg-danger text-danger-foreground border-b-danger/40 active:border-b-danger/40 hover:bg-danger/80"
-                      onClick={() => handleBet("NO")}
-                      disabled={betting}
-                    >
-                      No {100 - probability}%
-                    </Button>
-                  </div>
-                </>
+                isCreator ? (
+                  <p className="text-sm text-muted-foreground">
+                    As the market creator, you cannot place bets on this market.
+                    You will be able to propose a resolution once the market
+                    closes.
+                  </p>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      Your balance: <BananaCoin size={12} />
+                      <span className="font-medium text-foreground">
+                        {user.banana_balance.toLocaleString()}
+                      </span>
+                    </div>
+                    <input
+                      type="number"
+                      placeholder="Amount"
+                      min={1}
+                      value={betAmount}
+                      onChange={(e) => {
+                        setBetAmount(e.target.value);
+                        setBetError(null);
+                        setBetSuccess(null);
+                      }}
+                      className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        className="h-14 text-base bg-success text-success-foreground border-b-success/40 active:border-b-success/40 hover:bg-success/80"
+                        onClick={() => handleBet("YES")}
+                        disabled={betting}
+                      >
+                        Yes {probability}%
+                      </Button>
+                      <Button
+                        className="h-14 text-base bg-danger text-danger-foreground border-b-danger/40 active:border-b-danger/40 hover:bg-danger/80"
+                        onClick={() => handleBet("NO")}
+                        disabled={betting}
+                      >
+                        No {100 - probability}%
+                      </Button>
+                    </div>
+                  </>
+                )
               ) : (
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
@@ -769,6 +817,65 @@ export default function MarketDetailPage({
               <p className="text-sm text-muted-foreground">No activity yet.</p>
             )}
           </div>
+
+          {canBackroll && (
+            <Card size="sm">
+              <CardHeader className="pb-0">
+                <span className="flex items-center gap-1.5 text-sm font-medium">
+                  <AlertTriangle className="size-4 text-warning" />
+                  Admin Backroll
+                </span>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Cancel all bets placed after a cutoff date and refund those
+                  users. This action cannot be undone.
+                </p>
+                {backrollError && (
+                  <p className="text-xs font-medium text-danger">
+                    {backrollError}
+                  </p>
+                )}
+                {backrollResult && (
+                  <p className="text-xs font-medium text-success">
+                    {backrollResult}
+                  </p>
+                )}
+                <div className="space-y-1">
+                  <label
+                    htmlFor="backroll-date"
+                    className="text-xs font-medium text-muted-foreground"
+                  >
+                    Cutoff Date/Time
+                  </label>
+                  <input
+                    id="backroll-date"
+                    type="datetime-local"
+                    value={backrollDate}
+                    onChange={(e) => setBackrollDate(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={backrollClose}
+                    onChange={(e) => setBackrollClose(e.target.checked)}
+                    className="rounded border-border"
+                  />
+                  Also close market at cutoff date
+                </label>
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={handleBackroll}
+                  disabled={backrolling || !backrollDate}
+                >
+                  {backrolling ? "Processing..." : "Execute Backroll"}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

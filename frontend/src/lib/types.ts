@@ -161,6 +161,19 @@ export interface PlaceBetRequest {
   amount: number;
 }
 
+export interface BackrollRequest {
+  cutoff_date: string;
+  close_market: boolean;
+}
+
+export interface BackrollResponse {
+  market_id: string;
+  bets_cancelled: number;
+  total_refunded: number;
+  new_close_at: string;
+  status: string;
+}
+
 export interface CreateProfileRequest {
   andrew_id: string;
   display_name: string;
