@@ -3,12 +3,14 @@
 // ---------------------------------------------------------------------------
 
 export type MarketStatus =
+  | "pending_review"
   | "open"
   | "closed"
   | "pending_resolution"
   | "disputed"
   | "admin_review"
-  | "resolved";
+  | "resolved"
+  | "denied";
 export type BetSide = "YES" | "NO";
 
 export type UserRole = "user" | "admin" | "super_admin";
@@ -72,6 +74,10 @@ export interface Market {
   disputed_by?: string | null;
   voting_ends_at?: string | null;
   category: string;
+  link?: string | null;
+  reviewed_by?: string | null;
+  review_date?: string | null;
+  review_notes?: string | null;
 }
 
 export interface Bet {
@@ -122,6 +128,18 @@ export interface CreateMarketRequest {
   yes_criteria?: string;
   no_criteria?: string;
   ambiguity_criteria?: string;
+  link?: string;
+}
+
+export interface ReviewMarketRequest {
+  action: "approve" | "deny";
+  notes?: string | null;
+  title?: string | null;
+  description?: string | null;
+  resolution_criteria?: string | null;
+  close_at?: string | null;
+  category?: string | null;
+  link?: string | null;
 }
 
 export interface ResolveMarketRequest {

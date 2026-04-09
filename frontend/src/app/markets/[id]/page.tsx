@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
@@ -342,6 +342,22 @@ export default function MarketDetailPage({
                 <dd className="col-span-1 font-medium">
                   {market.resolution_criteria}
                 </dd>
+                {market.link && (
+                  <>
+                    <dt className="text-muted-foreground">Source Link</dt>
+                    <dd className="font-medium">
+                      <a
+                        href={market.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-primary hover:underline"
+                      >
+                        <ExternalLink className="size-3.5" />
+                        View Source
+                      </a>
+                    </dd>
+                  </>
+                )}
               </dl>
             </CardContent>
           </Card>

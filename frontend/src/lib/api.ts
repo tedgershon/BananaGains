@@ -14,6 +14,7 @@ import type {
   PlaceBetResponse,
   ResolveMarketRequest,
   ResolveMarketResponse,
+  ReviewMarketRequest,
   Transaction,
   UserProfile,
   UserSearchResult,
@@ -240,5 +241,23 @@ export function updateUserRole(
   return apiFetch(`/api/admin/users/${userId}/role`, {
     method: "PUT",
     body: JSON.stringify({ role }),
+  });
+}
+
+export function getMarketsForReview(): Promise<{
+  pending: Market[];
+  approved: Market[];
+  denied: Market[];
+}> {
+  return apiFetch("/api/admin/markets/review");
+}
+
+export function reviewMarket(
+  marketId: string,
+  body: ReviewMarketRequest,
+): Promise<unknown> {
+  return apiFetch(`/api/admin/markets/${marketId}/review`, {
+    method: "POST",
+    body: JSON.stringify(body),
   });
 }

@@ -1,8 +1,7 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Info } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -18,8 +17,9 @@ const CATEGORIES = [
   "Politics",
 ];
 
+const URL_REGEX = /^https?:\/\/[^\s/$.?#].[^\s]*$/;
+
 export default function CreateMarketPage() {
-  const router = useRouter();
   const { addMarket } = useData();
 
   const [title, setTitle] = useState("");
@@ -31,13 +31,19 @@ export default function CreateMarketPage() {
   const [noCriteria, setNoCriteria] = useState("");
   const [ambiguityCriteria, setAmbiguityCriteria] = useState("");
   const [category, setCategory] = useState("General");
+  const [link, setLink] = useState("");
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [marketType, setMarketType] = useState<"binary" | "multichoice">(
+    "binary",
+  );
   const [error, setError] = useState<string | null>(null);
-
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setLinkError(null);
 
     if (!title.trim()) {
       setError("Title is required.");
@@ -59,6 +65,10 @@ export default function CreateMarketPage() {
       setError("Resolution criteria is required.");
       return;
     }
+    if (link && !URL_REGEX.test(link)) {
+      setLinkError("Invalid URL. Must start with http:// or https://");
+      return;
+    }
     if (!officialSource.trim()) {
       setError("Official source is required.");
       return;
@@ -78,7 +88,7 @@ export default function CreateMarketPage() {
 
     setSubmitting(true);
     try {
-      const market = await addMarket({
+      await addMarket({
         title: title.trim(),
         description: description.trim(),
         close_at: new Date(closeAt).toISOString(),
@@ -88,8 +98,9 @@ export default function CreateMarketPage() {
         yes_criteria: yesCriteria.trim(),
         no_criteria: noCriteria.trim(),
         ambiguity_criteria: ambiguityCriteria.trim(),
+        link: link.trim() || undefined,
       });
-      router.push(`/markets/${market.id}`);
+      setSubmitted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create market.");
       setSubmitting(false);
@@ -98,6 +109,26 @@ export default function CreateMarketPage() {
 
   const inputClass =
     "w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20";
+
+  if (submitted) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
+          <div className="text-4xl">🎉</div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Market Submitted!
+          </h1>
+          <p className="text-sm text-muted-foreground max-w-md">
+            Your market has been submitted for review! You&apos;ll be notified
+            when an admin approves it.
+          </p>
+          <Link href="/">
+            <Button variant="outline">Back to Home</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -121,9 +152,47 @@ export default function CreateMarketPage() {
         className="grid gap-4 lg:grid-cols-[2fr_1fr]"
       >
         <div className="space-y-4">
+          {/* Market type selector */}
           <Card size="sm">
             <CardHeader className="pb-0">
-              <span className="text-sm font-medium">Market Details</span>
+              <span className="text-sm font-medium">Market Type</span>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="marketType"
+                    value="binary"
+                    checked={marketType === "binary"}
+                    onChange={() => setMarketType("binary")}
+                    className="accent-primary"
+                  />
+                  <span className="text-sm font-medium">Binary (Yes / No)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-not-allowed opacity-50">
+                  <input
+                    type="radio"
+                    name="marketType"
+                    value="multichoice"
+                    checked={marketType === "multichoice"}
+                    disabled
+                    className="accent-primary"
+                  />
+                  <span className="text-sm font-medium">
+                    Multiple Choice (coming soon)
+                  </span>
+                </label>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Public-facing fields */}
+          <Card size="sm">
+            <CardHeader className="pb-0">
+              <span className="text-sm font-medium">
+                Market Details (Public)
+              </span>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1.5">
@@ -162,6 +231,29 @@ export default function CreateMarketPage() {
 
               <div className="space-y-1.5">
                 <label
+                  htmlFor="link"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Link (optional)
+                </label>
+                <input
+                  id="link"
+                  type="url"
+                  placeholder="https://example.com/relevant-article"
+                  value={link}
+                  onChange={(e) => {
+                    setLink(e.target.value);
+                    setLinkError(null);
+                  }}
+                  className={`${inputClass} ${linkError ? "border-danger" : ""}`}
+                />
+                {linkError && (
+                  <p className="text-xs text-danger">{linkError}</p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label
                   htmlFor="resolutionCriteria"
                   className="text-sm font-medium text-foreground"
                 >
@@ -175,6 +267,22 @@ export default function CreateMarketPage() {
                   onChange={(e) => setResolutionCriteria(e.target.value)}
                   className={`${inputClass} resize-none`}
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Admin-only fields */}
+          <Card size="sm" className="border-dashed bg-muted/50">
+            <CardHeader className="pb-0">
+              <span className="text-sm font-medium">
+                Review Information (Admin Only)
+              </span>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-start gap-2 rounded-md bg-primary/10 px-3 py-2 text-xs text-primary">
+                <Info className="mt-0.5 size-3.5 shrink-0" />
+                These fields will be reviewed by admins and are not publicly
+                displayed.
               </div>
 
               <div className="space-y-1.5">
@@ -301,7 +409,7 @@ export default function CreateMarketPage() {
             className="w-full"
             disabled={submitting}
           >
-            {submitting ? <Spinner /> : "Create Market"}
+            {submitting ? <Spinner /> : "Submit for Review"}
           </Button>
         </div>
       </form>
