@@ -229,22 +229,19 @@ export default function LeaderboardPage() {
                           </span>
                         )}
                       </p>
-                      {equippedBadges.length > 0 && (
-                        <div className="flex items-center gap-1.5">
-                          {equippedBadges.map((badge) => (
-                            <BadgeCircle
-                              key={badge.track}
-                              badge={badge}
-                              size={30}
-                            />
-                          ))}
-                        </div>
-                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {entry.andrew_id}
                     </p>
                   </div>
+
+                  {equippedBadges.length > 0 && (
+                    <div className="flex shrink-0 items-center gap-2 self-center">
+                      {equippedBadges.map((badge) => (
+                        <BadgeCircle key={badge.track} badge={badge} size={36} />
+                      ))}
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-1 text-base font-semibold">
                     <BananaCoin size={16} />
