@@ -10,6 +10,8 @@ class UserProfileResponse(BaseModel):
     banana_balance: float
     created_at: datetime
     claimed_today: bool = False
+    role: str = "user"
+    is_admin: bool = False
 
 
 class CreateProfileRequest(BaseModel):

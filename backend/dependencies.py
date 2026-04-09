@@ -96,6 +96,24 @@ def user_auth(supabase: Client, token: str | None):
             supabase.postgrest.auth(get_settings().supabase_key)
 
 
+async def require_admin(
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """Require the user to be an admin or super_admin."""
+    if current_user.get("role") not in ("admin", "super_admin"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required.")
+    return current_user
+
+
+async def require_super_admin(
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """Require the user to be a super_admin."""
+    if current_user.get("role") != "super_admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Super admin access required.")
+    return current_user
+
+
 async def get_current_user_optional(
     credentials: HTTPAuthorizationCredentials | None = Depends(_security_optional),
     supabase: Client = Depends(get_supabase_client),
