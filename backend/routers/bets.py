@@ -37,12 +37,17 @@ async def place_bet(
         ).execute()
     except Exception as exc:
         detail = str(exc)
+        if "creators cannot place bets" in detail.lower():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You cannot bet on a market you created.",
+            ) from exc
         if "Insufficient balance" in detail:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Insufficient banana balance",
             ) from exc
-        if "Market is not open" in detail:
+        if "Market is not open" in detail or "Market has closed" in detail:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Market is not open for betting",

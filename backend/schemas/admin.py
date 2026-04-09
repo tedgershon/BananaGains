@@ -1,4 +1,11 @@
+from datetime import datetime
+
 from pydantic import BaseModel
+
+
+class BackrollRequest(BaseModel):
+    cutoff_date: datetime
+    close_market: bool = True
 
 
 class StatsResponse(BaseModel):

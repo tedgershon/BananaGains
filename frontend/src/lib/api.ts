@@ -1,6 +1,8 @@
 import { supabase } from "./supabase";
 import type {
   AdminStats,
+  BackrollRequest,
+  BackrollResponse,
   Bet,
   CastVoteRequest,
   ClaimDailyResponse,
@@ -280,6 +282,16 @@ export function reviewMarket(
   body: ReviewMarketRequest,
 ): Promise<unknown> {
   return apiFetch(`/api/admin/markets/${marketId}/review`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function backrollMarket(
+  marketId: string,
+  body: BackrollRequest,
+): Promise<BackrollResponse> {
+  return apiFetch(`/api/admin/markets/${marketId}/backroll`, {
     method: "POST",
     body: JSON.stringify(body),
   });

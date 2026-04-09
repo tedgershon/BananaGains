@@ -3,6 +3,7 @@ from supabase import Client
 
 from dependencies import get_supabase_client, require_admin, require_super_admin
 from schemas.admin import (
+    BackrollRequest,
     StatsResponse,
     UpdateRoleRequest,
     UpdateRoleResponse,
@@ -124,6 +125,31 @@ async def update_user_role(
         )
 
     return result.data[0]
+
+
+@router.post("/markets/{market_id}/backroll")
+async def backroll_market(
+    market_id: str,
+    body: BackrollRequest,
+    current_user: dict = Depends(require_admin),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """Admin backroll: cancel bets placed after a cutoff date and refund bettors."""
+    try:
+        result = supabase.rpc("admin_backroll_market", {
+            "p_market_id": market_id,
+            "p_admin_id": current_user["id"],
+            "p_cutoff_date": body.cutoff_date.isoformat(),
+            "p_close_market": body.close_market,
+        }).execute()
+        return result.data
+    except Exception as e:
+        msg = str(e).lower()
+        if "not found" in msg:
+            raise HTTPException(status_code=404, detail="Market not found.")
+        if "resolved" in msg:
+            raise HTTPException(status_code=400, detail="Cannot backroll a resolved market.")
+        raise HTTPException(status_code=500, detail=f"Backroll failed: {e}")
 
 
 @router.get("/markets/review")
