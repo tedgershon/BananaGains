@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 const NAV_LINKS: { href: string; label: string; adminOnly?: boolean }[] = [
   { href: "/", label: "Markets" },
+  { href: "/resolutions", label: "Resolutions" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/admin", label: "Admin", adminOnly: true },
 ];

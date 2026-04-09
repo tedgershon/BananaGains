@@ -4,6 +4,7 @@ import type {
   Bet,
   CastVoteRequest,
   ClaimDailyResponse,
+  CommunityVote,
   CreateMarketRequest,
   CreateProfileRequest,
   DisputeResponse,
@@ -154,6 +155,28 @@ export function castDisputeVote(
 
 export function listDisputeVotes(marketId: string): Promise<VoteResponse[]> {
   return apiFetch(`/api/markets/${marketId}/dispute/votes`);
+}
+
+// ---------------------------------------------------------------------------
+// Community Resolution Votes  –  /api/markets/:id/community-vote(s)
+// ---------------------------------------------------------------------------
+
+export function castCommunityVote(
+  marketId: string,
+  body: CastVoteRequest,
+): Promise<CommunityVote> {
+  return apiFetch(`/api/markets/${marketId}/community-vote`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function listCommunityVotes(marketId: string): Promise<CommunityVote[]> {
+  return apiFetch(`/api/markets/${marketId}/community-votes`);
+}
+
+export function listResolutionMarkets(): Promise<Market[]> {
+  return apiFetch("/api/markets/resolutions");
 }
 
 // ---------------------------------------------------------------------------
