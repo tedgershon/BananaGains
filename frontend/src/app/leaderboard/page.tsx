@@ -10,6 +10,61 @@ import { getLeaderboard, getUserBadges } from "@/lib/api";
 import { useSession } from "@/lib/SessionProvider";
 import type { LeaderboardEntry, UserBadge } from "@/lib/types";
 
+function RankBadge({ rank }: { rank: number }) {
+  if (rank <= 3) {
+    return (
+      <div
+        className={`flex size-5 items-center justify-center rounded-full text-white text-[10px] font-bold ${
+          rank === 1
+            ? "bg-yellow-500"
+            : rank === 2
+              ? "bg-gray-400"
+              : "bg-amber-700"
+        }`}
+      >
+        <Trophy size={10} />
+      </div>
+    );
+  }
+  return (
+    <div className="flex size-5 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
+      {rank}
+    </div>
+  );
+}
+
+function UserAvatar({
+  displayName,
+  avatarUrl,
+  rank,
+}: {
+  displayName: string;
+  avatarUrl: string | null;
+  rank: number;
+}) {
+  const initials = displayName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  return (
+    <div className="relative shrink-0">
+      <div className="flex size-10 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted text-sm font-medium text-muted-foreground">
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="" className="size-full object-cover" />
+        ) : (
+          initials
+        )}
+      </div>
+      <div className="absolute -bottom-1 -right-1">
+        <RankBadge rank={rank} />
+      </div>
+    </div>
+  );
+}
+
 export default function LeaderboardPage() {
   const { user } = useSession();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
@@ -48,7 +103,7 @@ export default function LeaderboardPage() {
       <section className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight">Leaderboard</h1>
         <p className="text-sm text-muted-foreground">
-          Top banana holders on BananaGains
+          Who's got the biggest bunch? See who's ruling the banana republic
         </p>
       </section>
 
@@ -69,22 +124,11 @@ export default function LeaderboardPage() {
                   key={entry.id}
                   className={`flex items-center gap-4 px-5 py-3 ${isCurrentUser ? "bg-primary/5" : ""}`}
                 >
-                  <span className="flex w-8 shrink-0 items-center justify-center text-lg font-bold text-muted-foreground">
-                    {rank <= 3 ? (
-                      <Trophy
-                        className={
-                          rank === 1
-                            ? "text-yellow-500"
-                            : rank === 2
-                              ? "text-gray-400"
-                              : "text-amber-700"
-                        }
-                        size={20}
-                      />
-                    ) : (
-                      rank
-                    )}
-                  </span>
+                  <UserAvatar
+                    displayName={entry.display_name}
+                    avatarUrl={entry.avatar_url}
+                    rank={rank}
+                  />
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">

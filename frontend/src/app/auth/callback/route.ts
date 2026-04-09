@@ -44,7 +44,32 @@ export async function GET(request: NextRequest) {
       const isLocal = process.env.NODE_ENV === "development";
       const redirectBase =
         isLocal || !forwardedHost ? origin : `https://${forwardedHost}`;
-      return NextResponse.redirect(`${redirectBase}${next}`);
+
+      let destination = next;
+      if (destination === "/") {
+        try {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          if (user) {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("role")
+              .eq("id", user.id)
+              .single();
+            if (
+              profile?.role === "admin" ||
+              profile?.role === "super_admin"
+            ) {
+              destination = "/admin";
+            }
+          }
+        } catch {
+          // fall through to default destination
+        }
+      }
+
+      return NextResponse.redirect(`${redirectBase}${destination}`);
     }
   }
 

@@ -18,7 +18,7 @@ async def get_leaderboard(
     """Top users ranked by banana balance (descending)."""
     result = (
         supabase.table("profiles")
-        .select("id, andrew_id, display_name, banana_balance")
+        .select("id, andrew_id, display_name, banana_balance, equipped_badge_id, avatar_url")
         .order("banana_balance", desc=True)
         .limit(limit)
         .execute()

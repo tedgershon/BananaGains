@@ -27,6 +27,8 @@ export interface UserProfile {
   claim_eligible: boolean;
   claim_amount: number;
   above_cap: boolean;
+  equipped_badge_id: string | null;
+  avatar_url: string | null;
 }
 
 export interface AdminStats {
@@ -128,6 +130,8 @@ export interface LeaderboardEntry {
   andrew_id: string;
   display_name: string;
   banana_balance: number;
+  equipped_badge_id: string | null;
+  avatar_url: string | null;
 }
 
 export interface WeeklyLeaderboardEntry {
