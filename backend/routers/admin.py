@@ -8,6 +8,7 @@ from schemas.admin import (
     UpdateRoleResponse,
     UserSearchResult,
 )
+from schemas.market import ReviewMarketRequest
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -123,3 +124,94 @@ async def update_user_role(
         )
 
     return result.data[0]
+
+
+@router.get("/markets/review")
+async def list_markets_for_review(
+    _current_user: dict = Depends(require_admin),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """List all markets organized by review status."""
+    pending = (
+        supabase.table("markets")
+        .select("*, profiles!creator_id(andrew_id, display_name)")
+        .eq("status", "pending_review")
+        .order("created_at", desc=False)
+        .execute()
+    )
+
+    approved = (
+        supabase.table("markets")
+        .select("*, profiles!creator_id(andrew_id, display_name)")
+        .eq("status", "open")
+        .not_.is_("reviewed_by", "null")
+        .order("review_date", desc=True)
+        .limit(50)
+        .execute()
+    )
+
+    denied = (
+        supabase.table("markets")
+        .select("*, profiles!creator_id(andrew_id, display_name)")
+        .eq("status", "denied")
+        .order("review_date", desc=True)
+        .limit(50)
+        .execute()
+    )
+
+    return {
+        "pending": pending.data or [],
+        "approved": approved.data or [],
+        "denied": denied.data or [],
+    }
+
+
+@router.post("/markets/{market_id}/review")
+async def review_market(
+    market_id: str,
+    body: ReviewMarketRequest,
+    current_user: dict = Depends(require_admin),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """Admin reviews a proposed market — approve or deny."""
+    updates = {}
+    for field in ("title", "description", "resolution_criteria", "close_at", "category", "link"):
+        val = getattr(body, field, None)
+        if val is not None:
+            updates[field] = val.isoformat() if field == "close_at" else val
+
+    if updates:
+        supabase.table("markets").update(updates).eq("id", market_id).execute()
+
+    if body.action == "approve":
+        try:
+            result = supabase.rpc("approve_market", {
+                "p_market_id": market_id,
+                "p_admin_id": current_user["id"],
+                "p_notes": body.notes,
+            }).execute()
+        except Exception as e:
+            msg = str(e).lower()
+            if "not found" in msg:
+                raise HTTPException(status_code=404, detail="Market not found.")
+            if "not pending" in msg:
+                raise HTTPException(status_code=400, detail="Market is not pending review.")
+            raise HTTPException(status_code=500, detail=f"Failed to approve market: {e}")
+    else:
+        try:
+            result = supabase.rpc("deny_market", {
+                "p_market_id": market_id,
+                "p_admin_id": current_user["id"],
+                "p_notes": body.notes,
+            }).execute()
+        except Exception as e:
+            msg = str(e).lower()
+            if "not found" in msg:
+                raise HTTPException(status_code=404, detail="Market not found.")
+            if "not pending" in msg:
+                raise HTTPException(status_code=400, detail="Market is not pending review.")
+            if "notes are required" in msg:
+                raise HTTPException(status_code=400, detail="Notes are required when denying a market.")
+            raise HTTPException(status_code=500, detail=f"Failed to deny market: {e}")
+
+    return result.data

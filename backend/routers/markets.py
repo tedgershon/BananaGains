@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
 
 from dependencies import get_current_user, get_current_user_optional, get_supabase_client, get_user_token, user_auth
+from market_linter import lint_market_fields
 from schemas.dispute import CastVoteRequest, DisputeResponse, FileDisputeRequest, VoteResponse
 from schemas.market import (
     CreateMarketRequest,
@@ -28,6 +29,9 @@ def _apply_lazy_transitions(markets: list[dict], supabase: Client) -> list[dict]
 
     for m in markets:
         s = m.get("status")
+
+        if s in ("pending_review", "denied"):
+            continue
 
         # open -> closed (existing logic)
         if s == "open":
@@ -125,6 +129,8 @@ async def list_markets(
 
     if market_status:
         query = query.eq("status", market_status)
+    else:
+        query = query.not_.in_("status", ["pending_review", "denied"])
     if category:
         query = query.eq("category", category)
 
@@ -157,20 +163,24 @@ async def create_market(
     supabase: Client = Depends(get_supabase_client),
     token: str | None = Depends(get_user_token),
 ):
+    linted = lint_market_fields(body)
+
     with user_auth(supabase, token):
         result = (
             supabase.table("markets")
             .insert({
-                "title": body.title,
-                "description": body.description,
+                "title": linted.title,
+                "description": linted.description,
                 "creator_id": current_user["id"],
-                "close_at": body.close_at.isoformat(),
-                "resolution_criteria": body.resolution_criteria,
-                "category": body.category,
-                "official_source": body.official_source,
-                "yes_criteria": body.yes_criteria,
-                "no_criteria": body.no_criteria,
-                "ambiguity_criteria": body.ambiguity_criteria,
+                "close_at": linted.close_at.isoformat(),
+                "resolution_criteria": linted.resolution_criteria,
+                "category": linted.category,
+                "official_source": linted.official_source,
+                "yes_criteria": linted.yes_criteria,
+                "no_criteria": linted.no_criteria,
+                "ambiguity_criteria": linted.ambiguity_criteria,
+                "link": linted.link,
+                "status": "pending_review",
             })
             .execute()
         )
