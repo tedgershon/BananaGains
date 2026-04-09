@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
 
-from dependencies import get_supabase_client, require_admin, require_super_admin
+from dependencies import get_supabase_client, get_user_token, require_admin, require_super_admin, user_auth
 
 logger = logging.getLogger(__name__)
 from notification_service import notify_market_approved, notify_market_denied
@@ -89,6 +89,7 @@ async def update_user_role(
     body: UpdateRoleRequest,
     current_user: dict = Depends(require_super_admin),
     supabase: Client = Depends(get_supabase_client),
+    token: str | None = Depends(get_user_token),
 ):
     """Change a user's role (super admin only)."""
     if user_id == current_user["id"]:
@@ -116,12 +117,13 @@ async def update_user_role(
             detail="User not found.",
         )
 
-    result = (
-        supabase.table("profiles")
-        .update({"role": body.role})
-        .eq("id", user_id)
-        .execute()
-    )
+    with user_auth(supabase, token):
+        result = (
+            supabase.table("profiles")
+            .update({"role": body.role})
+            .eq("id", user_id)
+            .execute()
+        )
 
     if not result.data:
         raise HTTPException(
