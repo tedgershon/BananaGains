@@ -15,7 +15,7 @@ const NAV_LINKS: {
   adminOnly?: boolean;
   authOnly?: boolean;
 }[] = [
-  { href: "/", label: "Markets" },
+  { href: "/markets", label: "Markets" },
   { href: "/resolutions", label: "Resolutions", authOnly: true },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/admin", label: "Admin", adminOnly: true, authOnly: true },
@@ -50,7 +50,8 @@ export function Navbar() {
                   className={cn(
                     "rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent",
                     pathname === link.href ||
-                      (link.href === "/admin" && pathname.startsWith("/admin"))
+                      (link.href === "/admin" && pathname.startsWith("/admin")) ||
+                      (link.href === "/markets" && pathname.startsWith("/markets"))
                       ? "text-foreground"
                       : "text-muted-foreground",
                   )}
