@@ -9,11 +9,16 @@ import { UserMenu } from "@/components/user-menu";
 import { useSession } from "@/lib/SessionProvider";
 import { cn } from "@/lib/utils";
 
-const NAV_LINKS: { href: string; label: string; adminOnly?: boolean }[] = [
+const NAV_LINKS: {
+  href: string;
+  label: string;
+  adminOnly?: boolean;
+  authOnly?: boolean;
+}[] = [
   { href: "/", label: "Markets" },
-  { href: "/resolutions", label: "Resolutions" },
+  { href: "/resolutions", label: "Resolutions", authOnly: true },
   { href: "/leaderboard", label: "Leaderboard" },
-  { href: "/admin", label: "Admin", adminOnly: true },
+  { href: "/admin", label: "Admin", adminOnly: true, authOnly: true },
 ];
 
 export function Navbar() {
@@ -33,7 +38,11 @@ export function Navbar() {
             <span>BananaGains</span>
           </Link>
           <nav className="hidden items-center gap-1 sm:flex">
-            {NAV_LINKS.filter((link) => !link.adminOnly || isAdminView).map(
+            {NAV_LINKS.filter(
+              (link) =>
+                (!link.adminOnly || isAdminView) &&
+                (!link.authOnly || !isDemo),
+            ).map(
               (link) => (
                 <Link
                   key={link.href}
