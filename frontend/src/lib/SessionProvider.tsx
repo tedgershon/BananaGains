@@ -19,6 +19,7 @@ interface SessionContextValue {
   isDemo: boolean;
   isLoading: boolean;
   updateBalance: (delta: number) => void;
+  updateUser: (partial: Partial<UserProfile>) => void;
   markClaimedToday: () => void;
   signOut: () => Promise<void>;
   viewAsRole: UserRole;
@@ -30,6 +31,7 @@ const SessionCtx = createContext<SessionContextValue>({
   isDemo: true,
   isLoading: false,
   updateBalance: () => {},
+  updateUser: () => {},
   markClaimedToday: () => {},
   signOut: async () => {},
   viewAsRole: "user",
@@ -59,6 +61,10 @@ export function SessionProvider({
       ...prev,
       banana_balance: prev.banana_balance + delta,
     }));
+  }, []);
+
+  const updateUser = useCallback((partial: Partial<UserProfile>) => {
+    setUser((prev) => ({ ...prev, ...partial }));
   }, []);
 
   const markClaimedToday = useCallback(() => {
@@ -122,6 +128,7 @@ export function SessionProvider({
       isDemo,
       isLoading,
       updateBalance,
+      updateUser,
       markClaimedToday,
       signOut,
       viewAsRole,
@@ -132,6 +139,7 @@ export function SessionProvider({
       isDemo,
       isLoading,
       updateBalance,
+      updateUser,
       markClaimedToday,
       signOut,
       viewAsRole,

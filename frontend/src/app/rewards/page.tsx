@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Circle, Lock, Trophy } from "lucide-react";
+import { Circle, Lock, Trophy } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BadgeIcon } from "@/components/badge-icon";
 import {
@@ -11,7 +11,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { getUserRewards } from "@/lib/api";
+import { getUserRewards, updateProfile } from "@/lib/api";
+import { useSession } from "@/lib/SessionProvider";
 import type { RewardsResponse, TrackProgress } from "@/lib/types";
 
 const TRACK_ICONS: Record<string, string> = {
@@ -22,7 +23,15 @@ const TRACK_ICONS: Record<string, string> = {
   whale: "🐋",
 };
 
-function TrackCard({ track }: { track: TrackProgress }) {
+function TrackCard({
+  track,
+  equippedBadgeId,
+  onEquip,
+}: {
+  track: TrackProgress;
+  equippedBadgeId: string | null;
+  onEquip: (badgeId: string | null) => void;
+}) {
   const icon = TRACK_ICONS[track.track] ?? "🏆";
 
   const progressPercent =
@@ -83,7 +92,32 @@ function TrackCard({ track }: { track: TrackProgress }) {
               >
                 <div className="shrink-0">
                   {isEarned ? (
-                    <CheckCircle2 size={18} className="text-green-500" />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onEquip(
+                          equippedBadgeId === tier.id ? null : tier.id,
+                        )
+                      }
+                      className="flex items-center justify-center"
+                      title={
+                        equippedBadgeId === tier.id
+                          ? "Unequip badge"
+                          : "Equip badge"
+                      }
+                    >
+                      <div
+                        className={`size-[18px] rounded-full border-2 ${
+                          equippedBadgeId === tier.id
+                            ? "border-green-500 bg-green-500"
+                            : "border-muted-foreground"
+                        } flex items-center justify-center`}
+                      >
+                        {equippedBadgeId === tier.id && (
+                          <div className="size-2 rounded-full bg-white" />
+                        )}
+                      </div>
+                    </button>
                   ) : isNext ? (
                     <Circle size={18} className="text-muted-foreground" />
                   ) : (
@@ -126,8 +160,12 @@ function TrackCard({ track }: { track: TrackProgress }) {
 }
 
 export default function RewardsPage() {
+  const { user, updateUser } = useSession();
   const [data, setData] = useState<RewardsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [equippedId, setEquippedId] = useState<string | null>(
+    user.equipped_badge_id,
+  );
 
   useEffect(() => {
     getUserRewards()
@@ -135,6 +173,17 @@ export default function RewardsPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  async function handleEquip(badgeId: string | null) {
+    const prev = equippedId;
+    setEquippedId(badgeId);
+    try {
+      await updateProfile({ equipped_badge_id: badgeId });
+      updateUser({ equipped_badge_id: badgeId });
+    } catch {
+      setEquippedId(prev);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -152,7 +201,12 @@ export default function RewardsPage() {
       ) : data ? (
         <div className="grid gap-6 md:grid-cols-2">
           {data.tracks.map((track) => (
-            <TrackCard key={track.track} track={track} />
+            <TrackCard
+              key={track.track}
+              track={track}
+              equippedBadgeId={equippedId}
+              onEquip={handleEquip}
+            />
           ))}
         </div>
       ) : (

@@ -90,6 +90,15 @@ export function createProfile(
   });
 }
 
+export function updateProfile(
+  body: { display_name?: string; equipped_badge_id?: string | null },
+): Promise<UserProfile> {
+  return apiFetch("/api/auth/profile", {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
 export function claimDaily(): Promise<ClaimDailyResponse> {
   return apiFetch("/api/auth/claim-daily", { method: "POST" });
 }

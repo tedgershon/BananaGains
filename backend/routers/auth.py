@@ -3,7 +3,7 @@ from supabase import Client
 
 from dependencies import get_current_user, get_supabase_client, get_user_token, user_auth
 from schemas.dispute import ClaimResponse
-from schemas.user import CreateProfileRequest, UserProfileResponse
+from schemas.user import CreateProfileRequest, UpdateProfileRequest, UserProfileResponse
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -68,6 +68,53 @@ async def create_or_update_profile(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to upsert profile",
+        )
+
+    return result.data[0]
+
+
+@router.patch("/profile", response_model=UserProfileResponse)
+async def update_profile(
+    body: UpdateProfileRequest,
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client),
+    token: str | None = Depends(get_user_token),
+):
+    """Update mutable profile fields (display_name, equipped_badge_id)."""
+    updates: dict = {}
+
+    if body.display_name is not None:
+        name = body.display_name.strip()
+        if not name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="display_name must not be empty",
+            )
+        updates["display_name"] = name
+
+    if body.equipped_badge_id is not None:
+        updates["equipped_badge_id"] = body.equipped_badge_id
+    elif "equipped_badge_id" in (body.model_fields_set or set()):
+        updates["equipped_badge_id"] = None
+
+    if not updates:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fields to update",
+        )
+
+    with user_auth(supabase, token):
+        result = (
+            supabase.table("profiles")
+            .update(updates)
+            .eq("id", current_user["id"])
+            .execute()
+        )
+
+    if not result.data:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update profile",
         )
 
     return result.data[0]
