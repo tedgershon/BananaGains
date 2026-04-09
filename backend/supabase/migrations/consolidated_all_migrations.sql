@@ -1868,4 +1868,19 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
+-- =========================================================================
+-- 050 — equipped_badge_id on profiles
+-- =========================================================================
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS equipped_badge_id UUID
+    REFERENCES badge_definitions(id) ON DELETE SET NULL
+    DEFAULT NULL;
+
+-- =========================================================================
+-- 051 — avatar_url on profiles
+-- =========================================================================
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS avatar_url TEXT DEFAULT NULL;
+
+
 COMMIT;
