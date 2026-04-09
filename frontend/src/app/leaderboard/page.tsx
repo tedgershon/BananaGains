@@ -236,7 +236,7 @@ export default function LeaderboardPage() {
                   </div>
 
                   {equippedBadges.length > 0 && (
-                    <div className="flex shrink-0 items-center gap-2 self-center">
+                    <div className="flex shrink-0 items-center justify-start gap-2 self-center">
                       {equippedBadges.map((badge) => (
                         <BadgeCircle key={badge.track} badge={badge} size={36} />
                       ))}
