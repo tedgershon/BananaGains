@@ -80,19 +80,19 @@ function TrackCard({
   );
   const nextTierDef = track.tiers.find((tier) => tier.tier > effectiveTier);
 
-  const segmentStart = currentTierDef?.threshold ?? 0;
-  const segmentEnd = nextTierDef?.threshold ?? null;
-  const segmentProgress = Math.max(0, track.current_value - segmentStart);
-  const segmentSize =
-    segmentEnd !== null ? Math.max(1, segmentEnd - segmentStart) : 1;
+  const nextThreshold = nextTierDef?.threshold ?? null;
+  const absoluteProgress = Math.max(0, track.current_value);
   const progressPercent =
-    segmentEnd !== null
-      ? Math.min(100, Math.round((segmentProgress / segmentSize) * 100))
+    nextThreshold !== null
+      ? Math.min(100, Math.round((absoluteProgress / nextThreshold) * 100))
       : 100;
   const progressColor =
     nextTierDef?.color ?? currentTierDef?.color ?? "#eab308";
 
-  const progressValueLabel = `${segmentProgress.toLocaleString()} / ${segmentSize.toLocaleString()}`;
+  const progressValueLabel =
+    nextThreshold !== null
+      ? `${Math.min(absoluteProgress, nextThreshold).toLocaleString()} / ${nextThreshold.toLocaleString()}`
+      : "Complete";
 
   return (
     <Card>
