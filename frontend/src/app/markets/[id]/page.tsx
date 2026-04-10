@@ -725,8 +725,6 @@ export default function MarketDetailPage({
               {isOpen ? (
                 isDemo ? (
                   <p className="text-sm text-muted-foreground">
-                    Place a Bet
-                    <br />
                     Sign in with your CMU email address to place a bet.
                   </p>
                 ) : isCreator ? (
