@@ -77,7 +77,7 @@ export default function MarketDetailPage({
     disputeMarket,
     castDisputeVote,
   } = useData();
-  const { user } = useSession();
+  const { user, isDemo } = useSession();
 
   const contextMarket = markets.find((m) => m.id === id);
   const [fetchedMarket, setFetchedMarket] = useState<typeof contextMarket>();
@@ -723,7 +723,13 @@ export default function MarketDetailPage({
               )}
 
               {isOpen ? (
-                isCreator ? (
+                isDemo ? (
+                  <p className="text-sm text-muted-foreground">
+                    Place a Bet
+                    <br />
+                    Sign in with your CMU email address to place a bet.
+                  </p>
+                ) : isCreator ? (
                   <p className="text-sm text-muted-foreground">
                     As the market creator, you cannot place bets on this market.
                     You will be able to propose a resolution once the market
