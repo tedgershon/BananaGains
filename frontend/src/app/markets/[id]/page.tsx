@@ -108,6 +108,8 @@ export default function MarketDetailPage({
   const [betSuccess, setBetSuccess] = useState<string | null>(null);
   const [betting, setBetting] = useState(false);
   const [resolving, setResolving] = useState(false);
+  const [startingCommunityResolution, setStartingCommunityResolution] =
+    useState(false);
   const [disputing, setDisputing] = useState(false);
   const [voting, setVoting] = useState(false);
   const [disputeExplanation, setDisputeExplanation] = useState("");
@@ -183,13 +185,18 @@ export default function MarketDetailPage({
     }
   }, [market?.status, refreshVoteTotals, id]);
 
+  const isCommunityResolutionMode =
+    market?.status === "pending_resolution" && !market?.proposed_outcome;
+
   useEffect(() => {
-    const inResolution =
-      market?.status === "closed" || market?.status === "pending_resolution";
-    if (inResolution && market?.resolution_window_end) {
+    if (isCommunityResolutionMode && market?.resolution_window_end) {
       refreshCommunityVotes();
     }
-  }, [market?.status, market?.resolution_window_end, refreshCommunityVotes]);
+  }, [
+    isCommunityResolutionMode,
+    market?.resolution_window_end,
+    refreshCommunityVotes,
+  ]);
 
   useEffect(() => {
     const end = market?.resolution_window_end;
@@ -270,8 +277,9 @@ export default function MarketDetailPage({
     ? new Date(market.dispute_deadline)
     : null;
   const hasResolutionWindow =
-    (market.status === "closed" || market.status === "pending_resolution") &&
-    !!market.resolution_window_end;
+    isCommunityResolutionMode && !!market.resolution_window_end;
+  const isCreatorDecisionFlow =
+    market.status === "pending_resolution" && !!market.proposed_outcome;
   const resolutionWindowExpired = resolutionCountdown === "Expired";
   const isCreator = user.id === market.creator_id;
   const isAdmin = user.role === "admin" || user.role === "super_admin";
@@ -426,6 +434,36 @@ export default function MarketDetailPage({
       );
     } finally {
       setResolving(false);
+    }
+  }
+
+  async function handleStartCommunityResolution() {
+    if (!market) return;
+    if (
+      !confirm(
+        "Start 24-hour community resolution voting for this market?",
+      )
+    )
+      return;
+    setStartingCommunityResolution(true);
+    setBetError(null);
+    setBetSuccess(null);
+    try {
+      await api.startCommunityResolution(market.id);
+      setBetSuccess(
+        "Community resolution started. Voting is now open for 24 hours.",
+      );
+      fetchMarket(id)
+        .then(setFetchedMarket)
+        .catch(() => {});
+    } catch (err) {
+      setBetError(
+        err instanceof Error
+          ? err.message
+          : "Failed to start community resolution.",
+      );
+    } finally {
+      setStartingCommunityResolution(false);
     }
   }
 
@@ -983,7 +1021,11 @@ export default function MarketDetailPage({
                     user.id === market.creator_id && (
                       <div className="space-y-2 mt-4 pt-4 border-t">
                         <p className="text-sm font-medium">
-                          Resolve Market Outcomes
+                          Choose Resolution Path
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Propose an outcome now, or send this market to a
+                          24-hour community vote.
                         </p>
                         <div className="grid grid-cols-2 gap-2">
                           <Button
@@ -1003,10 +1045,20 @@ export default function MarketDetailPage({
                             Resolve NO
                           </Button>
                         </div>
+                        <Button
+                          variant="secondary"
+                          className="w-full"
+                          onClick={handleStartCommunityResolution}
+                          disabled={startingCommunityResolution || resolving}
+                        >
+                          {startingCommunityResolution
+                            ? "Starting community resolution..."
+                            : "Start Community Resolution (24h)"}
+                        </Button>
                       </div>
                     )}
 
-                  {isPendingResolution && (
+                  {isCreatorDecisionFlow && (
                     <div className="space-y-3 mt-4 pt-4 border-t">
                       <p className="text-sm font-medium">Dispute Resolution</p>
                       <div className="text-xs text-muted-foreground">

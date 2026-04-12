@@ -174,10 +174,11 @@ def _apply_lazy_transitions(markets: list[dict], supabase: Client) -> list[dict]
             supabase.table("markets").update({"status": "admin_review"}).eq("id", m["id"]).execute()
             m["status"] = "admin_review"
 
-    # Auto-finalize markets whose community resolution window has expired
+    # Auto-finalize explicit community-resolution markets whose window expired
     for m in markets:
         if (
-            m.get("status") in ("closed", "pending_resolution")
+            m.get("status") == "pending_resolution"
+            and not m.get("proposed_outcome")
             and m.get("resolution_window_end")
         ):
             window_end = datetime.fromisoformat(m["resolution_window_end"])
@@ -441,6 +442,59 @@ async def propose_resolution(
             if "closed" in msg:
                 raise HTTPException(status_code=400, detail="Market must be closed before proposing resolution.")
             raise HTTPException(status_code=500, detail=f"Failed to propose resolution: {e}")
+
+
+@router.post("/{market_id}/community-resolution", response_model=MarketResponse)
+async def start_community_resolution(
+    market_id: str,
+    current_user: dict = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client),
+    token: str | None = Depends(get_user_token),
+):
+    """Creator starts the 24h community-resolution flow on a just-closed market."""
+    with user_auth(supabase, token):
+        market_result = (
+            supabase.table("markets")
+            .select("*")
+            .eq("id", market_id)
+            .single()
+            .execute()
+        )
+        market = market_result.data
+        if not market:
+            raise HTTPException(status_code=404, detail="Market not found.")
+
+        if market.get("creator_id") != current_user.get("id"):
+            raise HTTPException(status_code=403, detail="Only the market creator can start community resolution.")
+
+        if market.get("status") == "pending_resolution" and not market.get("proposed_outcome"):
+            return market
+
+        if market.get("status") != "closed":
+            raise HTTPException(
+                status_code=400,
+                detail="Community resolution can only be started for closed markets.",
+            )
+
+        update_payload: dict[str, str | None] = {
+            "status": "pending_resolution",
+            "proposed_outcome": None,
+            "proposed_at": None,
+            "dispute_deadline": None,
+            "resolution_window_end": (
+                datetime.now(tz=timezone.utc) + timedelta(hours=24)
+            ).isoformat(),
+        }
+
+        updated = (
+            supabase.table("markets")
+            .update(update_payload)
+            .eq("id", market_id)
+            .execute()
+        )
+        if not updated.data:
+            raise HTTPException(status_code=500, detail="Failed to start community resolution.")
+        return updated.data[0]
 
 
 # ── Disputes ─────────────────────────────────────────────────

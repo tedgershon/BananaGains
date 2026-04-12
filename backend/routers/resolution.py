@@ -36,16 +36,47 @@ async def list_resolution_markets(
         # resolution_window_end = now() + 24h, so re-querying below will pick
         # up the newly set values.
 
-    result = (
+    community_result = (
         supabase.table("markets")
         .select("*")
-        .in_("status", ["closed", "pending_resolution"])
+        .eq("status", "pending_resolution")
+        .is_("proposed_outcome", "null")
         .not_.is_("resolution_window_end", "null")
         .gt("resolution_window_end", now.isoformat())
         .order("resolution_window_end", desc=False)
         .execute()
     )
-    return result.data or []
+
+    disputed_result = (
+        supabase.table("markets")
+        .select("*")
+        .eq("status", "disputed")
+        .execute()
+    )
+    disputed_markets = disputed_result.data or []
+    active_disputed: list[dict] = []
+    if disputed_markets:
+        market_ids = [m["id"] for m in disputed_markets]
+        disputes_result = (
+            supabase.table("disputes")
+            .select("market_id, voting_deadline")
+            .in_("market_id", market_ids)
+            .execute()
+        )
+        deadline_by_market = {
+            d["market_id"]: d["voting_deadline"] for d in (disputes_result.data or [])
+        }
+        for market in disputed_markets:
+            deadline = deadline_by_market.get(market["id"])
+            if not deadline:
+                continue
+            if datetime.fromisoformat(deadline) <= now:
+                continue
+            market["voting_ends_at"] = deadline
+            active_disputed.append(market)
+
+    active_disputed.sort(key=lambda m: m["voting_ends_at"])
+    return (community_result.data or []) + active_disputed
 
 
 @router.post("/{market_id}/community-vote")
@@ -56,6 +87,19 @@ async def cast_community_vote(
     supabase: Client = Depends(get_supabase_client),
 ):
     """Cast a community resolution vote during the 24h resolution window."""
+    market_result = (
+        supabase.table("markets")
+        .select("status, proposed_outcome")
+        .eq("id", market_id)
+        .single()
+        .execute()
+    )
+    market = market_result.data
+    if not market:
+        raise HTTPException(404, "Market not found.")
+    if market.get("status") != "pending_resolution" or market.get("proposed_outcome") is not None:
+        raise HTTPException(400, "Market is not in community resolution.")
+
     try:
         result = supabase.rpc("cast_community_vote", {
             "p_market_id": market_id,

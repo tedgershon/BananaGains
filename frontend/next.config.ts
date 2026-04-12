@@ -14,6 +14,9 @@ function getSupabaseHostname() {
 const supabaseHostname = getSupabaseHostname();
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: process.cwd(),
+  },
   images: {
     remotePatterns: [
       {

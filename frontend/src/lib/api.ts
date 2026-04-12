@@ -171,6 +171,12 @@ export function resolveMarket(
   });
 }
 
+export function startCommunityResolution(marketId: string): Promise<Market> {
+  return apiFetch(`/api/markets/${marketId}/community-resolution`, {
+    method: "POST",
+  });
+}
+
 export function fileDispute(
   marketId: string,
   body: FileDisputeRequest,
