@@ -14,7 +14,7 @@ import { getHotMarkets, listBetsForMarket } from "@/lib/api";
 import type { Bet, Market, PricePoint } from "@/lib/types";
 import { getMarketProbability } from "@/lib/types";
 
-function buildPriceHistory(bets: Bet[]): PricePoint[] {
+export function buildPriceHistory(bets: Bet[]): PricePoint[] {
   if (bets.length === 0) return [];
   const sorted = [...bets].sort(
     (a, b) =>
@@ -35,7 +35,7 @@ function buildPriceHistory(bets: Bet[]): PricePoint[] {
   return points;
 }
 
-function MarketOptions({ market }: { market: Market }) {
+export function MarketOptions({ market }: { market: Market }) {
   if (market.market_type === "multichoice" && market.options) {
     const opts = market.options;
     const totalPool = opts.reduce((s, o) => s + o.pool_total, 0);
@@ -117,13 +117,6 @@ export function HottestMarketDisplay() {
     if (market) loadChart(market);
   }, [market, loadChart]);
 
-  useEffect(() => {
-    if (hotMarkets.length <= 1) return;
-    const interval = setInterval(() => {
-      setCurrentIndex((i) => (i + 1) % hotMarkets.length);
-    }, 8000);
-    return () => clearInterval(interval);
-  }, [hotMarkets.length]);
 
   if (loading) {
     return (
