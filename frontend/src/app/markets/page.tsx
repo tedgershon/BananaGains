@@ -108,7 +108,7 @@ function FeaturedMarket({ market }: { market: Market }) {
   );
 }
 
-function BreakingNews({ markets }: { markets: Market[] }) {
+function Trending({ markets }: { markets: Market[] }) {
   const newest = useMemo(() => {
     return [...markets]
       .filter((m) => m.status === "open")
@@ -123,7 +123,7 @@ function BreakingNews({ markets }: { markets: Market[] }) {
     <Card className="h-full market-card-open border-0 rounded-xl">
       <CardHeader className="pb-0">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          📰 Breaking News
+          Newest Markets
         </CardTitle>
       </CardHeader>
       <CardContent className="!p-0">
@@ -225,7 +225,7 @@ export default function MarketsPage() {
           {!loading && featuredMarket && (
             <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
               <FeaturedMarket market={featuredMarket} />
-              <BreakingNews markets={filtered} />
+              <Trending markets={filtered} />
             </div>
           )}
         </section>
