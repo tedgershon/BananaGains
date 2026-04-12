@@ -111,7 +111,7 @@ export default function AdminStatsPage() {
                     variant="secondary"
                     className={STATUS_COLORS[status] ?? ""}
                   >
-                    {count} {status.replace(/_/g, " ")}
+                    {count} {status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                   </Badge>
                 ),
               )}

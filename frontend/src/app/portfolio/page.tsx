@@ -98,28 +98,37 @@ export default function PortfolioPage() {
         </p>
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-          <Card size="sm" className="py-2">
-            <CardHeader className="pb-0">
-              <span className="text-xs text-muted-foreground">Balance</span>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2 text-3xl font-bold">
-                <BananaCoin size={28} />
+      <div className="grid gap-4 lg:grid-cols-[1fr_2fr] items-start">
+        <Card size="sm">
+          <CardContent className="divide-y divide-border !p-0">
+            <div className="flex items-center justify-between px-4 py-3">
+              <span className="text-sm text-muted-foreground">Balance</span>
+              <span className="flex items-center gap-1.5 text-lg font-bold">
+                <BananaCoin size={18} />
                 {user.banana_balance.toLocaleString()}
-              </div>
-              {claimError && (
-                <p className="text-xs text-destructive">{claimError}</p>
-              )}
-              {user.claimed_today && user.banana_balance <= 5000 ? (
-                <p className="text-xs text-muted-foreground">
-                  Claimed! Come back tomorrow.
-                </p>
-              ) : user.above_cap ? (
-                <></>
-              ) : (
-                <>
+              </span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-3">
+              <span className="text-sm text-muted-foreground">Active Bets</span>
+              <span className="flex items-center gap-1.5 text-lg font-bold">
+                <BananaCoin size={18} />
+                {activeBets.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-3">
+              <span className="text-sm text-muted-foreground">Positions</span>
+              <span className="text-lg font-bold">{userBets.length}</span>
+            </div>
+            {!user.above_cap && (
+              <div className="px-4 py-3">
+                {claimError && (
+                  <p className="text-xs text-destructive mb-2">{claimError}</p>
+                )}
+                {user.claimed_today && user.banana_balance <= 5000 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Claimed! Come back tomorrow.
+                  </p>
+                ) : (
                   <Button
                     size="sm"
                     className="w-full"
@@ -134,38 +143,15 @@ export default function PortfolioPage() {
                       "Claim 1,000 Daily Bananas"
                     )}
                   </Button>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card size="sm" className="py-2">
-            <CardHeader className="pb-0">
-              <span className="text-xs text-muted-foreground">Active Bets</span>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2 text-3xl font-bold">
-                <BananaCoin size={28} />
-                {activeBets.toLocaleString()}
+                )}
               </div>
-            </CardContent>
-          </Card>
-
-          <Card size="sm" className="py-2">
-            <CardHeader className="pb-0">
-              <span className="text-xs text-muted-foreground">
-                Active Positions
-              </span>
-            </CardHeader>
-            <CardContent>
-              <span className="text-3xl font-bold">{userBets.length}</span>
-            </CardContent>
-          </Card>
-        </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="space-y-2">
           <h2 className="text-lg font-semibold">Positions</h2>
-          <div className="grid gap-2">
+          <div className="grid gap-2 max-h-[400px] overflow-y-auto p-1 -m-1">
             {userBets.map((bet) => {
               const market = getMarketById(bet.market_id);
               if (!market) return null;

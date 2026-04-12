@@ -36,8 +36,8 @@ function formatDate(timestamp: string) {
 
 export function ProbabilityChart({ data }: { data: PricePoint[] }) {
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <AreaChart data={data}>
+    <ResponsiveContainer width="100%" height="100%">
+      <AreaChart data={data} margin={{ top: 5, right: 40, bottom: 5, left: 5 }}>
         <defs>
           <linearGradient id="probGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--success)" stopOpacity={0.3} />
@@ -49,20 +49,15 @@ export function ProbabilityChart({ data }: { data: PricePoint[] }) {
           stroke="var(--border)"
           vertical={false}
         />
-        <XAxis
-          dataKey="timestamp"
-          tickFormatter={formatDate}
-          tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
-          axisLine={false}
-          tickLine={false}
-        />
+        <XAxis dataKey="timestamp" hide />
         <YAxis
           domain={[0, 100]}
           tickFormatter={(v) => `${v}%`}
-          tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+          tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
           axisLine={false}
           tickLine={false}
-          width={45}
+          orientation="right"
+          width={35}
         />
         <Tooltip
           contentStyle={{
@@ -141,27 +136,22 @@ export function MultiProbabilityChart({
   const optionMap = new Map(options.map((o) => [o.id, o]));
 
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <LineChart data={data}>
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={data} margin={{ top: 5, right: 40, bottom: 5, left: 5 }}>
         <CartesianGrid
           strokeDasharray="3 3"
           stroke="var(--border)"
           vertical={false}
         />
-        <XAxis
-          dataKey="timestamp"
-          tickFormatter={formatDate}
-          tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
-          axisLine={false}
-          tickLine={false}
-        />
+        <XAxis dataKey="timestamp" hide />
         <YAxis
           domain={[0, 100]}
           tickFormatter={(v) => `${v}%`}
-          tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+          tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
           axisLine={false}
           tickLine={false}
-          width={45}
+          orientation="right"
+          width={35}
         />
         <Tooltip
           contentStyle={{

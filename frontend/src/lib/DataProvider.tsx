@@ -10,8 +10,7 @@ import {
   useState,
 } from "react";
 import * as api from "./api";
-import { DEMO_USER } from "./mock-data";
-import { useSession } from "./SessionProvider";
+import { GUEST_USER, useSession } from "./SessionProvider";
 import type {
   Bet,
   BetSide,
@@ -68,7 +67,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         console.error("Failed to load markets:", err);
       }
 
-      if (!isDemo && user.id !== DEMO_USER.id) {
+      if (!isDemo && user.id !== GUEST_USER.id) {
         try {
           const [userBets, txs] = await Promise.all([
             api.getPortfolio(),
