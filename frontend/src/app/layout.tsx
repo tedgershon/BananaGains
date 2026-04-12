@@ -53,7 +53,7 @@ export default async function RootLayout({
           <DataProvider>
             <DailyClaimBanner />
             <Navbar />
-            <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
+            <main className="mx-auto max-w-7xl px-4 pt-6 mb-6">{children}</main>
           </DataProvider>
         </SessionProvider>
       </body>
