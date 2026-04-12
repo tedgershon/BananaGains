@@ -61,6 +61,17 @@ function buildPriceHistory(bets: Bet[]): PricePoint[] {
   return points;
 }
 
+function getStatusLabel(status: string): string {
+  switch (status) {
+    case "pending_review":
+      return "Pending Admin Approval";
+    case "pending_resolution":
+      return "Pending Resolution";
+    default:
+      return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+}
+
 export default function MarketDetailPage({
   params,
 }: {
@@ -287,6 +298,9 @@ export default function MarketDetailPage({
     isCommunityResolutionMode && !!market.resolution_window_end;
   const isCreatorDecisionFlow =
     market.status === "pending_resolution" && !!market.proposed_outcome;
+  const bettingClosedMessage = isCommunityResolutionMode
+    ? "This market is pending review from community voters and no longer accepting bets."
+    : "This market is pending review from the market creator and no longer accepting bets.";
   const resolutionWindowExpired = resolutionCountdown === "Expired";
   const isCreator = user.id === market.creator_id;
   const isAdmin = user.role === "admin" || user.role === "super_admin";
@@ -700,7 +714,7 @@ export default function MarketDetailPage({
             <CardContent>
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 <dt className="text-muted-foreground">Status</dt>
-                <dd className="font-medium capitalize">{market.status}</dd>
+                <dd className="font-medium">{getStatusLabel(market.status)}</dd>
                 {isMultichoice && (
                   <>
                     <dt className="text-muted-foreground">Market Type</dt>
@@ -985,7 +999,7 @@ export default function MarketDetailPage({
               ) : (
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    This market is {market.status} and no longer accepting bets.
+                    {bettingClosedMessage}
                   </p>
 
                   {hasResolutionWindow && (
