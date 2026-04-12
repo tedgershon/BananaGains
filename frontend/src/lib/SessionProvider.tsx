@@ -10,9 +10,26 @@ import {
   useState,
 } from "react";
 import { getMe } from "./api";
-import { DEMO_USER } from "./mock-data";
 import { supabase } from "./supabase";
 import type { UserProfile, UserRole } from "./types";
+
+/** Default user state for unauthenticated sessions. */
+export const GUEST_USER: UserProfile = {
+  id: "00000000-0000-0000-0000-000000000000",
+  andrew_id: "",
+  display_name: "Guest",
+  banana_balance: 0,
+  created_at: new Date().toISOString(),
+  claimed_today: false,
+  role: "user",
+  is_admin: false,
+  claim_eligible: false,
+  claim_amount: 0,
+  above_cap: false,
+  equipped_badge_id: null,
+  equipped_badges: {},
+  avatar_url: null,
+};
 
 interface SessionContextValue {
   user: UserProfile;
@@ -27,7 +44,7 @@ interface SessionContextValue {
 }
 
 const SessionCtx = createContext<SessionContextValue>({
-  user: DEMO_USER,
+  user: GUEST_USER,
   isDemo: true,
   isLoading: false,
   updateBalance: () => {},
@@ -49,7 +66,7 @@ export function SessionProvider({
   children: ReactNode;
   initialUser?: UserProfile | null;
 }) {
-  const [user, setUser] = useState<UserProfile>(initialUser ?? DEMO_USER);
+  const [user, setUser] = useState<UserProfile>(initialUser ?? GUEST_USER);
   const [isDemo, setIsDemo] = useState(!initialUser);
   const [isLoading, setIsLoading] = useState(!initialUser);
   const [viewAsRole, setViewAsRole] = useState<UserRole>(
@@ -78,7 +95,7 @@ export function SessionProvider({
       setIsDemo(false);
       setViewAsRole(profile.role ?? "user");
     } catch {
-      setUser(DEMO_USER);
+      setUser(GUEST_USER);
       setIsDemo(true);
       setViewAsRole("user");
     }
@@ -94,7 +111,7 @@ export function SessionProvider({
       if (session) {
         loadProfile().finally(() => setIsLoading(false));
       } else {
-        setUser(DEMO_USER);
+        setUser(GUEST_USER);
         setIsDemo(true);
         setIsLoading(false);
       }
@@ -106,7 +123,7 @@ export function SessionProvider({
       if (session) {
         loadProfile();
       } else {
-        setUser(DEMO_USER);
+        setUser(GUEST_USER);
         setIsDemo(true);
       }
     });
@@ -118,7 +135,7 @@ export function SessionProvider({
     if (supabase) {
       await supabase.auth.signOut();
     }
-    setUser(DEMO_USER);
+    setUser(GUEST_USER);
     setIsDemo(true);
   }, []);
 
