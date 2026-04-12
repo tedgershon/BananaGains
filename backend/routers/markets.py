@@ -3,33 +3,9 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
 
-import asyncio
-import logging
-
 from dependencies import get_current_user, get_current_user_optional, get_supabase_client, get_user_token, user_auth
-
-logger = logging.getLogger(__name__)
-
-
-def _check_badges_for_market_participants(supabase: Client, market_id: str) -> None:
-    """Check badges for all users who bet on a resolved market."""
-    try:
-        bettors = (
-            supabase.table("bets")
-            .select("user_id")
-            .eq("market_id", market_id)
-            .execute()
-        )
-        user_ids = {row["user_id"] for row in (bettors.data or [])}
-        for uid in user_ids:
-            try:
-                supabase.rpc("check_and_award_badges", {"p_user_id": uid}).execute()
-            except Exception:
-                logger.warning("Badge check failed for user %s", uid, exc_info=True)
-    except Exception:
-        logger.warning("Failed to check badges for market %s participants", market_id, exc_info=True)
 from market_linter import lint_market_fields
-from notification_service import notify_market_closed
+from services.market_state_machine import normalize_market_state, normalize_markets
 from schemas.dispute import CastVoteRequest, DisputeResponse, FileDisputeRequest, VoteResponse
 from schemas.market import (
     CreateMarketRequest,
@@ -42,183 +18,15 @@ from schemas.market import (
 
 router = APIRouter(prefix="/api/markets", tags=["markets"])
 
-DISPUTE_VOTE_QUORUM = 3
-COMMUNITY_VOTE_QUORUM = 3
 
+def _normalize_for_response(markets: list[dict], supabase: Client) -> list[dict]:
+    market_ids = [market["id"] for market in markets]
+    if not market_ids:
+        return markets
 
-def _check_badges_for_market_participants(supabase: Client, market_id: str):
-    """Check and award badges for all participants of a resolved market."""
-    try:
-        bets = supabase.table("bets").select("user_id").eq("market_id", market_id).execute()
-        user_ids = {b["user_id"] for b in (bets.data or [])}
-        market = supabase.table("markets").select("creator_id").eq("id", market_id).single().execute()
-        if market.data:
-            user_ids.add(market.data["creator_id"])
-        for uid in user_ids:
-            try:
-                supabase.rpc("check_and_award_badges", {"p_user_id": uid}).execute()
-            except Exception:
-                pass
-    except Exception:
-        pass
-
-
-def _apply_lazy_transitions(markets: list[dict], supabase: Client) -> list[dict]:
-    """Lazily apply deadline-based state transitions when markets are fetched."""
-    now = datetime.now(tz=timezone.utc)
-    close_ids: list[str] = []
-    finalize_markets: list[dict] = []
-    tally_markets: list[dict] = []
-
-    for m in markets:
-        s = m.get("status")
-
-        if s in ("pending_review", "denied"):
-            continue
-
-        # open -> closed (existing logic)
-        if s == "open":
-            close_at = datetime.fromisoformat(m["close_at"])
-            if close_at <= now:
-                m["status"] = "closed"
-                close_ids.append(m["id"])
-
-        # pending_resolution -> resolved (dispute window expired, no dispute filed)
-        elif s == "pending_resolution" and m.get("dispute_deadline"):
-            deadline = datetime.fromisoformat(m["dispute_deadline"])
-            if deadline <= now:
-                finalize_markets.append(m)
-
-        # disputed -> resolved or admin_review (voting deadline expired)
-        elif s == "disputed":
-            tally_markets.append(m)
-
-    # Batch close expired open markets
-    if close_ids:
-        close_result = supabase.table("markets").update({"status": "closed"}).in_("id", close_ids).execute()
-
-        # The DB trigger set_resolution_window sets resolution_window_end on
-        # the row, but our in-memory dicts still have the old null value.
-        # Sync them from the update response so the frontend sees the window.
-        updated_map = {row["id"]: row for row in (close_result.data or [])}
-        for m in markets:
-            if m["id"] in updated_map:
-                m["resolution_window_end"] = updated_map[m["id"]].get("resolution_window_end")
-
-        for m in markets:
-            if m["id"] in close_ids:
-                try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        loop.create_task(notify_market_closed(supabase, m))
-                    else:
-                        loop.run_until_complete(notify_market_closed(supabase, m))
-                except RuntimeError:
-                    asyncio.run(notify_market_closed(supabase, m))
-
-    # Auto-finalize markets whose dispute window expired with no dispute
-    for m in finalize_markets:
-        try:
-            supabase.rpc("finalize_resolution", {
-                "p_market_id": m["id"],
-                "p_outcome": m["proposed_outcome"],
-            }).execute()
-            m["status"] = "resolved"
-            m["resolved_outcome"] = m["proposed_outcome"]
-            _check_badges_for_market_participants(supabase, m["id"])
-        except Exception:
-            pass  # Already resolved or state changed concurrently
-
-    # Tally votes for disputed markets whose voting deadline has passed
-    for m in tally_markets:
-        dispute = (
-            supabase.table("disputes")
-            .select("id, voting_deadline")
-            .eq("market_id", m["id"])
-            .single()
-            .execute()
-        )
-        if not dispute.data:
-            continue
-
-        deadline = datetime.fromisoformat(dispute.data["voting_deadline"])
-        if deadline > now:
-            continue  # Voting still open
-
-        # Count votes
-        votes = (
-            supabase.table("resolution_votes")
-            .select("selected_outcome")
-            .eq("dispute_id", dispute.data["id"])
-            .execute()
-        )
-        yes_count = sum(1 for v in (votes.data or []) if v["selected_outcome"] == "YES")
-        no_count = sum(1 for v in (votes.data or []) if v["selected_outcome"] == "NO")
-        total = yes_count + no_count
-
-        if total >= DISPUTE_VOTE_QUORUM and yes_count != no_count:
-            # Decisive vote — finalize with the winning outcome
-            winning = "YES" if yes_count > no_count else "NO"
-            try:
-                supabase.rpc("finalize_resolution", {
-                    "p_market_id": m["id"],
-                    "p_outcome": winning,
-                }).execute()
-                m["status"] = "resolved"
-                m["resolved_outcome"] = winning
-                _check_badges_for_market_participants(supabase, m["id"])
-            except Exception:
-                pass
-        else:
-            # Tie, low quorum — escalate to admin
-            supabase.table("markets").update({"status": "admin_review"}).eq("id", m["id"]).execute()
-            m["status"] = "admin_review"
-
-    # Auto-finalize explicit community-resolution markets whose window expired
-    for m in markets:
-        if (
-            m.get("status") == "pending_resolution"
-            and not m.get("proposed_outcome")
-            and m.get("resolution_window_end")
-        ):
-            window_end = datetime.fromisoformat(m["resolution_window_end"])
-            if window_end > now:
-                continue
-            if m["status"] in ("resolved", "admin_review"):
-                continue
-
-            votes = (
-                supabase.table("community_votes")
-                .select("selected_outcome")
-                .eq("market_id", m["id"])
-                .execute()
-            )
-            yes_votes = sum(1 for v in (votes.data or []) if v["selected_outcome"] == "YES")
-            no_votes = sum(1 for v in (votes.data or []) if v["selected_outcome"] == "NO")
-            total_votes = yes_votes + no_votes
-
-            if total_votes >= COMMUNITY_VOTE_QUORUM and yes_votes != no_votes:
-                winning = "YES" if yes_votes > no_votes else "NO"
-                try:
-                    supabase.rpc("finalize_resolution", {
-                        "p_market_id": m["id"],
-                        "p_outcome": winning,
-                    }).execute()
-                    m["status"] = "resolved"
-                    m["resolved_outcome"] = winning
-
-                    supabase.rpc("distribute_voter_rewards", {
-                        "p_market_id": m["id"],
-                        "p_winning_outcome": winning,
-                    }).execute()
-                    _check_badges_for_market_participants(supabase, m["id"])
-                except Exception:
-                    pass
-            else:
-                supabase.table("markets").update({"status": "admin_review"}).eq("id", m["id"]).execute()
-                m["status"] = "admin_review"
-
-    return markets
+    normalized = normalize_markets(supabase, market_ids=market_ids)
+    normalized_by_id = {market["id"]: market for market in normalized}
+    return [normalized_by_id.get(market["id"], market) for market in markets]
 
 
 # ── Market CRUD ──────────────────────────────────────────────
@@ -269,7 +77,7 @@ async def list_markets(
     query = query.order("created_at", desc=True).range(offset, offset + limit - 1)
     result = query.execute()
 
-    markets = _apply_lazy_transitions(result.data or [], supabase)
+    markets = _normalize_for_response(result.data or [], supabase)
     return _attach_options(markets, supabase)
 
 
@@ -292,7 +100,7 @@ async def get_hot_markets(
     )
     markets = result.data or []
     markets.sort(key=lambda m: m["yes_pool_total"] + m["no_pool_total"], reverse=True)
-    transitioned = _apply_lazy_transitions(markets[:limit], supabase)
+    transitioned = _normalize_for_response(markets[:limit], supabase)
     return _attach_options(transitioned, supabase)
 
 
@@ -322,7 +130,7 @@ async def get_trending_markets(
         remaining.sort(key=lambda m: m["created_at"], reverse=True)
         qualified.extend(remaining[:limit - len(qualified)])
 
-    transitioned = _apply_lazy_transitions(qualified[:limit], supabase)
+    transitioned = _normalize_for_response(qualified[:limit], supabase)
     return _attach_options(transitioned, supabase)
 
 
@@ -341,7 +149,7 @@ async def get_top_markets(
     )
     markets = result.data or []
     markets.sort(key=lambda m: m["yes_pool_total"] + m["no_pool_total"], reverse=True)
-    transitioned = _apply_lazy_transitions(markets[:limit], supabase)
+    transitioned = _normalize_for_response(markets[:limit], supabase)
     return _attach_options(transitioned, supabase)
 
 
@@ -358,7 +166,7 @@ async def get_market(
     if result.data is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Market not found")
 
-    markets = _apply_lazy_transitions([result.data], supabase)
+    markets = _normalize_for_response([result.data], supabase)
     return _attach_options(markets, supabase)[0]
 
 
@@ -425,6 +233,7 @@ async def propose_resolution(
     token: str | None = Depends(get_user_token),
 ):
     """Creator proposes an outcome. Starts 24h dispute window — no payout yet."""
+    normalize_market_state(supabase, market_id)
     with user_auth(supabase, token):
         try:
             result = supabase.rpc("propose_resolution", {
@@ -453,14 +262,7 @@ async def start_community_resolution(
 ):
     """Creator starts the 24h community-resolution flow on a just-closed market."""
     with user_auth(supabase, token):
-        market_result = (
-            supabase.table("markets")
-            .select("*")
-            .eq("id", market_id)
-            .single()
-            .execute()
-        )
-        market = market_result.data
+        market = normalize_market_state(supabase, market_id)
         if not market:
             raise HTTPException(status_code=404, detail="Market not found.")
 
@@ -473,7 +275,11 @@ async def start_community_resolution(
         if market.get("status") != "closed":
             raise HTTPException(
                 status_code=400,
-                detail="Community resolution can only be started for closed markets.",
+                detail={
+                    "message": "Community resolution can only be started for closed markets.",
+                    "current_status": market.get("status"),
+                    "expected_status": "closed",
+                },
             )
 
         update_payload: dict[str, str | None] = {
@@ -509,6 +315,7 @@ async def file_dispute(
     token: str | None = Depends(get_user_token),
 ):
     """File a dispute during the pending_resolution window."""
+    normalize_market_state(supabase, market_id)
     with user_auth(supabase, token):
         try:
             result = supabase.rpc("file_dispute", {
@@ -516,8 +323,25 @@ async def file_dispute(
                 "p_disputer_id": current_user["id"],
                 "p_explanation": body.explanation,
             }).execute()
-            return result.data
+
+            rpc_data = result.data
+            dispute_id = rpc_data.get("id") if isinstance(rpc_data, dict) else None
+            if not dispute_id:
+                raise HTTPException(status_code=500, detail="Failed to file dispute.")
+
+            dispute = (
+                supabase.table("disputes")
+                .select("*")
+                .eq("id", dispute_id)
+                .single()
+                .execute()
+            )
+            if not dispute.data:
+                raise HTTPException(status_code=500, detail="Failed to load filed dispute.")
+            return dispute.data
         except Exception as e:
+            if isinstance(e, HTTPException):
+                raise
             msg = str(e).lower()
             if "not found" in msg:
                 raise HTTPException(status_code=404, detail="Market not found.")
@@ -554,6 +378,7 @@ async def cast_vote(
     token: str | None = Depends(get_user_token),
 ):
     """Cast a vote on a dispute. Only neutral users (not creator, not bettors) can vote."""
+    normalize_market_state(supabase, market_id)
     # Look up the dispute for this market
     dispute = (
         supabase.table("disputes").select("id").eq("market_id", market_id).single().execute()
