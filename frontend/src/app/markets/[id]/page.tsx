@@ -1123,8 +1123,8 @@ export default function MarketDetailPage({
                           </Button>
                         </div>
                         <Button
-                          variant="secondary"
-                          className="w-full"
+                          variant="outline"
+                          className="h-10 w-full border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white"
                           onClick={requestStartCommunityResolution}
                           disabled={startingCommunityResolution || resolving}
                         >
