@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from supabase import Client
 
 from dependencies import get_current_user, get_current_user_optional, get_supabase_client
+from services.market_state_machine import normalize_market_state, normalize_markets
 from schemas.dispute import CastVoteRequest
 
 router = APIRouter(prefix="/api/markets", tags=["resolution"])
@@ -16,25 +17,7 @@ async def list_resolution_markets(
 ):
     """List markets currently in their resolution period, sorted by expiration (soonest first)."""
     now = datetime.now(tz=timezone.utc)
-
-    # Lazily close markets whose close_at has passed but are still marked open.
-    # The DB trigger set_resolution_window fires on open→closed and sets
-    # resolution_window_end = now() + 24h automatically.
-    open_expired = (
-        supabase.table("markets")
-        .select("id")
-        .eq("status", "open")
-        .lte("close_at", now.isoformat())
-        .execute()
-    )
-    if open_expired.data:
-        expired_ids = [m["id"] for m in open_expired.data]
-        supabase.table("markets").update({"status": "closed"}).in_(
-            "id", expired_ids
-        ).execute()
-        # The DB trigger set_resolution_window fires on open→closed and sets
-        # resolution_window_end = now() + 24h, so re-querying below will pick
-        # up the newly set values.
+    normalize_markets(supabase)
 
     community_result = (
         supabase.table("markets")
@@ -87,14 +70,7 @@ async def cast_community_vote(
     supabase: Client = Depends(get_supabase_client),
 ):
     """Cast a community resolution vote during the 24h resolution window."""
-    market_result = (
-        supabase.table("markets")
-        .select("status, proposed_outcome")
-        .eq("id", market_id)
-        .single()
-        .execute()
-    )
-    market = market_result.data
+    market = normalize_market_state(supabase, market_id)
     if not market:
         raise HTTPException(404, "Market not found.")
     if market.get("status") != "pending_resolution" or market.get("proposed_outcome") is not None:
