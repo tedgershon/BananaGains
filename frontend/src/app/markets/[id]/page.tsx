@@ -61,11 +61,27 @@ function buildPriceHistory(bets: Bet[]): PricePoint[] {
   return points;
 }
 
+function getStatusLabel(status: string): string {
+  switch (status) {
+    case "pending_review":
+      return "Pending Admin Approval";
+    case "pending_resolution":
+      return "Pending Resolution";
+    default:
+      return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+}
+
 export default function MarketDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  type PendingConfirmationAction =
+    | { kind: "resolve"; outcome: BetSide }
+    | { kind: "community" }
+    | { kind: "backroll" };
+
   const { id } = use(params);
   const {
     markets,
@@ -108,6 +124,8 @@ export default function MarketDetailPage({
   const [betSuccess, setBetSuccess] = useState<string | null>(null);
   const [betting, setBetting] = useState(false);
   const [resolving, setResolving] = useState(false);
+  const [startingCommunityResolution, setStartingCommunityResolution] =
+    useState(false);
   const [disputing, setDisputing] = useState(false);
   const [voting, setVoting] = useState(false);
   const [disputeExplanation, setDisputeExplanation] = useState("");
@@ -138,6 +156,8 @@ export default function MarketDetailPage({
   const [showAllOptions, setShowAllOptions] = useState(false);
   const [chartOptionDropdownOpen, setChartOptionDropdownOpen] = useState(false);
   const [visibleOptionIds, setVisibleOptionIds] = useState<string[]>([]);
+  const [pendingConfirmation, setPendingConfirmation] =
+    useState<PendingConfirmationAction | null>(null);
 
   const refreshVoteTotals = useCallback(async () => {
     try {
@@ -183,13 +203,18 @@ export default function MarketDetailPage({
     }
   }, [market?.status, refreshVoteTotals, id]);
 
+  const isCommunityResolutionMode =
+    market?.status === "pending_resolution" && !market?.proposed_outcome;
+
   useEffect(() => {
-    const inResolution =
-      market?.status === "closed" || market?.status === "pending_resolution";
-    if (inResolution && market?.resolution_window_end) {
+    if (isCommunityResolutionMode && market?.resolution_window_end) {
       refreshCommunityVotes();
     }
-  }, [market?.status, market?.resolution_window_end, refreshCommunityVotes]);
+  }, [
+    isCommunityResolutionMode,
+    market?.resolution_window_end,
+    refreshCommunityVotes,
+  ]);
 
   useEffect(() => {
     const end = market?.resolution_window_end;
@@ -270,8 +295,12 @@ export default function MarketDetailPage({
     ? new Date(market.dispute_deadline)
     : null;
   const hasResolutionWindow =
-    (market.status === "closed" || market.status === "pending_resolution") &&
-    !!market.resolution_window_end;
+    isCommunityResolutionMode && !!market.resolution_window_end;
+  const isCreatorDecisionFlow =
+    market.status === "pending_resolution" && !!market.proposed_outcome;
+  const bettingClosedMessage = isCommunityResolutionMode
+    ? "This market is pending review from community voters and no longer accepting bets."
+    : "This market is pending review from the market creator and no longer accepting bets.";
   const resolutionWindowExpired = resolutionCountdown === "Expired";
   const isCreator = user.id === market.creator_id;
   const isAdmin = user.role === "admin" || user.role === "super_admin";
@@ -325,14 +354,8 @@ export default function MarketDetailPage({
     }
   }
 
-  async function handleBackroll() {
+  async function executeBackroll() {
     if (!market || !backrollDate) return;
-    if (
-      !confirm(
-        "This will cancel all bets placed after the specified date and refund those users. This action cannot be undone. Continue?",
-      )
-    )
-      return;
     setBackrolling(true);
     setBackrollError(null);
     setBackrollResult(null);
@@ -404,20 +427,16 @@ export default function MarketDetailPage({
     }
   }
 
-  async function handleResolve(outcome: BetSide) {
+  async function executeResolve(outcome: BetSide) {
     if (!market) return;
-    if (
-      !confirm(
-        `Are you sure you want to propose ${outcome} as the resolution? This opens a dispute window.`,
-      )
-    )
-      return;
     setResolving(true);
     setBetError(null);
     setBetSuccess(null);
     try {
       await resolveMarket(market.id, outcome);
-      setBetSuccess(`Resolution proposed as ${outcome}. Dispute window open.`);
+      setBetSuccess(
+        `Resolution proposed as ${outcome}. Users will be able to dispute this resolution.`,
+      );
       // Update local bets/history
       api.listBetsForMarket(id).then(setMarketBets);
     } catch (err) {
@@ -427,6 +446,88 @@ export default function MarketDetailPage({
     } finally {
       setResolving(false);
     }
+  }
+
+  async function executeStartCommunityResolution() {
+    if (!market) return;
+    setStartingCommunityResolution(true);
+    setBetError(null);
+    setBetSuccess(null);
+    try {
+      await api.startCommunityResolution(market.id);
+      setBetSuccess(
+        "Community resolution started. Voting is now open for 24 hours.",
+      );
+      fetchMarket(id)
+        .then(setFetchedMarket)
+        .catch(() => {});
+    } catch (err) {
+      setBetError(
+        err instanceof Error
+          ? err.message
+          : "Failed to start community resolution.",
+      );
+    } finally {
+      setStartingCommunityResolution(false);
+    }
+  }
+
+  function requestResolve(outcome: BetSide) {
+    setPendingConfirmation({ kind: "resolve", outcome });
+  }
+
+  function requestStartCommunityResolution() {
+    setPendingConfirmation({ kind: "community" });
+  }
+
+  function requestBackroll() {
+    setPendingConfirmation({ kind: "backroll" });
+  }
+
+  async function confirmPendingAction() {
+    const action = pendingConfirmation;
+    if (!action) return;
+
+    setPendingConfirmation(null);
+    if (action.kind === "resolve") {
+      await executeResolve(action.outcome);
+      return;
+    }
+    if (action.kind === "community") {
+      await executeStartCommunityResolution();
+      return;
+    }
+    await executeBackroll();
+  }
+
+  function pendingConfirmationContent() {
+    if (!pendingConfirmation) {
+      return { title: "", message: "", confirmLabel: "Confirm" };
+    }
+    if (pendingConfirmation.kind === "resolve") {
+      const { outcome } = pendingConfirmation;
+      return {
+        title: `Confirm ${outcome} Resolution`,
+        message:
+          `Are you sure you want to propose ${outcome} as the resolution? ` +
+          "Users will be able to dispute this resolution.",
+        confirmLabel: `Propose ${outcome}`,
+      };
+    }
+    if (pendingConfirmation.kind === "community") {
+      return {
+        title: "Start Community Resolution",
+        message: "Start 24-hour community resolution voting for this market?",
+        confirmLabel: "Start Community Resolution",
+      };
+    }
+    return {
+      title: "Confirm Backroll",
+      message:
+        "This will cancel all bets placed after the specified date and refund " +
+        "those users. This action cannot be undone.",
+      confirmLabel: "Execute Backroll",
+    };
   }
 
   async function handleDispute() {
@@ -484,6 +585,34 @@ export default function MarketDetailPage({
 
   return (
     <div className="space-y-6">
+      {pendingConfirmation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <Card size="sm" className="w-full max-w-md">
+            <CardHeader className="pb-0">
+              <span className="text-sm font-semibold">
+                {pendingConfirmationContent().title}
+              </span>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-3">
+              <p className="text-sm text-muted-foreground">
+                {pendingConfirmationContent().message}
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setPendingConfirmation(null)}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={confirmPendingAction}>
+                  {pendingConfirmationContent().confirmLabel}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <Link
         href="/"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -585,7 +714,7 @@ export default function MarketDetailPage({
             <CardContent>
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 <dt className="text-muted-foreground">Status</dt>
-                <dd className="font-medium capitalize">{market.status}</dd>
+                <dd className="font-medium">{getStatusLabel(market.status)}</dd>
                 {isMultichoice && (
                   <>
                     <dt className="text-muted-foreground">Market Type</dt>
@@ -870,7 +999,7 @@ export default function MarketDetailPage({
               ) : (
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    This market is {market.status} and no longer accepting bets.
+                    {bettingClosedMessage}
                   </p>
 
                   {hasResolutionWindow && (
@@ -983,13 +1112,17 @@ export default function MarketDetailPage({
                     user.id === market.creator_id && (
                       <div className="space-y-2 mt-4 pt-4 border-t">
                         <p className="text-sm font-medium">
-                          Resolve Market Outcomes
+                          Choose Resolution Path
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Propose an outcome now, or send this market to a
+                          24-hour community vote.
                         </p>
                         <div className="grid grid-cols-2 gap-2">
                           <Button
                             variant="outline"
                             className="h-10 text-success border-success hover:bg-success hover:text-success-foreground"
-                            onClick={() => handleResolve("YES")}
+                            onClick={() => requestResolve("YES")}
                             disabled={resolving}
                           >
                             Resolve YES
@@ -997,16 +1130,26 @@ export default function MarketDetailPage({
                           <Button
                             variant="outline"
                             className="h-10 text-danger border-danger hover:bg-danger hover:text-danger-foreground"
-                            onClick={() => handleResolve("NO")}
+                            onClick={() => requestResolve("NO")}
                             disabled={resolving}
                           >
                             Resolve NO
                           </Button>
                         </div>
+                        <Button
+                          variant="outline"
+                          className="h-10 w-full border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white"
+                          onClick={requestStartCommunityResolution}
+                          disabled={startingCommunityResolution || resolving}
+                        >
+                          {startingCommunityResolution
+                            ? "Starting community resolution..."
+                            : "Start Community Resolution (24h)"}
+                        </Button>
                       </div>
                     )}
 
-                  {isPendingResolution && (
+                  {isCreatorDecisionFlow && (
                     <div className="space-y-3 mt-4 pt-4 border-t">
                       <p className="text-sm font-medium">Dispute Resolution</p>
                       <div className="text-xs text-muted-foreground">
@@ -1186,7 +1329,7 @@ export default function MarketDetailPage({
                 <Button
                   variant="destructive"
                   className="w-full"
-                  onClick={handleBackroll}
+                  onClick={requestBackroll}
                   disabled={backrolling || !backrollDate}
                 >
                   {backrolling ? "Processing..." : "Execute Backroll"}

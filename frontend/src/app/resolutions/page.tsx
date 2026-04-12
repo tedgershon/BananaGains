@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import * as api from "@/lib/api";
 import { useSession } from "@/lib/SessionProvider";
-import type { CommunityVote, Market } from "@/lib/types";
+import type { CommunityVote, Market, VoteResponse } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 function useCountdown(targetDate: string | null | undefined) {
@@ -61,7 +61,11 @@ function ResolutionCard({
   market: Market;
   userId: string;
 }) {
-  const { remaining, urgent } = useCountdown(market.resolution_window_end);
+  const isDisputeMode = market.status === "disputed";
+  const targetDate = isDisputeMode
+    ? market.voting_ends_at
+    : market.resolution_window_end;
+  const { remaining, urgent } = useCountdown(targetDate);
   const [tally, setTally] = useState<VoteTally>({ yes: 0, no: 0 });
   const [userVote, setUserVote] = useState<string | null>(null);
   const [voting, setVoting] = useState(false);
@@ -74,20 +78,34 @@ function ResolutionCard({
 
   const fetchVotes = useCallback(async () => {
     try {
-      const votes: CommunityVote[] = await api.listCommunityVotes(market.id);
       let yes = 0;
       let no = 0;
-      for (const v of votes) {
-        if (v.selected_outcome === "YES") yes++;
-        else no++;
+
+      if (isDisputeMode) {
+        const votes: VoteResponse[] = await api.listDisputeVotes(market.id);
+        for (const v of votes) {
+          if (v.selected_outcome === "YES") yes++;
+          else if (v.selected_outcome === "NO") no++;
+        }
+        const existing = votes.find((v) => v.voter_id === userId);
+        if (existing) setUserVote(existing.selected_outcome);
+        else setUserVote(null);
+      } else {
+        const votes: CommunityVote[] = await api.listCommunityVotes(market.id);
+        for (const v of votes) {
+          if (v.selected_outcome === "YES") yes++;
+          else no++;
+        }
+        const existing = votes.find((v) => v.voter_id === userId);
+        if (existing) setUserVote(existing.selected_outcome);
+        else setUserVote(null);
       }
+
       setTally({ yes, no });
-      const existing = votes.find((v) => v.voter_id === userId);
-      if (existing) setUserVote(existing.selected_outcome);
     } catch {
       // ignore
     }
-  }, [market.id, userId]);
+  }, [isDisputeMode, market.id, userId]);
 
   useEffect(() => {
     fetchVotes();
@@ -97,7 +115,11 @@ function ResolutionCard({
     setVoting(true);
     setError(null);
     try {
-      await api.castCommunityVote(market.id, { vote: side });
+      if (isDisputeMode) {
+        await api.castDisputeVote(market.id, { vote: side });
+      } else {
+        await api.castCommunityVote(market.id, { vote: side });
+      }
       setUserVote(side);
       await fetchVotes();
     } catch (err) {
@@ -118,6 +140,12 @@ function ResolutionCard({
         </Link>
         <Badge variant="outline" className="w-fit">
           {market.category}
+        </Badge>
+        <Badge
+          variant="secondary"
+          className="w-fit"
+        >
+          {isDisputeMode ? "Dispute" : "Community Resolution"}
         </Badge>
       </CardHeader>
       <CardContent className="space-y-3">

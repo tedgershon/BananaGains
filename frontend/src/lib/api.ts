@@ -67,10 +67,17 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     headers: { ...headers, ...options?.headers },
   });
 
+  const raw = await res.text();
+
   if (!res.ok) {
-    throw new ApiError(res.status, await res.text());
+    throw new ApiError(res.status, raw);
   }
-  return res.json();
+
+  if (!raw) {
+    return undefined as T;
+  }
+
+  return JSON.parse(raw) as T;
 }
 
 // ---------------------------------------------------------------------------
@@ -168,6 +175,12 @@ export function resolveMarket(
   return apiFetch(`/api/markets/${marketId}/resolve`, {
     method: "POST",
     body: JSON.stringify(body),
+  });
+}
+
+export function startCommunityResolution(marketId: string): Promise<Market> {
+  return apiFetch(`/api/markets/${marketId}/community-resolution`, {
+    method: "POST",
   });
 }
 
