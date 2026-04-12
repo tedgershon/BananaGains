@@ -30,4 +30,11 @@ pnpm install
 pnpm dev
 ```
 
+If frontend startup fails with `EADDRINUSE` on port `3000` (Windows PowerShell), run:
+
+```powershell
+Get-NetTCPConnection -LocalPort 3000 -State Listen | Select-Object OwningProcess
+Stop-Process -Id <PID> -Force
+```
+
 Copy `frontend/.env.local.example` to `frontend/.env.local` if needed. `NEXT_PUBLIC_API_URL` defaults to `http://localhost:8000`.
