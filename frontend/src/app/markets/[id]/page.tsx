@@ -649,11 +649,13 @@ export default function MarketDetailPage({
               {isMultichoice ? (
                 multiChartData.length > 1 ? (
                   <div className="space-y-2">
-                    <MultiProbabilityChart
-                      options={marketOptions}
-                      data={multiChartData}
-                      visibleOptionIds={visibleOptionIds}
-                    />
+                    <div className="h-[280px]">
+                      <MultiProbabilityChart
+                        options={marketOptions}
+                        data={multiChartData}
+                        visibleOptionIds={visibleOptionIds}
+                      />
+                    </div>
                     <div className="relative">
                       <button
                         type="button"
@@ -698,7 +700,9 @@ export default function MarketDetailPage({
                   </div>
                 )
               ) : chartData.length > 1 ? (
-                <ProbabilityChart data={chartData} />
+                <div className="h-[280px]">
+                  <ProbabilityChart data={chartData} />
+                </div>
               ) : (
                 <div className="flex h-[280px] items-center justify-center text-muted-foreground">
                   Not enough activity for a chart yet
