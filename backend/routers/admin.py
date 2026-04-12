@@ -252,7 +252,11 @@ async def review_market(
     market = supabase.table("markets").select("*").eq("id", market_id).single().execute()
 
     if body.action == "approve":
-        await notify_market_approved(supabase, market.data, body.notes)
+        try:
+            await notify_market_approved(supabase, market.data, body.notes)
+        except Exception:
+            logger.warning("Failed to send market-approved notification for %s", market_id, exc_info=True)
+
         try:
             supabase.rpc("check_and_award_badges", {
                 "p_user_id": market.data["creator_id"],
@@ -260,6 +264,9 @@ async def review_market(
         except Exception:
             logger.warning("Badge check failed for creator %s", market.data["creator_id"], exc_info=True)
     else:
-        await notify_market_denied(supabase, market.data, body.notes or "")
+        try:
+            await notify_market_denied(supabase, market.data, body.notes or "")
+        except Exception:
+            logger.warning("Failed to send market-denied notification for %s", market_id, exc_info=True)
 
     return result.data

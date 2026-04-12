@@ -530,8 +530,25 @@ async def file_dispute(
                 "p_disputer_id": current_user["id"],
                 "p_explanation": body.explanation,
             }).execute()
-            return result.data
+
+            rpc_data = result.data
+            dispute_id = rpc_data.get("id") if isinstance(rpc_data, dict) else None
+            if not dispute_id:
+                raise HTTPException(status_code=500, detail="Failed to file dispute.")
+
+            dispute = (
+                supabase.table("disputes")
+                .select("*")
+                .eq("id", dispute_id)
+                .single()
+                .execute()
+            )
+            if not dispute.data:
+                raise HTTPException(status_code=500, detail="Failed to load filed dispute.")
+            return dispute.data
         except Exception as e:
+            if isinstance(e, HTTPException):
+                raise
             msg = str(e).lower()
             if "not found" in msg:
                 raise HTTPException(status_code=404, detail="Market not found.")
