@@ -467,6 +467,20 @@ async def start_community_resolution(
         if market.get("creator_id") != current_user.get("id"):
             raise HTTPException(status_code=403, detail="Only the market creator can start community resolution.")
 
+        # Handle lazy-transition race: UI may already show "closed" while the
+        # stored row is still "open" but expired.
+        if market.get("status") == "open":
+            close_at = datetime.fromisoformat(market["close_at"])
+            if close_at <= datetime.now(tz=timezone.utc):
+                closed = (
+                    supabase.table("markets")
+                    .update({"status": "closed"})
+                    .eq("id", market_id)
+                    .execute()
+                )
+                if closed.data:
+                    market = closed.data[0]
+
         if market.get("status") == "pending_resolution" and not market.get("proposed_outcome"):
             return market
 
