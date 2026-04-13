@@ -142,10 +142,12 @@ function UserAvatar({
 export default function LeaderboardPage() {
   const { user } = useMe();
   const { data: rawEntries = [], isLoading } = useQuery(leaderboardQuery());
+  const gainValue = (entry: LeaderboardEntry) =>
+    Number.isFinite(entry.gain) ? entry.gain : 0;
 
   // sort by gain, and only fetch badges for users who have equipped any —
   // saves a ton of requests on a big leaderboard
-  const entries = [...rawEntries].sort((a, b) => b.gain - a.gain);
+  const entries = [...rawEntries].sort((a, b) => gainValue(b) - gainValue(a));
   const withEquipped = entries.filter(
     (entry) => getEquippedIds(entry).length > 0,
   );
@@ -231,16 +233,16 @@ export default function LeaderboardPage() {
                   <div
                     className={cn(
                       "flex items-center gap-1 text-base font-semibold",
-                      entry.gain > 0
+                      gainValue(entry) > 0
                         ? "text-success"
-                        : entry.gain < 0
+                        : gainValue(entry) < 0
                           ? "text-danger"
                           : "text-muted-foreground",
                     )}
                   >
-                    {entry.gain > 0 ? "+" : ""}
+                    {gainValue(entry) > 0 ? "+" : ""}
                     <BananaCoin size={16} />
-                    {entry.gain.toLocaleString()}
+                    {gainValue(entry).toLocaleString()}
                   </div>
                 </div>
               );
