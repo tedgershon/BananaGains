@@ -142,10 +142,14 @@ function ResolutionCard({
           {market.category}
         </Badge>
         <Badge
-          variant="secondary"
-          className="w-fit"
+          variant={isDisputeMode ? "destructive" : "secondary"}
+          className={cn(
+            "w-fit",
+            !isDisputeMode &&
+              "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+          )}
         >
-          {isDisputeMode ? "Dispute" : "Community Resolution"}
+          {isDisputeMode ? "Under Dispute" : "Community Resolution"}
         </Badge>
       </CardHeader>
       <CardContent className="space-y-3">
