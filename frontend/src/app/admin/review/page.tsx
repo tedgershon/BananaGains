@@ -2,7 +2,7 @@
 
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -413,7 +413,7 @@ function AccordionSection({
   );
 }
 
-export default function AdminReviewPage() {
+function AdminReviewPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useSession();
@@ -592,5 +592,24 @@ export default function AdminReviewPage() {
         </AccordionSection>
       </div>
     </div>
+  );
+}
+
+export default function AdminReviewPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-5">
+          <section>
+            <h1 className="text-3xl font-bold tracking-tight">Review Markets</h1>
+          </section>
+          <div className="flex justify-center py-12">
+            <Spinner className="size-6" />
+          </div>
+        </div>
+      }
+    >
+      <AdminReviewPageContent />
+    </Suspense>
   );
 }
