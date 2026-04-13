@@ -4,22 +4,29 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import { useMe } from "@/lib/query/queries/auth";
-import { useUiStore } from "@/lib/stores/uiStore";
 
 export default function AdminPage() {
   const router = useRouter();
-  const { user } = useMe();
-  const viewAsRole = useUiStore((s) => s.viewAsRole);
+  const { user, isLoading } = useMe();
 
-  const isAdmin = viewAsRole === "admin" || viewAsRole === "super_admin";
-  const isSuperAdmin = viewAsRole === "super_admin";
+  const isAdmin = user.role === "admin" || user.role === "super_admin";
+  const isSuperAdmin = user.role === "super_admin";
 
   useEffect(() => {
-    if (user.role === "user") {
+    if (!isLoading && user.role === "user") {
       router.replace("/");
     }
-  }, [user.role, router]);
+  }, [isLoading, user.role, router]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Spinner className="size-6 text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (!isAdmin) return null;
 
