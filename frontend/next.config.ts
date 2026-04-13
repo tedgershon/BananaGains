@@ -28,6 +28,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "static.wikia.nocookie.net",
       },
+      // google image thumbnails (seed data, e.g. gavin belson)
+      {
+        protocol: "https",
+        hostname: "encrypted-tbn0.gstatic.com",
+      },
       ...(supabaseHostname
         ? [
             {
