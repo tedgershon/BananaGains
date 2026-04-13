@@ -26,12 +26,3 @@ export function useDeleteNotification() {
     onSettled: () => invalidateAfterNotificationsRead(qc),
   });
 }
-
-// dev-only helper that pokes the backend to create a test notification
-export function useSendTestNotification() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => api.sendTestNotification(),
-    onSettled: () => invalidateAfterNotificationsRead(qc),
-  });
-}

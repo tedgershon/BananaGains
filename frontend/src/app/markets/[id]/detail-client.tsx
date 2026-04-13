@@ -1158,7 +1158,7 @@ export default function MarketDetailClient({ id }: { id: string }) {
                 <Spinner className="size-5" />
               </div>
             ) : marketBets.length > 0 ? (
-              <div className="space-y-2">
+              <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-border bg-card p-3">
                 {marketBets.map((bet) => {
                   const optionLabel = bet.option_id
                     ? marketOptions.find((o) => o.id === bet.option_id)?.label

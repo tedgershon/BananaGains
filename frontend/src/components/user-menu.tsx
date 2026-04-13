@@ -1,9 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3,
-  Bell,
   List,
   LogOut,
   Settings,
@@ -13,11 +11,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { useMe } from "@/lib/query/queries/auth";
-import { unreadCountQuery } from "@/lib/query/queries/notifications";
 import { useSession } from "@/lib/SessionProvider";
+import { useClickOutside } from "@/lib/use-click-outside";
 import { cn } from "@/lib/utils";
 
 const MENU_ITEMS = [
@@ -33,24 +31,9 @@ export function UserMenu() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  useClickOutside(menuRef, () => setOpen(false));
 
-  // unread count polls via refetchInterval baked into the query
-  const { data: unread } = useQuery({
-    ...unreadCountQuery(),
-    enabled: !isDemo,
-  });
-  const unreadCount = unread?.count ?? 0;
   const isAdmin = user.role === "admin" || user.role === "super_admin";
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   if (isDemo) {
     return (
@@ -79,11 +62,7 @@ export function UserMenu() {
         type="button"
         onClick={() => setOpen(!open)}
         className="relative flex items-center"
-        aria-label={
-          unreadCount > 0
-            ? `Account menu, ${unreadCount} unread notifications`
-            : "Account menu"
-        }
+        aria-label="Account menu"
       >
         <div className="flex size-9 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted text-sm font-medium text-muted-foreground transition-colors hover:bg-accent">
           {user.avatar_url ? (
@@ -96,11 +75,6 @@ export function UserMenu() {
             initials
           )}
         </div>
-        {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[11px] font-bold text-destructive-foreground ring-2 ring-white">
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        )}
       </button>
 
       {open && (
@@ -155,19 +129,6 @@ export function UserMenu() {
                 <span>{item.label}</span>
               </Link>
             ))}
-            <Link
-              href="/notifications"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-accent"
-            >
-              <Bell size={16} className="text-muted-foreground" />
-              <span className="flex-1">Notifications</span>
-              {unreadCount > 0 && (
-                <span className="rounded-full bg-destructive px-2 py-0.5 text-[11px] font-semibold text-destructive-foreground">
-                  {unreadCount > 99 ? "99+" : unreadCount}
-                </span>
-              )}
-            </Link>
             {isAdmin && (
               <Link
                 href="/admin"

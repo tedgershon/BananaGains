@@ -465,10 +465,6 @@ export function deleteNotification(
   return apiFetch(`/api/notifications/${notificationId}`, { method: "DELETE" });
 }
 
-export function sendTestNotification(): Promise<{ status: string }> {
-  return apiFetch("/api/notifications/test", { method: "POST" });
-}
-
 // ---------------------------------------------------------------------------
 // Rewards  –  /api/rewards
 // ---------------------------------------------------------------------------

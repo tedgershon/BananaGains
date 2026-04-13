@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BananaCoin } from "@/components/banana-coin";
+import { NotificationsMenu } from "@/components/notifications-menu";
 import { buttonVariants } from "@/components/ui/button";
 import { UserMenu } from "@/components/user-menu";
 import { useMe } from "@/lib/query/queries/auth";
@@ -59,6 +60,7 @@ export function Navbar() {
                 <BananaCoin size={16} />
                 <span>{user.banana_balance.toLocaleString()}</span>
               </Link>
+              <NotificationsMenu />
               <Link
                 href="/markets/create"
                 className={cn(
