@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useSession } from "@/lib/SessionProvider";
+import { useMe } from "@/lib/query/queries/auth";
+import { useUiStore } from "@/lib/stores/uiStore";
 
 export default function AdminPage() {
   const router = useRouter();
-  const { user, viewAsRole } = useSession();
+  const { user } = useMe();
+  const viewAsRole = useUiStore((s) => s.viewAsRole);
 
   const isAdmin = viewAsRole === "admin" || viewAsRole === "super_admin";
   const isSuperAdmin = viewAsRole === "super_admin";

@@ -1,11 +1,21 @@
 "use client";
 
-import { BarChart3, Bell, List, LogOut, Trophy, User, Wallet } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  BarChart3,
+  Bell,
+  List,
+  LogOut,
+  Trophy,
+  User,
+  Wallet,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
-import * as api from "@/lib/api";
+import { useMe } from "@/lib/query/queries/auth";
+import { unreadCountQuery } from "@/lib/query/queries/notifications";
 import { useSession } from "@/lib/SessionProvider";
 import { cn } from "@/lib/utils";
 
@@ -17,11 +27,18 @@ const MENU_ITEMS = [
 ];
 
 export function UserMenu() {
-  const { user, isDemo, signOut } = useSession();
+  const { isDemo, signOut } = useSession();
+  const { user } = useMe();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // unread count polls every 30s via refetchInterval in the query
+  const { data: unread } = useQuery({
+    ...unreadCountQuery(),
+    enabled: !isDemo,
+  });
+  const unreadCount = unread?.count ?? 0;
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -32,15 +49,6 @@ export function UserMenu() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  useEffect(() => {
-    if (!isDemo) {
-      api
-        .getUnreadNotificationCount()
-        .then((data) => setUnreadCount(data.count))
-        .catch(() => {});
-    }
-  }, [isDemo]);
 
   if (isDemo) {
     return (
@@ -72,7 +80,11 @@ export function UserMenu() {
       >
         <div className="flex size-9 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted text-sm font-medium text-muted-foreground transition-colors hover:bg-accent">
           {user.avatar_url ? (
-            <img src={user.avatar_url} alt="" className="size-full object-cover" />
+            <img
+              src={user.avatar_url}
+              alt=""
+              className="size-full object-cover"
+            />
           ) : (
             initials
           )}
@@ -87,7 +99,11 @@ export function UserMenu() {
           <div className="flex items-center gap-3 border-b border-border px-4 py-3">
             <div className="flex size-10 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-medium text-muted-foreground">
               {user.avatar_url ? (
-                <img src={user.avatar_url} alt="" className="size-full object-cover" />
+                <img
+                  src={user.avatar_url}
+                  alt=""
+                  className="size-full object-cover"
+                />
               ) : (
                 initials
               )}

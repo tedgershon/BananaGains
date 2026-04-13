@@ -6,7 +6,9 @@ import { BananaCoin } from "@/components/banana-coin";
 import { RoleToggle } from "@/components/role-toggle";
 import { buttonVariants } from "@/components/ui/button";
 import { UserMenu } from "@/components/user-menu";
+import { useMe } from "@/lib/query/queries/auth";
 import { useSession } from "@/lib/SessionProvider";
+import { useUiStore } from "@/lib/stores/uiStore";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS: {
@@ -23,7 +25,9 @@ const NAV_LINKS: {
 
 export function Navbar() {
   const pathname = usePathname();
-  const { user, isDemo, viewAsRole } = useSession();
+  const { isDemo } = useSession();
+  const { user } = useMe();
+  const viewAsRole = useUiStore((s) => s.viewAsRole);
 
   const isAdminView = viewAsRole === "admin" || viewAsRole === "super_admin";
 
@@ -40,26 +44,24 @@ export function Navbar() {
           <nav className="hidden items-center gap-1 sm:flex">
             {NAV_LINKS.filter(
               (link) =>
-                (!link.adminOnly || isAdminView) &&
-                (!link.authOnly || !isDemo),
-            ).map(
-              (link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={cn(
-                    "rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent",
-                    pathname === link.href ||
-                      (link.href === "/admin" && pathname.startsWith("/admin")) ||
-                      (link.href === "/markets" && pathname.startsWith("/markets"))
-                      ? "text-foreground"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  {link.label}
-                </Link>
-              ),
-            )}
+                (!link.adminOnly || isAdminView) && (!link.authOnly || !isDemo),
+            ).map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={cn(
+                  "rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent",
+                  pathname === link.href ||
+                    (link.href === "/admin" && pathname.startsWith("/admin")) ||
+                    (link.href === "/markets" &&
+                      pathname.startsWith("/markets"))
+                    ? "text-foreground"
+                    : "text-muted-foreground",
+                )}
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
         </div>
         <div className="flex items-center gap-4">

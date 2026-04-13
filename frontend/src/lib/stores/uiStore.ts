@@ -1,17 +1,15 @@
 import { create } from "zustand";
+import type { UserRole } from "@/lib/types";
 
-/**
- * Zustand store for purely client-owned UI state.
- *
- * Scope: UI toggles, filters, and view modes that do **not** originate from
- * the server. Server data (markets, bets, user profile, etc.) belongs in
- * React Query — never mirrored here.
- *
- * Populated in later PRs:
- *   - `viewAsRole` (admin role-toggle)
- *   - `selectedCategory` (markets page filter)
- *   - modal / drawer flags as they arise
- */
-type UiState = Record<string, never>;
+// purely client-owned UI state, never mirrors server data
+// add fields here when they're genuinely local (filters, toggles, modals)
+interface UiState {
+  // admin role-toggle for the "view as X" dropdown in the navbar
+  viewAsRole: UserRole;
+  setViewAsRole: (role: UserRole) => void;
+}
 
-export const useUiStore = create<UiState>()(() => ({}));
+export const useUiStore = create<UiState>((set) => ({
+  viewAsRole: "user",
+  setViewAsRole: (viewAsRole) => set({ viewAsRole }),
+}));

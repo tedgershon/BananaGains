@@ -1,14 +1,14 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { BananaCoin } from "@/components/banana-coin";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { getAdminStats } from "@/lib/api";
-import { useSession } from "@/lib/SessionProvider";
-import type { AdminStats } from "@/lib/types";
+import { adminStatsQuery } from "@/lib/query/queries/admin";
+import { useMe } from "@/lib/query/queries/auth";
 
 const STATUS_COLORS: Record<string, string> = {
   open: "bg-success-foreground text-success",
@@ -21,26 +21,25 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function AdminStatsPage() {
   const router = useRouter();
-  const { user } = useSession();
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { user } = useMe();
+  const {
+    data: stats,
+    isLoading,
+    error,
+  } = useQuery({
+    ...adminStatsQuery(),
+    enabled: user.role !== "user",
+  });
 
   useEffect(() => {
     if (user.role === "user") {
       router.replace("/");
-      return;
     }
-
-    getAdminStats()
-      .then(setStats)
-      .catch((err) => setError(err.message ?? "Failed to load stats"))
-      .finally(() => setLoading(false));
   }, [user.role, router]);
 
   if (user.role === "user") return null;
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-5">
         <section>
@@ -63,7 +62,9 @@ export default function AdminStatsPage() {
             Platform Statistics
           </h1>
         </section>
-        <p className="text-sm text-destructive">{error ?? "Unknown error"}</p>
+        <p className="text-sm text-destructive">
+          {error instanceof Error ? error.message : "Unknown error"}
+        </p>
       </div>
     );
   }
@@ -111,7 +112,10 @@ export default function AdminStatsPage() {
                     variant="secondary"
                     className={STATUS_COLORS[status] ?? ""}
                   >
-                    {count} {status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                    {count}{" "}
+                    {status
+                      .replace(/_/g, " ")
+                      .replace(/\b\w/g, (c) => c.toUpperCase())}
                   </Badge>
                 ),
               )}

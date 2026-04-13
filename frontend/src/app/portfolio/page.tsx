@@ -1,16 +1,20 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import * as api from "@/lib/api";
-import { useData } from "@/lib/DataProvider";
-import { useSession } from "@/lib/SessionProvider";
-import type { Market } from "@/lib/types";
+import { useClaimDaily } from "@/lib/query/mutations/auth";
+import { useMe } from "@/lib/query/queries/auth";
+import { marketsQuery } from "@/lib/query/queries/markets";
+import {
+  portfolioQuery,
+  transactionsQuery,
+} from "@/lib/query/queries/portfolio";
 import { getMarketProbability } from "@/lib/types";
 
 const TX_LABELS: Record<string, string> = {
@@ -23,35 +27,32 @@ const TX_LABELS: Record<string, string> = {
 };
 
 export default function PortfolioPage() {
-  const { user } = useSession();
-  const { markets, bets, transactions, loading, claimDaily } = useData();
-  const [claiming, setClaiming] = useState(false);
-  const [claimError, setClaimError] = useState<string | null>(null);
-  const [pendingMarkets, setPendingMarkets] = useState<Market[]>([]);
-  const [deniedMarkets, setDeniedMarkets] = useState<Market[]>([]);
+  const { user } = useMe();
+  const { data: markets = [] } = useQuery(marketsQuery());
+  const { data: bets = [], isLoading: betsLoading } = useQuery(
+    portfolioQuery(),
+  );
+  const { data: transactions = [], isLoading: txsLoading } = useQuery(
+    transactionsQuery(),
+  );
+  // pending/denied live in the same markets endpoint with a filter, no extra
+  // effect or abort controller needed — RQ handles both
+  const { data: pendingMarkets = [] } = useQuery(
+    marketsQuery({ status: "pending_review" }),
+  );
+  const { data: deniedMarkets = [] } = useQuery(
+    marketsQuery({ status: "denied" }),
+  );
 
-  useEffect(() => {
-    const ctrl = new AbortController();
-    api
-      .listMarkets({ status: "pending_review" }, { signal: ctrl.signal })
-      .then((m) => {
-        if (!ctrl.signal.aborted) setPendingMarkets(m);
-      })
-      .catch(() => {});
-    api
-      .listMarkets({ status: "denied" }, { signal: ctrl.signal })
-      .then((m) => {
-        if (!ctrl.signal.aborted) setDeniedMarkets(m);
-      })
-      .catch(() => {});
-    return () => ctrl.abort();
-  }, []);
+  const claim = useClaimDaily();
+  const [claimError, setClaimError] = useState<string | null>(null);
+
+  const loading = betsLoading || txsLoading;
 
   async function handleClaim() {
-    setClaiming(true);
     setClaimError(null);
     try {
-      await claimDaily();
+      await claim.mutateAsync();
     } catch (err) {
       if (
         err &&
@@ -63,8 +64,6 @@ export default function PortfolioPage() {
       } else {
         setClaimError("Failed to claim. Try again later.");
       }
-    } finally {
-      setClaiming(false);
     }
   }
 
@@ -139,9 +138,9 @@ export default function PortfolioPage() {
                     size="sm"
                     className="w-full"
                     onClick={handleClaim}
-                    disabled={claiming}
+                    disabled={claim.isPending}
                   >
-                    {claiming ? (
+                    {claim.isPending ? (
                       <Spinner />
                     ) : user.claim_amount < 1000 ? (
                       `Claim ${user.claim_amount.toLocaleString()} Daily Bananas`

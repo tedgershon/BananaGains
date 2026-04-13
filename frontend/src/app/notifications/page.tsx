@@ -1,31 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import * as api from "@/lib/api";
-import type { NotificationResponse } from "@/lib/types";
+import { useMarkNotificationsRead } from "@/lib/query/mutations/notifications";
+import { notificationsQuery } from "@/lib/query/queries/notifications";
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<NotificationResponse[]>(
-    [],
+  const { data: notifications = [], isLoading } = useQuery(
+    notificationsQuery(),
   );
-  const [loading, setLoading] = useState(true);
+  const markRead = useMarkNotificationsRead();
 
-  const loadNotifications = useCallback(async () => {
-    try {
-      const data = await api.listNotifications();
-      setNotifications(data);
-    } catch {
-      /* empty */
-    }
-    setLoading(false);
-  }, []);
-
+  // fire-and-forget mark-as-read on mount so the unread badge drops
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => {
-    loadNotifications();
-    api.markNotificationsRead();
-  }, [loadNotifications]);
+    markRead.mutate();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -36,7 +28,7 @@ export default function NotificationsPage() {
         </p>
       </section>
 
-      {loading ? (
+      {isLoading ? (
         <Spinner className="size-6" />
       ) : notifications.length === 0 ? (
         <p className="text-muted-foreground">No notifications yet.</p>

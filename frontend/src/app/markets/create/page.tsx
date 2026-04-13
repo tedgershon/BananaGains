@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { useData } from "@/lib/DataProvider";
+import { useCreateMarket } from "@/lib/query/mutations/markets";
 
 const CATEGORIES = [
   "General",
@@ -22,7 +22,7 @@ const MAX_OPTIONS = 10;
 const MIN_OPTIONS = 2;
 
 export default function CreateMarketPage() {
-  const { addMarket } = useData();
+  const createMarket = useCreateMarket();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -139,14 +139,14 @@ export default function CreateMarketPage() {
       };
 
       if (marketType === "binary") {
-        await addMarket({
+        await createMarket.mutateAsync({
           ...base,
           yes_criteria: yesCriteria.trim(),
           no_criteria: noCriteria.trim(),
           ambiguity_criteria: ambiguityCriteria.trim(),
         });
       } else {
-        await addMarket({
+        await createMarket.mutateAsync({
           ...base,
           multichoice_type: multichoiceType,
           options: options.filter((o) => o.trim()).map((o) => o.trim()),

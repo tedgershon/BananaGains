@@ -4,17 +4,21 @@ import { Camera } from "lucide-react";
 import { useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { updateProfile, uploadAvatar } from "@/lib/api";
+import { uploadAvatar } from "@/lib/api";
+import { useUpdateProfile } from "@/lib/query/mutations/auth";
+import { useMe } from "@/lib/query/queries/auth";
 import { useSession } from "@/lib/SessionProvider";
 
 export default function ProfilePage() {
-  const { user, isDemo, updateUser } = useSession();
+  const { isDemo } = useSession();
+  const { user } = useMe();
+  const updateProfile = useUpdateProfile();
+
   const [displayName, setDisplayName] = useState(user.display_name);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
     user.avatar_url,
   );
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -55,12 +59,13 @@ export default function ProfilePage() {
   }
 
   async function handleSave() {
-    setSaving(true);
     setMessage(null);
 
     try {
       let newAvatarUrl = user.avatar_url;
 
+      // avatar upload still goes through supabase storage directly, not via
+      // the API layer, so we call uploadAvatar first then patch the profile
       if (avatarFile) {
         newAvatarUrl = await uploadAvatar(user.id, avatarFile);
       }
@@ -74,13 +79,7 @@ export default function ProfilePage() {
       }
 
       if (Object.keys(updates).length > 0) {
-        await updateProfile(updates);
-        updateUser({
-          ...(updates.display_name ? { display_name: updates.display_name } : {}),
-          ...(updates.avatar_url !== undefined
-            ? { avatar_url: updates.avatar_url }
-            : {}),
-        });
+        await updateProfile.mutateAsync(updates);
       }
 
       setAvatarFile(null);
@@ -88,10 +87,10 @@ export default function ProfilePage() {
     } catch (err) {
       console.error("Profile save error:", err);
       setMessage({ type: "error", text: "Failed to update profile." });
-    } finally {
-      setSaving(false);
     }
   }
+
+  const saving = updateProfile.isPending;
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
@@ -141,10 +140,7 @@ export default function ProfilePage() {
           </div>
 
           <div className="space-y-2">
-            <label
-              htmlFor="display-name"
-              className="text-sm font-medium"
-            >
+            <label htmlFor="display-name" className="text-sm font-medium">
               Display Name
             </label>
             <input
@@ -174,7 +170,10 @@ export default function ProfilePage() {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || (!avatarFile && displayName.trim() === user.display_name)}
+            disabled={
+              saving ||
+              (!avatarFile && displayName.trim() === user.display_name)
+            }
             className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
             {saving ? (

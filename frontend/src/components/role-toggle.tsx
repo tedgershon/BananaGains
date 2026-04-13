@@ -1,6 +1,7 @@
 "use client";
 
-import { useSession } from "@/lib/SessionProvider";
+import { useMe } from "@/lib/query/queries/auth";
+import { useUiStore } from "@/lib/stores/uiStore";
 import type { UserRole } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -11,7 +12,9 @@ const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 export function RoleToggle() {
-  const { user, viewAsRole, setViewAsRole } = useSession();
+  const { user } = useMe();
+  const viewAsRole = useUiStore((s) => s.viewAsRole);
+  const setViewAsRole = useUiStore((s) => s.setViewAsRole);
 
   const availableRoles: UserRole[] =
     user.role === "super_admin"

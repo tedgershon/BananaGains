@@ -1,23 +1,27 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { searchUsers, updateUserRole } from "@/lib/api";
-import { useSession } from "@/lib/SessionProvider";
-import type { UserSearchResult } from "@/lib/types";
+import { useUpdateUserRole } from "@/lib/query/mutations/admin";
+import { searchUsersQuery } from "@/lib/query/queries/admin";
+import { useMe } from "@/lib/query/queries/auth";
 
 export default function AdminUsersPage() {
   const router = useRouter();
-  const { user } = useSession();
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<UserSearchResult[]>([]);
-  const [searched, setSearched] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [updating, setUpdating] = useState<string | null>(null);
+  const { user } = useMe();
+  const [input, setInput] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+
+  // enabled only when a query has been submitted so typing doesn't fetch
+  const { data: results = [], isFetching } = useQuery(
+    searchUsersQuery(submittedQuery),
+  );
+  const updateRole = useUpdateUserRole();
 
   useEffect(() => {
     if (user.role !== "super_admin") {
@@ -27,38 +31,24 @@ export default function AdminUsersPage() {
 
   if (user.role !== "super_admin") return null;
 
-  async function handleSearch() {
-    const q = query.trim();
+  function handleSearch() {
+    const q = input.trim();
     if (!q) return;
-
-    setLoading(true);
     setMessage(null);
-    try {
-      const data = await searchUsers(q);
-      setResults(data);
-      setSearched(true);
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Failed to search users");
-    } finally {
-      setLoading(false);
-    }
+    setSubmittedQuery(q);
   }
 
   async function handleRoleChange(userId: string, newRole: string) {
-    setUpdating(userId);
     setMessage(null);
     try {
-      const updated = await updateUserRole(userId, newRole);
-      setResults((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, role: updated.role } : u)),
-      );
+      const updated = await updateRole.mutateAsync({ userId, role: newRole });
       setMessage(`Role updated to ${updated.role} successfully.`);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Failed to update role");
-    } finally {
-      setUpdating(null);
     }
   }
+
+  const searched = submittedQuery.length > 0 && !isFetching;
 
   return (
     <div className="space-y-5">
@@ -72,16 +62,16 @@ export default function AdminUsersPage() {
       <div className="flex gap-2">
         <input
           type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") handleSearch();
           }}
           placeholder="Search by Andrew ID..."
           className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
-        <Button onClick={handleSearch} disabled={loading || !query.trim()}>
-          {loading ? <Spinner /> : "Search"}
+        <Button onClick={handleSearch} disabled={isFetching || !input.trim()}>
+          {isFetching ? <Spinner /> : "Search"}
         </Button>
       </div>
 
@@ -106,42 +96,47 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {results.map((u) => (
-                  <tr key={u.id}>
-                    <td className="px-4 py-2 font-mono text-xs">
-                      {u.andrew_id}
-                    </td>
-                    <td className="px-4 py-2">{u.display_name}</td>
-                    <td className="px-4 py-2 capitalize">
-                      {u.role.replace("_", " ")}
-                    </td>
-                    <td className="px-4 py-2">
-                      {u.role === "super_admin" ? (
-                        <span className="text-xs text-muted-foreground">
-                          Super Admin
-                        </span>
-                      ) : u.role === "user" ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={updating === u.id}
-                          onClick={() => handleRoleChange(u.id, "admin")}
-                        >
-                          {updating === u.id ? <Spinner /> : "Promote to Admin"}
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          disabled={updating === u.id}
-                          onClick={() => handleRoleChange(u.id, "user")}
-                        >
-                          {updating === u.id ? <Spinner /> : "Demote to User"}
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {results.map((u) => {
+                  const pending =
+                    updateRole.isPending &&
+                    updateRole.variables?.userId === u.id;
+                  return (
+                    <tr key={u.id}>
+                      <td className="px-4 py-2 font-mono text-xs">
+                        {u.andrew_id}
+                      </td>
+                      <td className="px-4 py-2">{u.display_name}</td>
+                      <td className="px-4 py-2 capitalize">
+                        {u.role.replace("_", " ")}
+                      </td>
+                      <td className="px-4 py-2">
+                        {u.role === "super_admin" ? (
+                          <span className="text-xs text-muted-foreground">
+                            Super Admin
+                          </span>
+                        ) : u.role === "user" ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={pending}
+                            onClick={() => handleRoleChange(u.id, "admin")}
+                          >
+                            {pending ? <Spinner /> : "Promote to Admin"}
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled={pending}
+                            onClick={() => handleRoleChange(u.id, "user")}
+                          >
+                            {pending ? <Spinner /> : "Demote to User"}
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </CardContent>

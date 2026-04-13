@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import {
   createContext,
   type ReactNode,
@@ -9,11 +10,12 @@ import {
   useMemo,
   useState,
 } from "react";
-import { getMe } from "./api";
+import { queryKeys } from "./query/keys";
 import { supabase } from "./supabase";
-import type { UserProfile, UserRole } from "./types";
+import type { UserProfile } from "./types";
 
-/** Default user state for unauthenticated sessions. */
+// still exported because useMe() falls back to this when the cache is empty
+// (logged out, first paint, 401), keeps consumers from having to null-check
 export const GUEST_USER: UserProfile = {
   id: "00000000-0000-0000-0000-000000000000",
   andrew_id: "",
@@ -32,33 +34,23 @@ export const GUEST_USER: UserProfile = {
 };
 
 interface SessionContextValue {
-  user: UserProfile;
   isDemo: boolean;
   isLoading: boolean;
-  updateBalance: (delta: number) => void;
-  updateUser: (partial: Partial<UserProfile>) => void;
-  markClaimedToday: () => void;
   signOut: () => Promise<void>;
-  viewAsRole: UserRole;
-  setViewAsRole: (role: UserRole) => void;
 }
 
 const SessionCtx = createContext<SessionContextValue>({
-  user: GUEST_USER,
   isDemo: true,
   isLoading: false,
-  updateBalance: () => {},
-  updateUser: () => {},
-  markClaimedToday: () => {},
   signOut: async () => {},
-  viewAsRole: "user",
-  setViewAsRole: () => {},
 });
 
 export function useSession() {
   return useContext(SessionCtx);
 }
 
+// session-shell provider — holds only auth-session bits
+// profile data lives in the me query (useMe), never here
 export function SessionProvider({
   children,
   initialUser,
@@ -66,101 +58,62 @@ export function SessionProvider({
   children: ReactNode;
   initialUser?: UserProfile | null;
 }) {
-  const [user, setUser] = useState<UserProfile>(initialUser ?? GUEST_USER);
+  const qc = useQueryClient();
   const [isDemo, setIsDemo] = useState(!initialUser);
   const [isLoading, setIsLoading] = useState(!initialUser);
-  const [viewAsRole, setViewAsRole] = useState<UserRole>(
-    initialUser?.role ?? "user",
-  );
 
-  const updateBalance = useCallback((delta: number) => {
-    setUser((prev) => ({
-      ...prev,
-      banana_balance: prev.banana_balance + delta,
-    }));
-  }, []);
-
-  const updateUser = useCallback((partial: Partial<UserProfile>) => {
-    setUser((prev) => ({ ...prev, ...partial }));
-  }, []);
-
-  const markClaimedToday = useCallback(() => {
-    setUser((prev) => ({ ...prev, claimed_today: true }));
-  }, []);
-
-  const loadProfile = useCallback(async () => {
-    try {
-      const profile = await getMe();
-      setUser(profile);
-      setIsDemo(false);
-      setViewAsRole(profile.role ?? "user");
-    } catch {
-      setUser(GUEST_USER);
-      setIsDemo(true);
-      setViewAsRole("user");
-    }
-  }, []);
+  // seed the me cache from SSR-fetched user so the first paint has real data
+  // and nothing else has to know about the initialUser prop
+  useState(() => {
+    if (initialUser) qc.setQueryData(queryKeys.me, initialUser);
+  });
 
   useEffect(() => {
     if (!supabase) {
-      loadProfile().finally(() => setIsLoading(false));
+      // no supabase configured — we're permanently in demo mode
+      setIsDemo(true);
+      setIsLoading(false);
       return;
     }
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        loadProfile().finally(() => setIsLoading(false));
+        setIsDemo(false);
+        // refresh the cache in the background so we're not trusting stale SSR
+        qc.invalidateQueries({ queryKey: queryKeys.me });
       } else {
-        setUser(GUEST_USER);
         setIsDemo(true);
-        setIsLoading(false);
+        qc.removeQueries({ queryKey: queryKeys.me });
       }
+      setIsLoading(false);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
-        loadProfile();
+        setIsDemo(false);
+        qc.invalidateQueries({ queryKey: queryKeys.me });
       } else {
-        setUser(GUEST_USER);
         setIsDemo(true);
+        qc.removeQueries({ queryKey: queryKeys.me });
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [loadProfile]);
+  }, [qc]);
 
   const signOut = useCallback(async () => {
     if (supabase) {
       await supabase.auth.signOut();
     }
-    setUser(GUEST_USER);
     setIsDemo(true);
-  }, []);
+    qc.removeQueries({ queryKey: queryKeys.me });
+  }, [qc]);
 
   const value = useMemo(
-    () => ({
-      user,
-      isDemo,
-      isLoading,
-      updateBalance,
-      updateUser,
-      markClaimedToday,
-      signOut,
-      viewAsRole,
-      setViewAsRole,
-    }),
-    [
-      user,
-      isDemo,
-      isLoading,
-      updateBalance,
-      updateUser,
-      markClaimedToday,
-      signOut,
-      viewAsRole,
-    ],
+    () => ({ isDemo, isLoading, signOut }),
+    [isDemo, isLoading, signOut],
   );
 
   return <SessionCtx.Provider value={value}>{children}</SessionCtx.Provider>;
