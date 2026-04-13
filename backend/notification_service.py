@@ -9,15 +9,21 @@ _warned_no_service_role = False
 
 
 def _db_for_notifications(supabase: Client) -> Client:
-    """Prefer service-role client so inserts/queries are not blocked by RLS."""
+    """Prefer service-role client so inserts/queries are not blocked by RLS.
+
+    Used only by the non-lifecycle paths (reminders, etc) — the three
+    market-lifecycle notify_* functions now call a SECURITY DEFINER RPC
+    that doesn't need service-role at all.
+    """
     from dependencies import get_supabase_service_client
 
     global _warned_no_service_role
     svc = get_supabase_service_client()
     if svc is None and not _warned_no_service_role:
         logger.warning(
-            "SUPABASE_SERVICE_ROLE_KEY not configured — notifications will be "
-            "blocked by RLS for cross-user inserts. Set it in backend/.env"
+            "SUPABASE_SERVICE_ROLE_KEY not configured — non-lifecycle "
+            "notifications (reminders, etc) may be blocked by RLS. "
+            "Market lifecycle events go through create_market_notification RPC and work either way."
         )
         _warned_no_service_role = True
     return svc if svc is not None else supabase
@@ -31,10 +37,12 @@ async def create_notification(
     body: str,
     metadata: dict | None = None,
 ):
-    """Create an in-app notification.
+    """Generic notification insert — used for reminders and anything that
+    isn't a market-lifecycle one-shot event.
 
-    Swallows RLS errors so a missing service-role key doesn't leak unhandled
-    task exceptions into the request log. Other failures still propagate.
+    Swallows errors so a missing service-role key doesn't leak unhandled task
+    exceptions. Lifecycle events should go through ``_create_market_notification``
+    instead so they're atomically idempotent.
     """
     db = _db_for_notifications(supabase)
     try:
@@ -45,13 +53,46 @@ async def create_notification(
             "body": body,
             "metadata": metadata or {},
         }).execute()
-    except Exception as exc:  # noqa: BLE001 — we want any insert error swallowed here
-        # 42501 = RLS policy violation (most common when svc role key missing)
-        # everything else also gets logged but doesn't crash the caller's task
+    except Exception as exc:  # noqa: BLE001 — reminders/system notifs shouldn't crash the caller
         logger.warning(
             "create_notification failed for user_id=%s type=%s: %s",
             user_id,
             notification_type,
+            exc,
+        )
+
+
+async def _create_market_notification(
+    supabase: Client,
+    user_id: str,
+    notification_type: str,
+    title: str,
+    body: str,
+    market_id: str,
+):
+    """Idempotent market-lifecycle notification via SECURITY DEFINER RPC.
+
+    Backed by a partial unique index on (user_id, type, market_id), so
+    concurrent callers can't create duplicates — the second caller's INSERT
+    is a no-op inside the RPC's ON CONFLICT DO NOTHING.
+    """
+    try:
+        supabase.rpc(
+            "create_market_notification",
+            {
+                "p_user_id": user_id,
+                "p_type": notification_type,
+                "p_title": title,
+                "p_body": body,
+                "p_market_id": market_id,
+            },
+        ).execute()
+    except Exception as exc:  # noqa: BLE001 — don't let a notification failure crash the caller
+        logger.warning(
+            "create_market_notification RPC failed user_id=%s type=%s market_id=%s: %s",
+            user_id,
+            notification_type,
+            market_id,
             exc,
         )
 
@@ -62,8 +103,6 @@ async def notify_market_approved(
     review_notes: str | None,
 ):
     """Send in-app notification when a market is approved."""
-    creator_id = market["creator_id"]
-
     body_parts = [
         f"Your market \"{market['title']}\" has been approved and is now live!",
         "",
@@ -75,15 +114,13 @@ async def notify_market_approved(
     if review_notes:
         body_parts.append(f"\nAdmin Notes: {review_notes}")
 
-    body = "\n".join(body_parts)
-
-    await create_notification(
+    await _create_market_notification(
         supabase=supabase,
-        user_id=creator_id,
+        user_id=market["creator_id"],
         notification_type="market_approved",
         title="Market Approved",
-        body=body,
-        metadata={"market_id": market["id"]},
+        body="\n".join(body_parts),
+        market_id=market["id"],
     )
 
 
@@ -93,21 +130,19 @@ async def notify_market_denied(
     review_notes: str,
 ):
     """Send in-app notification when a market is denied."""
-    creator_id = market["creator_id"]
-
     body = (
         f"Your market \"{market['title']}\" was not approved.\n\n"
         f"Admin Feedback: {review_notes}\n\n"
         "Please review the feedback and consider resubmitting with the suggested changes."
     )
 
-    await create_notification(
+    await _create_market_notification(
         supabase=supabase,
-        user_id=creator_id,
+        user_id=market["creator_id"],
         notification_type="market_denied",
         title="Market Not Approved",
         body=body,
-        metadata={"market_id": market["id"]},
+        market_id=market["id"],
     )
 
 
@@ -115,23 +150,11 @@ async def notify_market_closed(
     supabase: Client,
     market: dict,
 ):
-    """Send in-app notification when a market closes, prompting the creator to resolve."""
-    creator_id = market["creator_id"]
+    """Send in-app notification when a market closes, prompting the creator to resolve.
 
-    existing = (
-        supabase.table("notifications")
-        .select("id, metadata")
-        .eq("user_id", creator_id)
-        .eq("type", "market_closed")
-        .execute()
-    )
-    already_sent = any(
-        n.get("metadata", {}).get("market_id") == market["id"]
-        for n in (existing.data or [])
-    )
-    if already_sent:
-        return
-
+    Dedup is handled atomically by the unique index on
+    (user_id, type, market_id) — no more query-then-insert race.
+    """
     body = (
         f"Your market \"{market['title']}\" has just closed and is no longer accepting bets.\n\n"
         "A 24-hour resolution period has begun. During this time, community members "
@@ -140,13 +163,13 @@ async def notify_market_closed(
         "Please visit the market page to review the results and propose your resolution."
     )
 
-    await create_notification(
+    await _create_market_notification(
         supabase=supabase,
-        user_id=creator_id,
+        user_id=market["creator_id"],
         notification_type="market_closed",
         title="Your Market Has Closed - Time to Resolve",
         body=body,
-        metadata={"market_id": market["id"]},
+        market_id=market["id"],
     )
 
 
@@ -154,7 +177,12 @@ async def notify_resolution_reminder(
     supabase: Client,
     market: dict,
 ):
-    """Send a periodic in-app reminder to the market creator to resolve their closed market."""
+    """Send a periodic in-app reminder to the market creator to resolve their closed market.
+
+    Not deduped by the unique index — reminders intentionally repeat every
+    24h. The ``send_resolution_reminders_for_closed_markets`` caller bounds
+    frequency.
+    """
     creator_id = market["creator_id"]
 
     body = (

@@ -20,3 +20,6 @@ node_modules/
 
 # Local dev server logs / PIDs (scripts/start-dev.sh)
 .dev/
+
+# MCP server configs (may contain project refs / tokens)
+.mcp.json
