@@ -37,7 +37,7 @@ class LeaderboardEntry(BaseModel):
     andrew_id: str
     display_name: str
     banana_balance: float
-    net_worth: float
+    gain: float
     equipped_badge_id: str | None = None
     equipped_badges: dict[str, str] = Field(default_factory=dict)
     avatar_url: str | None = None

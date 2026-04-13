@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useMe } from "@/lib/query/queries/auth";
 import { badgesQuery, leaderboardQuery } from "@/lib/query/queries/leaderboard";
 import type { LeaderboardEntry, UserBadge } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const TRACK_ORDER = [
   "banana_baron",
@@ -142,9 +143,9 @@ export default function LeaderboardPage() {
   const { user } = useMe();
   const { data: rawEntries = [], isLoading } = useQuery(leaderboardQuery());
 
-  // sort by net worth, and only fetch badges for users who have equipped any —
+  // sort by gain, and only fetch badges for users who have equipped any —
   // saves a ton of requests on a big leaderboard
-  const entries = [...rawEntries].sort((a, b) => b.net_worth - a.net_worth);
+  const entries = [...rawEntries].sort((a, b) => b.gain - a.gain);
   const withEquipped = entries.filter(
     (entry) => getEquippedIds(entry).length > 0,
   );
@@ -227,9 +228,19 @@ export default function LeaderboardPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1 text-base font-semibold">
+                  <div
+                    className={cn(
+                      "flex items-center gap-1 text-base font-semibold",
+                      entry.gain > 0
+                        ? "text-success"
+                        : entry.gain < 0
+                          ? "text-danger"
+                          : "text-muted-foreground",
+                    )}
+                  >
+                    {entry.gain > 0 ? "+" : ""}
                     <BananaCoin size={16} />
-                    {entry.net_worth.toLocaleString()}
+                    {entry.gain.toLocaleString()}
                   </div>
                 </div>
               );
