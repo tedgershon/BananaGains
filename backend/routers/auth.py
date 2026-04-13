@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from supabase import Client
 
@@ -9,6 +11,35 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 TRACK_KEYS = ("banana_baron", "oracle", "architect", "degen", "whale")
 TRACK_SET = set(TRACK_KEYS)
+MAX_DISPLAY_NAME_LENGTH = 32
+DISPLAY_NAME_ALLOWED_RE = re.compile(r"^[A-Za-z0-9 ._-]+$")
+
+
+def _sanitize_display_name(raw_name: str) -> str:
+    # Collapse repeated whitespace so names render consistently across UI surfaces.
+    normalized = " ".join(raw_name.split())
+    if not normalized:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Display name must not be empty.",
+        )
+    if len(normalized) > MAX_DISPLAY_NAME_LENGTH:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Display name is too long. "
+                f"Please keep it to {MAX_DISPLAY_NAME_LENGTH} characters or fewer."
+            ),
+        )
+    if not DISPLAY_NAME_ALLOWED_RE.fullmatch(normalized):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Display name contains unsupported characters. "
+                "Use letters, numbers, spaces, periods, underscores, or hyphens."
+            ),
+        )
+    return normalized
 
 
 @router.get("/me", response_model=UserProfileResponse)
@@ -60,7 +91,7 @@ async def create_or_update_profile(
                 {
                     "id": current_user["id"],
                     "andrew_id": body.andrew_id.strip(),
-                    "display_name": body.display_name.strip(),
+                    "display_name": _sanitize_display_name(body.display_name),
                 },
                 on_conflict="id",
             )
@@ -88,13 +119,7 @@ async def update_profile(
     fields_set = body.model_fields_set or set()
 
     if body.display_name is not None:
-        name = body.display_name.strip()
-        if not name:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="display_name must not be empty",
-            )
-        updates["display_name"] = name
+        updates["display_name"] = _sanitize_display_name(body.display_name)
 
     equipped_badges: dict[str, str] | None = None
     if body.equipped_badges is not None or "equipped_badges" in fields_set:
