@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -415,6 +415,7 @@ function AccordionSection({
 
 export default function AdminReviewPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useSession();
   const [data, setData] = useState<{
     pending: Market[];
@@ -423,6 +424,7 @@ export default function AdminReviewPage() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [appliedDeepLink, setAppliedDeepLink] = useState(false);
 
   useEffect(() => {
     if (user.role === "user") {
@@ -446,6 +448,31 @@ export default function AdminReviewPage() {
       fetchData();
     }
   }, [user.role, fetchData]);
+
+  useEffect(() => {
+    if (loading || !data || appliedDeepLink) {
+      return;
+    }
+
+    const marketId = searchParams.get("marketId");
+    if (!marketId) {
+      setAppliedDeepLink(true);
+      return;
+    }
+
+    const existsInPending = (data.pending ?? []).some((m) => m.id === marketId);
+    setAppliedDeepLink(true);
+    if (!existsInPending) {
+      return;
+    }
+
+    setExpandedId(marketId);
+
+    requestAnimationFrame(() => {
+      const row = document.getElementById(`review-market-${marketId}`);
+      row?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [appliedDeepLink, data, loading, searchParams]);
 
   function handleAction() {
     setExpandedId(null);
@@ -498,7 +525,7 @@ export default function AdminReviewPage() {
           const m = market as Market & Record<string, unknown>;
           const isExpanded = expandedId === market.id;
           return (
-            <div key={market.id}>
+            <div key={market.id} id={`review-market-${market.id}`}>
               <button
                 type="button"
                 onClick={() =>

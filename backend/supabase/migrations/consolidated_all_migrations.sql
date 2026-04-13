@@ -1465,7 +1465,9 @@ CREATE TABLE IF NOT EXISTS notifications (
     type        TEXT NOT NULL CHECK (type IN (
         'market_approved', 'market_denied', 'market_closed',
         'market_resolved', 'payout_received',
-        'badge_earned', 'system'
+        'badge_earned', 'system',
+        'market_submitted',
+        'resolution_reminder'
     )),
     title       TEXT NOT NULL,
     body        TEXT NOT NULL,
@@ -1480,6 +1482,9 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications (user_
 
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
+REVOKE UPDATE ON TABLE notifications FROM authenticated;
+GRANT UPDATE (is_read) ON TABLE notifications TO authenticated;
+
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'notifications' AND policyname = 'Users can view own notifications') THEN
         CREATE POLICY "Users can view own notifications"
@@ -1488,16 +1493,21 @@ DO $$ BEGIN
 END $$;
 
 DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'notifications' AND policyname = 'Users can update own notifications') THEN
-        CREATE POLICY "Users can update own notifications"
-            ON notifications FOR UPDATE USING (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'notifications' AND policyname = 'Users can mark own notifications read') THEN
+        CREATE POLICY "Users can mark own notifications read"
+            ON notifications FOR UPDATE
+            TO authenticated
+            USING (auth.uid() = user_id)
+            WITH CHECK (auth.uid() = user_id AND is_read = TRUE);
     END IF;
 END $$;
 
 DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'notifications' AND policyname = 'System can insert notifications') THEN
-        CREATE POLICY "System can insert notifications"
-            ON notifications FOR INSERT WITH CHECK (true);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'notifications' AND policyname = 'Users can delete own notifications') THEN
+        CREATE POLICY "Users can delete own notifications"
+            ON notifications FOR DELETE
+            TO authenticated
+            USING (auth.uid() = user_id);
     END IF;
 END $$;
 
