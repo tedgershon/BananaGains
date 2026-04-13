@@ -58,6 +58,10 @@ export interface Market {
   disputed_at?: string | null;
   disputed_by?: string | null;
   voting_ends_at?: string | null;
+  reviewed_by?: string | null;
+  review_date?: string | null;
+  review_notes?: string | null;
+  resolution_window_end?: string | null;
   category: string;
   link?: string | null;
   market_type?: "binary" | "multichoice";
@@ -231,7 +235,13 @@ export interface UserSearchResult {
 
 export interface ReviewMarketRequest {
   action: "approve" | "deny";
-  notes?: string;
+  notes?: string | null;
+  title?: string | null;
+  description?: string | null;
+  resolution_criteria?: string | null;
+  close_at?: string | null;
+  category?: string | null;
+  link?: string | null;
 }
 
 export interface BackrollRequest {
