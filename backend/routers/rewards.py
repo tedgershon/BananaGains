@@ -30,54 +30,24 @@ TRACK_META = {
 
 
 def _get_user_stats(supabase: Client, user_id: str) -> dict[str, float]:
-    """Compute live stats for badge progress display."""
-    profile = supabase.table("profiles").select("banana_balance").eq("id", user_id).single().execute()
-    balance = float(profile.data["banana_balance"]) if profile.data else 0
+    """Compute live stats for badge progress display.
 
-    correct_bets_result = (
-        supabase.table("bets")
-        .select("id, market_id, side, markets!inner(status, resolved_outcome)")
-        .eq("user_id", user_id)
-        .eq("markets.status", "resolved")
-        .execute()
-    )
-    correct_bets = 0
-    for row in correct_bets_result.data or []:
-        market_data = row.get("markets", {})
-        if isinstance(market_data, dict) and row.get("side") == market_data.get("resolved_outcome"):
-            correct_bets += 1
-
-    markets_created = (
-        supabase.table("markets")
-        .select("id", count="exact")
-        .eq("creator_id", user_id)
-        .not_.in_("status", ["pending_review", "denied"])
-        .execute()
-    )
-
-    total_bets = (
-        supabase.table("bets")
-        .select("id", count="exact")
-        .eq("user_id", user_id)
-        .execute()
-    )
-
-    max_bet_result = (
-        supabase.table("bets")
-        .select("amount")
-        .eq("user_id", user_id)
-        .order("amount", desc=True)
-        .limit(1)
-        .execute()
-    )
-    max_single_bet = float(max_bet_result.data[0]["amount"]) if max_bet_result.data else 0
+    Delegates to the get_user_badge_stats RPC so the five track values are
+    returned in a single round-trip instead of four separate queries. See
+    migration 054_fn_leaderboard_and_stats.sql.
+    """
+    result = supabase.rpc(
+        "get_user_badge_stats",
+        {"p_user_id": user_id},
+    ).execute()
+    row = (result.data or [{}])[0] if result.data else {}
 
     return {
-        "banana_baron": balance,
-        "oracle": correct_bets,
-        "architect": markets_created.count or 0,
-        "degen": total_bets.count or 0,
-        "whale": max_single_bet,
+        "banana_baron": float(row.get("banana_baron") or 0),
+        "oracle": int(row.get("oracle") or 0),
+        "architect": int(row.get("architect") or 0),
+        "degen": int(row.get("degen") or 0),
+        "whale": float(row.get("whale") or 0),
     }
 
 

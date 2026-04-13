@@ -3,6 +3,7 @@ import "./globals.css";
 import { DailyClaimBanner } from "@/components/daily-claim-banner";
 import { Navbar } from "@/components/navbar";
 import { DataProvider } from "@/lib/DataProvider";
+import { QueryProvider } from "@/lib/query/QueryProvider";
 import { SessionProvider } from "@/lib/SessionProvider";
 import { createServerSupabase } from "@/lib/supabase-server";
 import type { UserProfile } from "@/lib/types";
@@ -49,13 +50,17 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-background font-sans antialiased">
-        <SessionProvider initialUser={initialUser}>
-          <DataProvider>
-            <DailyClaimBanner />
-            <Navbar />
-            <main className="mx-auto max-w-7xl px-4 pt-6 mb-6">{children}</main>
-          </DataProvider>
-        </SessionProvider>
+        <QueryProvider>
+          <SessionProvider initialUser={initialUser}>
+            <DataProvider>
+              <DailyClaimBanner />
+              <Navbar />
+              <main className="mx-auto max-w-7xl px-4 pt-6 mb-6">
+                {children}
+              </main>
+            </DataProvider>
+          </SessionProvider>
+        </QueryProvider>
       </body>
     </html>
   );

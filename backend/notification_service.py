@@ -9,6 +9,30 @@ def _db_for_notifications(supabase: Client) -> Client:
     return svc if svc is not None else supabase
 
 
+def _creator_email(supabase: Client, creator_id: str) -> str | None:
+    """Look up a creator's andrew_id and build their CMU email address.
+
+    Returns None if the profile row is missing or the andrew_id is blank,
+    so callers can skip sending email without tripping on a KeyError.
+    """
+    try:
+        res = (
+            supabase.table("profiles")
+            .select("andrew_id")
+            .eq("id", creator_id)
+            .maybe_single()
+            .execute()
+        )
+    except Exception:
+        return None
+
+    data = getattr(res, "data", None) or {}
+    andrew_id = data.get("andrew_id") if isinstance(data, dict) else None
+    if not andrew_id:
+        return None
+    return f"{andrew_id}@andrew.cmu.edu"
+
+
 async def create_notification(
     supabase: Client,
     user_id: str,
@@ -35,6 +59,8 @@ async def notify_market_approved(
 ):
     """Send in-app notification when a market is approved."""
     creator_id = market["creator_id"]
+
+    email = _creator_email(supabase, creator_id)
 
     body_parts = [
         f"Your market \"{market['title']}\" has been approved and is now live!",
@@ -66,6 +92,8 @@ async def notify_market_denied(
 ):
     """Send in-app notification when a market is denied."""
     creator_id = market["creator_id"]
+
+    email = _creator_email(supabase, creator_id)
 
     body = (
         f"Your market \"{market['title']}\" was not approved.\n\n"
@@ -103,6 +131,8 @@ async def notify_market_closed(
     )
     if already_sent:
         return
+
+    email = _creator_email(supabase, creator_id)
 
     body = (
         f"Your market \"{market['title']}\" has just closed and is no longer accepting bets.\n\n"

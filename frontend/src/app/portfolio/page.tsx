@@ -33,14 +33,20 @@ export default function PortfolioPage() {
   const [showAllProposed, setShowAllProposed] = useState(false);
 
   useEffect(() => {
+    const ctrl = new AbortController();
     api
-      .listMarkets({ status: "pending_review" })
-      .then(setPendingMarkets)
+      .listMarkets({ status: "pending_review" }, { signal: ctrl.signal })
+      .then((m) => {
+        if (!ctrl.signal.aborted) setPendingMarkets(m);
+      })
       .catch(() => {});
     api
-      .listMarkets({ status: "denied" })
-      .then(setDeniedMarkets)
+      .listMarkets({ status: "denied" }, { signal: ctrl.signal })
+      .then((m) => {
+        if (!ctrl.signal.aborted) setDeniedMarkets(m);
+      })
       .catch(() => {});
+    return () => ctrl.abort();
   }, []);
 
   async function handleClaim() {

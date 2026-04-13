@@ -111,12 +111,18 @@ export default function MarketDetailPage({
   }, [id, contextMarket, fetchMarket]);
 
   useEffect(() => {
+    const ctrl = new AbortController();
     setBetsLoading(true);
     api
-      .listBetsForMarket(id)
-      .then(setMarketBets)
+      .listBetsForMarket(id, undefined, { signal: ctrl.signal })
+      .then((bets) => {
+        if (!ctrl.signal.aborted) setMarketBets(bets);
+      })
       .catch(() => {})
-      .finally(() => setBetsLoading(false));
+      .finally(() => {
+        if (!ctrl.signal.aborted) setBetsLoading(false);
+      });
+    return () => ctrl.abort();
   }, [id]);
 
   const [betAmount, setBetAmount] = useState("");
@@ -159,57 +165,71 @@ export default function MarketDetailPage({
   const [pendingConfirmation, setPendingConfirmation] =
     useState<PendingConfirmationAction | null>(null);
 
-  const refreshVoteTotals = useCallback(async () => {
-    try {
-      const votes = await api.listDisputeVotes(id);
-      let yes = 0;
-      let no = 0;
-      for (const vote of votes) {
-        if (vote.selected_outcome === "YES") yes += 1;
-        else if (vote.selected_outcome === "NO") no += 1;
+  const refreshVoteTotals = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        const votes = await api.listDisputeVotes(id, { signal });
+        if (signal?.aborted) return;
+        let yes = 0;
+        let no = 0;
+        for (const vote of votes) {
+          if (vote.selected_outcome === "YES") yes += 1;
+          else if (vote.selected_outcome === "NO") no += 1;
+        }
+        setVoteTotals({ yes, no });
+      } catch {
+        // ignore
       }
-      setVoteTotals({ yes, no });
-    } catch {
-      // ignore
-    }
-  }, [id]);
+    },
+    [id],
+  );
 
-  const refreshCommunityVotes = useCallback(async () => {
-    try {
-      const votes: CommunityVote[] = await api.listCommunityVotes(id);
-      let yes = 0;
-      let no = 0;
-      for (const v of votes) {
-        if (v.selected_outcome === "YES") yes++;
-        else no++;
+  const refreshCommunityVotes = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        const votes: CommunityVote[] = await api.listCommunityVotes(id, {
+          signal,
+        });
+        if (signal?.aborted) return;
+        let yes = 0;
+        let no = 0;
+        for (const v of votes) {
+          if (v.selected_outcome === "YES") yes++;
+          else no++;
+        }
+        setCommunityTally({ yes, no });
+        const existing = votes.find((v) => v.voter_id === user.id);
+        if (existing) setUserCommunityVote(existing.selected_outcome);
+      } catch {
+        // ignore
       }
-      setCommunityTally({ yes, no });
-      const existing = votes.find((v) => v.voter_id === user.id);
-      if (existing) setUserCommunityVote(existing.selected_outcome);
-    } catch {
-      // ignore
-    }
-  }, [id, user.id]);
+    },
+    [id, user.id],
+  );
 
   useEffect(() => {
-    if (market?.status === "disputed") {
-      api
-        .getDispute(id)
-        .then(setDisputeDetails)
-        .catch(() => {
-          setDisputeDetails(null);
-        });
-      refreshVoteTotals();
-    }
+    if (market?.status !== "disputed") return;
+    const ctrl = new AbortController();
+    api
+      .getDispute(id, { signal: ctrl.signal })
+      .then((d) => {
+        if (!ctrl.signal.aborted) setDisputeDetails(d);
+      })
+      .catch(() => {
+        if (!ctrl.signal.aborted) setDisputeDetails(null);
+      });
+    refreshVoteTotals(ctrl.signal);
+    return () => ctrl.abort();
   }, [market?.status, refreshVoteTotals, id]);
 
   const isCommunityResolutionMode =
     market?.status === "pending_resolution" && !market?.proposed_outcome;
 
   useEffect(() => {
-    if (isCommunityResolutionMode && market?.resolution_window_end) {
-      refreshCommunityVotes();
-    }
+    if (!isCommunityResolutionMode || !market?.resolution_window_end) return;
+    const ctrl = new AbortController();
+    refreshCommunityVotes(ctrl.signal);
+    return () => ctrl.abort();
   }, [
     isCommunityResolutionMode,
     market?.resolution_window_end,

@@ -81,6 +81,16 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return JSON.parse(raw) as T;
 }
 
+/**
+ * Optional per-call options for endpoints that can be invoked from an effect
+ * whose dependencies may change mid-flight. Pass an AbortSignal to cancel the
+ * request when the effect re-runs or the component unmounts; a DOMException
+ * named "AbortError" will be thrown and should generally be ignored.
+ */
+export interface FetchOpts {
+  signal?: AbortSignal;
+}
+
 // ---------------------------------------------------------------------------
 // Auth  –  POST /api/auth/*
 // ---------------------------------------------------------------------------
@@ -155,18 +165,24 @@ export interface ListMarketsParams {
   offset?: number;
 }
 
-export function listMarkets(params?: ListMarketsParams): Promise<Market[]> {
+export function listMarkets(
+  params?: ListMarketsParams,
+  opts?: FetchOpts,
+): Promise<Market[]> {
   const sp = new URLSearchParams();
   if (params?.status) sp.set("status", params.status);
   if (params?.category) sp.set("category", params.category);
   if (params?.limit != null) sp.set("limit", String(params.limit));
   if (params?.offset != null) sp.set("offset", String(params.offset));
   const qs = sp.toString();
-  return apiFetch(`/api/markets${qs ? `?${qs}` : ""}`);
+  return apiFetch(`/api/markets${qs ? `?${qs}` : ""}`, { signal: opts?.signal });
 }
 
-export function getMarket(marketId: string): Promise<Market> {
-  return apiFetch(`/api/markets/${marketId}`);
+export function getMarket(
+  marketId: string,
+  opts?: FetchOpts,
+): Promise<Market> {
+  return apiFetch(`/api/markets/${marketId}`, { signal: opts?.signal });
 }
 
 export function createMarket(body: CreateMarketRequest): Promise<Market> {
@@ -202,8 +218,11 @@ export function fileDispute(
   });
 }
 
-export function getDispute(marketId: string): Promise<DisputeResponse> {
-  return apiFetch(`/api/markets/${marketId}/dispute`);
+export function getDispute(
+  marketId: string,
+  opts?: FetchOpts,
+): Promise<DisputeResponse> {
+  return apiFetch(`/api/markets/${marketId}/dispute`, { signal: opts?.signal });
 }
 
 export function castDisputeVote(
@@ -216,8 +235,13 @@ export function castDisputeVote(
   });
 }
 
-export function listDisputeVotes(marketId: string): Promise<VoteResponse[]> {
-  return apiFetch(`/api/markets/${marketId}/dispute/votes`);
+export function listDisputeVotes(
+  marketId: string,
+  opts?: FetchOpts,
+): Promise<VoteResponse[]> {
+  return apiFetch(`/api/markets/${marketId}/dispute/votes`, {
+    signal: opts?.signal,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -234,12 +258,17 @@ export function castCommunityVote(
   });
 }
 
-export function listCommunityVotes(marketId: string): Promise<CommunityVote[]> {
-  return apiFetch(`/api/markets/${marketId}/community-votes`);
+export function listCommunityVotes(
+  marketId: string,
+  opts?: FetchOpts,
+): Promise<CommunityVote[]> {
+  return apiFetch(`/api/markets/${marketId}/community-votes`, {
+    signal: opts?.signal,
+  });
 }
 
-export function listResolutionMarkets(): Promise<Market[]> {
-  return apiFetch("/api/markets/resolutions");
+export function listResolutionMarkets(opts?: FetchOpts): Promise<Market[]> {
+  return apiFetch("/api/markets/resolutions", { signal: opts?.signal });
 }
 
 export function getHotMarkets(limit = 5): Promise<Market[]> {
@@ -286,20 +315,23 @@ export interface ListBetsParams {
 export function listBetsForMarket(
   marketId: string,
   params?: ListBetsParams,
+  opts?: FetchOpts,
 ): Promise<Bet[]> {
   const sp = new URLSearchParams();
   if (params?.limit != null) sp.set("limit", String(params.limit));
   if (params?.offset != null) sp.set("offset", String(params.offset));
   const qs = sp.toString();
-  return apiFetch(`/api/markets/${marketId}/bets${qs ? `?${qs}` : ""}`);
+  return apiFetch(`/api/markets/${marketId}/bets${qs ? `?${qs}` : ""}`, {
+    signal: opts?.signal,
+  });
 }
 
 // ---------------------------------------------------------------------------
 // Portfolio  –  /api/portfolio, /api/transactions
 // ---------------------------------------------------------------------------
 
-export function getPortfolio(): Promise<Bet[]> {
-  return apiFetch("/api/portfolio");
+export function getPortfolio(opts?: FetchOpts): Promise<Bet[]> {
+  return apiFetch("/api/portfolio", { signal: opts?.signal });
 }
 
 export interface ListTransactionsParams {
@@ -309,12 +341,15 @@ export interface ListTransactionsParams {
 
 export function getTransactions(
   params?: ListTransactionsParams,
+  opts?: FetchOpts,
 ): Promise<Transaction[]> {
   const sp = new URLSearchParams();
   if (params?.limit != null) sp.set("limit", String(params.limit));
   if (params?.offset != null) sp.set("offset", String(params.offset));
   const qs = sp.toString();
-  return apiFetch(`/api/transactions${qs ? `?${qs}` : ""}`);
+  return apiFetch(`/api/transactions${qs ? `?${qs}` : ""}`, {
+    signal: opts?.signal,
+  });
 }
 
 // ---------------------------------------------------------------------------

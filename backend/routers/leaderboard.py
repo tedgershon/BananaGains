@@ -28,50 +28,16 @@ async def get_leaderboard(
 
 
 def _get_gains_leaderboard(supabase: Client, since_iso: str | None, limit: int) -> list[dict]:
-    """Query net gains from payout transactions since a given date."""
-    query = (
-        supabase.table("transactions")
-        .select("user_id, amount")
-        .eq("transaction_type", "payout")
-    )
-    if since_iso:
-        query = query.gte("created_at", since_iso)
+    """Query net gains via the get_gains_leaderboard RPC.
 
-    result = query.execute()
-    txs = result.data or []
-
-    gains: dict[str, float] = {}
-    for tx in txs:
-        uid = tx["user_id"]
-        gains[uid] = gains.get(uid, 0) + tx["amount"]
-
-    positive = {uid: g for uid, g in gains.items() if g > 0}
-    sorted_users = sorted(positive.items(), key=lambda x: x[1], reverse=True)[:limit]
-
-    if not sorted_users:
-        return []
-
-    user_ids = [uid for uid, _ in sorted_users]
-    profiles = (
-        supabase.table("profiles")
-        .select("id, andrew_id, display_name, banana_balance")
-        .in_("id", user_ids)
-        .execute()
-    )
-    profile_map = {p["id"]: p for p in (profiles.data or [])}
-
-    entries = []
-    for uid, gain in sorted_users:
-        profile = profile_map.get(uid, {})
-        entries.append({
-            "id": uid,
-            "andrew_id": profile.get("andrew_id", ""),
-            "display_name": profile.get("display_name", ""),
-            "banana_balance": profile.get("banana_balance", 0),
-            "gains": round(gain, 2),
-        })
-
-    return entries
+    Aggregation + top-N + profile join happens in Postgres; we just return
+    the rows as-is. See migration 054_fn_leaderboard_and_stats.sql.
+    """
+    result = supabase.rpc(
+        "get_gains_leaderboard",
+        {"p_since": since_iso, "p_limit": limit},
+    ).execute()
+    return result.data or []
 
 
 @router.get("/leaderboard/weekly")
