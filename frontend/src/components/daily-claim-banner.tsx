@@ -9,7 +9,21 @@ export function DailyClaimBanner() {
   const { user, isDemo, isLoading } = useSession();
   const [dismissed, setDismissed] = useState(false);
 
-  if (isLoading || isDemo || user.claimed_today || dismissed) return null;
+  if (
+    isLoading ||
+    isDemo ||
+    user.claimed_today ||
+    dismissed ||
+    !user.claim_eligible ||
+    user.claim_amount <= 0
+  ) {
+    return null;
+  }
+
+  const claimMessage =
+    user.claim_amount === 1000
+      ? "Your daily 1,000 banana coins are ready to claim!"
+      : "Your daily banana coins are ready to claim!";
 
   return (
     <div className="bg-primary/10 border-b border-primary/20">
@@ -19,9 +33,7 @@ export function DailyClaimBanner() {
           className="flex items-center gap-2 text-sm hover:underline"
         >
           <BananaCoin size={18} />
-          <span className="font-medium">
-            Your daily 1,000 bananas are ready to claim!
-          </span>
+          <span className="font-medium">{claimMessage}</span>
         </Link>
         <button
           type="button"
