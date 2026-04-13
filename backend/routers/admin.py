@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
@@ -19,6 +20,7 @@ from schemas.admin import (
 from schemas.market import ReviewMarketRequest
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+EASTERN_TZ = ZoneInfo("America/New_York")
 
 
 def _parse_dt(value: str | None) -> datetime | None:
@@ -28,6 +30,12 @@ def _parse_dt(value: str | None) -> datetime | None:
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)
     return parsed
+
+
+def _to_eastern(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(EASTERN_TZ)
 
 
 @router.get("/stats", response_model=StatsResponse)
@@ -238,7 +246,10 @@ async def review_market(
     for field in ("title", "description", "resolution_criteria", "close_at", "category", "link"):
         val = getattr(body, field, None)
         if val is not None:
-            updates[field] = val.isoformat() if field == "close_at" else val
+            if field == "close_at":
+                updates[field] = _to_eastern(val).isoformat()
+            else:
+                updates[field] = val
 
     if updates:
         supabase.table("markets").update(updates).eq("id", market_id).execute()

@@ -20,6 +20,7 @@ class CreateMarketRequest(BaseModel):
     title: str
     description: str
     close_at: datetime
+    close_timezone: str | None = None
     resolution_criteria: str
     category: str = "General"
     official_source: str
