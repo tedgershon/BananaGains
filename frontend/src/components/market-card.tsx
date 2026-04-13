@@ -25,7 +25,17 @@ function StatusDot({ status }: { status: Market["status"] }) {
     return <span className="glimmer-dot size-2.5 rounded-full bg-success" />;
   }
   if (status === "disputed") {
-    return <Badge variant="destructive">Disputed</Badge>;
+    return <Badge variant="destructive">Under Dispute</Badge>;
+  }
+  if (status === "pending_resolution") {
+    return (
+      <Badge
+        variant="secondary"
+        className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+      >
+        Community Resolution
+      </Badge>
+    );
   }
   if (status === "pending_review") {
     return (
