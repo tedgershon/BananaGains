@@ -55,30 +55,6 @@ async def mark_notifications_read(
     return {"status": "ok"}
 
 
-@router.post("/test")
-async def send_test_notification(
-    current_user: dict = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase_client),
-    token: str | None = Depends(get_user_token),
-):
-    """Send a test notification to the current user."""
-    with user_auth(supabase, token):
-        result = supabase.table("notifications").insert({
-            "user_id": current_user["id"],
-            "type": "system",
-            "title": "Welcome to BananaGains!",
-            "body": (
-                "This is a test notification to show you how the notification system works.\n\n"
-                "You'll receive notifications when:\n"
-                "• Your market is approved or denied\n"
-                "• Your market closes and needs resolution\n"
-                "• (Admins) A new market is submitted for review"
-            ),
-            "metadata": {},
-        }).execute()
-    return {"status": "ok", "notification": result.data[0] if result.data else None}
-
-
 @router.post("/{notification_id}/read")
 async def mark_single_read(
     notification_id: str,
