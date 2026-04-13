@@ -140,7 +140,7 @@ async def place_multichoice_bet(
 @router.get("/{market_id}/bets", response_model=list[BetResponse])
 async def list_bets_for_market(
     market_id: str,
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     supabase: Client = Depends(get_supabase_client),
     _current_user: dict | None = Depends(get_current_user_optional),

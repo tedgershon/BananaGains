@@ -1,9 +1,12 @@
 import logging
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
 
 from dependencies import get_supabase_client, get_user_token, require_admin, require_super_admin, user_auth
+from services.market_state_machine import normalize_market_state
 
 logger = logging.getLogger(__name__)
 from notification_service import notify_market_approved, notify_market_denied
@@ -17,6 +20,22 @@ from schemas.admin import (
 from schemas.market import ReviewMarketRequest
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+EASTERN_TZ = ZoneInfo("America/New_York")
+
+
+def _parse_dt(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _to_eastern(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(EASTERN_TZ)
 
 
 @router.get("/stats", response_model=StatsResponse)
@@ -209,11 +228,28 @@ async def review_market(
     supabase: Client = Depends(get_supabase_client),
 ):
     """Admin reviews a proposed market — approve or deny."""
+    market = normalize_market_state(supabase, market_id)
+    if not market:
+        raise HTTPException(status_code=404, detail="Market not found.")
+
+    if market.get("status") != "pending_review":
+        raise HTTPException(status_code=400, detail="Market is not pending review.")
+
+    close_at = _parse_dt(market.get("close_at"))
+    if close_at and close_at <= datetime.now(tz=timezone.utc):
+        raise HTTPException(
+            status_code=400,
+            detail="Market close date has passed. Pending markets are automatically closed and can no longer be updated.",
+        )
+
     updates = {}
     for field in ("title", "description", "resolution_criteria", "close_at", "category", "link"):
         val = getattr(body, field, None)
         if val is not None:
-            updates[field] = val.isoformat() if field == "close_at" else val
+            if field == "close_at":
+                updates[field] = _to_eastern(val).isoformat()
+            else:
+                updates[field] = val
 
     if updates:
         supabase.table("markets").update(updates).eq("id", market_id).execute()
@@ -231,23 +267,33 @@ async def review_market(
                 raise HTTPException(status_code=404, detail="Market not found.")
             if "not pending" in msg:
                 raise HTTPException(status_code=400, detail="Market is not pending review.")
+            if "close date has passed" in msg:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Market close date has passed. Pending markets are automatically closed and can no longer be updated.",
+                )
             raise HTTPException(status_code=500, detail=f"Failed to approve market: {e}")
     else:
-        try:
-            result = supabase.rpc("deny_market", {
-                "p_market_id": market_id,
-                "p_admin_id": current_user["id"],
-                "p_notes": body.notes,
-            }).execute()
-        except Exception as e:
-            msg = str(e).lower()
-            if "not found" in msg:
-                raise HTTPException(status_code=404, detail="Market not found.")
-            if "not pending" in msg:
-                raise HTTPException(status_code=400, detail="Market is not pending review.")
-            if "notes are required" in msg:
-                raise HTTPException(status_code=400, detail="Notes are required when denying a market.")
-            raise HTTPException(status_code=500, detail=f"Failed to deny market: {e}")
+        notes = (body.notes or "").strip()
+        if not notes:
+            raise HTTPException(status_code=400, detail="Notes are required when denying a market.")
+
+        result = (
+            supabase.table("markets")
+            .update(
+                {
+                    "status": "closed",
+                    "reviewed_by": current_user["id"],
+                    "review_date": datetime.now(tz=timezone.utc).isoformat(),
+                    "review_notes": notes,
+                }
+            )
+            .eq("id", market_id)
+            .eq("status", "pending_review")
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(status_code=400, detail="Market is not pending review.")
 
     market = supabase.table("markets").select("*").eq("id", market_id).single().execute()
 

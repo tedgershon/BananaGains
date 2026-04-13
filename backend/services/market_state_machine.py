@@ -61,12 +61,17 @@ def _check_badges_for_market_participants(supabase: Client, market_id: str) -> N
 
 def apply_transition_rules(market_row: dict[str, Any], now: datetime) -> list[TransitionRule]:
     status = market_row.get("status")
-    if status in ("pending_review", "denied"):
+    if status == "denied":
         return []
 
     rules: list[TransitionRule] = []
 
-    if status == "open":
+    if status == "pending_review":
+        close_at = _parse_dt(market_row.get("close_at"))
+        if close_at and close_at <= now:
+            rules.append(TransitionRule(trigger="pending_review_expired_auto_close"))
+
+    elif status == "open":
         close_at = _parse_dt(market_row.get("close_at"))
         if close_at and close_at <= now:
             rules.append(TransitionRule(trigger="close_at_elapsed"))
@@ -102,6 +107,36 @@ def _execute_close_transition(supabase: Client, market: dict[str, Any], now: dat
     except RuntimeError:
         asyncio.run(notify_market_closed(supabase, market))
 
+    return market
+
+
+def _execute_pending_review_expired_auto_close_transition(
+    supabase: Client,
+    market: dict[str, Any],
+    now: datetime,
+) -> dict[str, Any]:
+    updated = (
+        supabase.table("markets")
+        .update(
+            {
+                "status": "closed",
+                "review_date": now.isoformat(),
+                "review_notes": "Market expired before review. Sorry we could not review your market in time. For best results, propose markets at least 72 hours before close time.",
+            }
+        )
+        .eq("id", market["id"])
+        .eq("status", "pending_review")
+        .execute()
+    )
+    if updated.data:
+        market = updated.data[0]
+        _log_transition(
+            market["id"],
+            "pending_review",
+            "closed",
+            "pending_review_close_at_elapsed_auto_close",
+            now,
+        )
     return market
 
 
@@ -223,7 +258,9 @@ def normalize_market_state(
 
     for rule in rules:
         try:
-            if rule.trigger == "close_at_elapsed":
+            if rule.trigger == "pending_review_expired_auto_close":
+                market = _execute_pending_review_expired_auto_close_transition(supabase, market, effective_now)
+            elif rule.trigger == "close_at_elapsed":
                 market = _execute_close_transition(supabase, market, effective_now)
             elif rule.trigger == "dispute_deadline_elapsed_finalize_creator":
                 market = _execute_finalize_creator_transition(supabase, market, effective_now)
@@ -256,7 +293,7 @@ def normalize_markets(
         result = (
             supabase.table("markets")
             .select("*")
-            .in_("status", ["open", "pending_resolution", "disputed"])
+            .in_("status", ["pending_review", "open", "pending_resolution", "disputed"])
             .execute()
         )
         markets = result.data or []

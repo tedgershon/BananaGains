@@ -409,6 +409,22 @@ export function markNotificationsRead(): Promise<{ status: string }> {
   return apiFetch("/api/notifications/read", { method: "POST" });
 }
 
+export function markNotificationRead(
+  notificationId: string,
+): Promise<{ status: string }> {
+  return apiFetch(`/api/notifications/${notificationId}/read`, { method: "POST" });
+}
+
+export function deleteNotification(
+  notificationId: string,
+): Promise<{ status: string }> {
+  return apiFetch(`/api/notifications/${notificationId}`, { method: "DELETE" });
+}
+
+export function sendTestNotification(): Promise<{ status: string }> {
+  return apiFetch("/api/notifications/test", { method: "POST" });
+}
+
 // ---------------------------------------------------------------------------
 // Rewards  –  /api/rewards
 // ---------------------------------------------------------------------------

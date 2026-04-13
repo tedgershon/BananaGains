@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import * as api from "@/lib/api";
+import { datetimeLocalToIso, formatForDatetimeLocal } from "@/lib/datetime";
 import { useSession } from "@/lib/SessionProvider";
 import type { Market } from "@/lib/types";
 
@@ -57,7 +58,7 @@ function ReviewPanel({ market, onAction }: ReviewPanelProps) {
     market.resolution_criteria,
   );
   const [closeAt, setCloseAt] = useState(
-    new Date(market.close_at).toISOString().slice(0, 16),
+    formatForDatetimeLocal(market.close_at),
   );
   const [category, setCategory] = useState(market.category);
   const [link, setLink] = useState(market.link ?? "");
@@ -91,8 +92,8 @@ function ReviewPanel({ market, onAction }: ReviewPanelProps) {
             ? resolutionCriteria
             : null,
         close_at:
-          closeAt !== new Date(market.close_at).toISOString().slice(0, 16)
-            ? new Date(closeAt).toISOString()
+          closeAt !== formatForDatetimeLocal(market.close_at)
+            ? datetimeLocalToIso(closeAt)
             : null,
         category: category !== market.category ? category : null,
         link: link !== (market.link ?? "") ? link || null : null,
