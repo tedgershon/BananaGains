@@ -24,7 +24,7 @@ import {
   trendingMarketsQuery,
 } from "@/lib/query/queries/markets";
 import type { Market } from "@/lib/types";
-import { getMarketProbability } from "@/lib/types";
+import { getMarketProbability, isMarketOpen } from "@/lib/types";
 
 const MAX_TRENDING_MARKETS = 4;
 
@@ -185,7 +185,7 @@ function TrendingFeaturedMarkets() {
 function NewestMarkets({ markets }: { markets: Market[] }) {
   const newest = useMemo(() => {
     return [...markets]
-      .filter((m) => m.status === "open")
+      .filter(isMarketOpen)
       .sort(
         (a, b) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
@@ -253,12 +253,12 @@ export default function MarketsClient() {
     return status === "pending_resolution" || status === "disputed";
   }
 
-  const openMarkets = filtered.filter((m) => m.status === "open");
+  const openMarkets = filtered.filter(isMarketOpen);
   const pendingResolutionMarkets = filtered.filter((m) =>
     isPendingResolutionStatus(m.status),
   );
   const closedMarkets = filtered.filter(
-    (m) => m.status !== "open" && !isPendingResolutionStatus(m.status),
+    (m) => !isMarketOpen(m) && !isPendingResolutionStatus(m.status),
   );
 
   return (

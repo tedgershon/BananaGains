@@ -197,16 +197,14 @@ function ResolutionCard({
             )}
             <div className="grid grid-cols-2 gap-2">
               <Button
-                size="sm"
-                className="bg-success text-success-foreground hover:bg-success/80"
+                className="h-12 text-sm bg-success text-success-foreground [box-shadow:0_4px_0_color-mix(in_oklch,var(--color-success)_70%,black)] active:[box-shadow:0_2px_0_color-mix(in_oklch,var(--color-success)_70%,black)] hover:bg-success/90"
                 onClick={() => handleVote("YES")}
                 disabled={voting}
               >
                 Vote YES
               </Button>
               <Button
-                size="sm"
-                className="bg-danger text-danger-foreground hover:bg-danger/80"
+                className="h-12 text-sm bg-danger text-danger-foreground [box-shadow:0_4px_0_color-mix(in_oklch,var(--color-danger)_70%,black)] active:[box-shadow:0_2px_0_color-mix(in_oklch,var(--color-danger)_70%,black)] hover:bg-danger/90"
                 onClick={() => handleVote("NO")}
                 disabled={voting}
               >

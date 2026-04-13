@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { calendarDaysUntilClose } from "@/lib/datetime";
 import type { Market } from "@/lib/types";
-import { getMarketProbability } from "@/lib/types";
+import { getMarketProbability, isMarketOpen } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 function formatCloseDate(dateStr: string): string {
@@ -20,8 +20,9 @@ function formatCloseDate(dateStr: string): string {
   return `Closes ${date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 }
 
-function StatusDot({ status }: { status: Market["status"] }) {
-  if (status === "open") {
+function StatusDot({ market }: { market: Market }) {
+  const { status } = market;
+  if (isMarketOpen(market)) {
     return <span className="glimmer-dot size-2.5 rounded-full bg-success" />;
   }
   if (status === "disputed") {
@@ -64,7 +65,7 @@ function getMultichoiceLeader(market: Market) {
 export function MarketCard({ market }: { market: Market }) {
   const isMultichoice = market.market_type === "multichoice";
   const probability = getMarketProbability(market);
-  const isOpen = market.status === "open";
+  const isOpen = isMarketOpen(market);
 
   if (isMultichoice) {
     const leader = getMultichoiceLeader(market);
@@ -84,7 +85,7 @@ export function MarketCard({ market }: { market: Market }) {
           <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 pb-3">
             <div className="flex-1 space-y-1.5">
               <div className="flex items-center gap-2">
-                <StatusDot status={market.status} />
+                <StatusDot market={market} />
                 <Badge variant="outline">{market.category}</Badge>
                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                   MC
@@ -169,7 +170,7 @@ export function MarketCard({ market }: { market: Market }) {
         <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 pb-3">
           <div className="flex-1 space-y-1.5">
             <div className="flex items-center gap-2">
-              <StatusDot status={market.status} />
+              <StatusDot market={market} />
               <Badge variant="outline">{market.category}</Badge>
             </div>
             <h3 className="text-base font-semibold leading-snug">

@@ -337,3 +337,13 @@ export function getMarketProbability(market: Market): number {
   if (total === 0) return 50;
   return Math.round((market.yes_pool_total / total) * 100);
 }
+
+// A market is only bettable if its DB status is 'open' AND close_at is still
+// in the future. The backend state machine transitions open→closed lazily on
+// endpoint hits, so there's a window where `status === "open"` lingers after
+// `close_at` has elapsed. Checking both here closes that window client-side
+// and keeps the bet button in sync with what `place_bet` will actually accept.
+export function isMarketOpen(market: Pick<Market, "status" | "close_at">): boolean {
+  if (market.status !== "open") return false;
+  return new Date(market.close_at).getTime() > Date.now();
+}
