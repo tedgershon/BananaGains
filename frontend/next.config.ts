@@ -23,6 +23,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "**.supabase.co",
       },
+      // silicon valley character avatars (seed data)
+      {
+        protocol: "https",
+        hostname: "static.wikia.nocookie.net",
+      },
       ...(supabaseHostname
         ? [
             {
