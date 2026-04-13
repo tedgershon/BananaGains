@@ -601,7 +601,7 @@ export default function CreateMarketPage() {
                   htmlFor="closeAt"
                   className="text-sm font-medium text-foreground"
                 >
-                  Close Date
+                  Close date &amp; time
                 </label>
                 <input
                   id="closeAt"

@@ -5,15 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { Market } from "@/lib/types";
 import { getMarketProbability } from "@/lib/types";
+import { calendarDaysUntilClose } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 
 function formatCloseDate(dateStr: string): string {
   const date = new Date(dateStr);
-  const now = new Date();
-  const diff = date.getTime() - now.getTime();
-  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-
-  if (days < 0) return "Closed";
+  if (Number.isNaN(date.getTime())) return "—";
+  const diff = date.getTime() - Date.now();
+  if (diff < 0) return "Closed";
+  const days = calendarDaysUntilClose(dateStr);
   if (days === 0) return "Closes today";
   if (days === 1) return "Closes tomorrow";
   if (days <= 7) return `Closes in ${days} days`;
