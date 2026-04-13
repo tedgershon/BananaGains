@@ -9,12 +9,53 @@ import { MarketCard } from "@/components/market-card";
 import { ProbabilityChart } from "@/components/probability-chart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { listBetsForMarket } from "@/lib/api";
 import { useData } from "@/lib/DataProvider";
 import type { Market, PricePoint } from "@/lib/types";
 import { getMarketProbability } from "@/lib/types";
+
+const MAX_TRENDING_MARKETS = 4;
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+async function getVolumeStats(marketId: string, windowStartMs: number) {
+  const limit = 200;
+  let offset = 0;
+  let rolling7Day = 0;
+  let allTime = 0;
+
+  while (true) {
+    const bets = await listBetsForMarket(marketId, { limit, offset });
+    if (bets.length === 0) break;
+
+    for (const bet of bets) {
+      allTime += bet.amount;
+      const placedAt = new Date(bet.created_at).getTime();
+      if (placedAt >= windowStartMs) {
+        rolling7Day += bet.amount;
+      }
+    }
+
+    if (bets.length < limit) break;
+    offset += limit;
+  }
+
+  return { rolling7Day, allTime };
+}
+
+function getAllTimeMarketVolume(market: Market) {
+  if (market.market_type === "multichoice" && market.options?.length) {
+    return market.options.reduce((sum, opt) => sum + opt.pool_total, 0);
+  }
+  return market.yes_pool_total + market.no_pool_total;
+}
 
 function getDominantChoice(market: Market): { label: string; pct: number } {
   if (market.market_type === "multichoice" && market.options?.length) {
@@ -32,12 +73,116 @@ function getDominantChoice(market: Market): { label: string; pct: number } {
     : { label: "No", pct: 100 - probability };
 }
 
-function FeaturedMarket({ market }: { market: Market }) {
+function TrendingFeaturedMarkets({ markets }: { markets: Market[] }) {
+  const [trendingMarkets, setTrendingMarkets] = useState<Market[]>([]);
+  const [rollingVolumeByMarketId, setRollingVolumeByMarketId] = useState<
+    Record<string, number>
+  >({});
+  const [volumeWindowLabel, setVolumeWindowLabel] = useState<"7d" | "all-time">(
+    "7d",
+  );
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [loadingTrending, setLoadingTrending] = useState(true);
   const [chartData, setChartData] = useState<PricePoint[]>([]);
-  const volume = market.yes_pool_total + market.no_pool_total;
-  const probability = getMarketProbability(market);
 
-  const loadChart = useCallback(async (m: Market) => {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTrendingMarkets() {
+      setLoadingTrending(true);
+
+      const openMarkets = markets.filter((m) => m.status === "open");
+      if (openMarkets.length === 0) {
+        if (!cancelled) {
+          setTrendingMarkets([]);
+          setRollingVolumeByMarketId({});
+          setActiveIndex(0);
+          setLoadingTrending(false);
+        }
+        return;
+      }
+
+      const windowStartMs = Date.now() - WEEK_MS;
+      const rankedWithVolume = await Promise.all(
+        openMarkets.map(async (market) => {
+          try {
+            const volumeStats = await getVolumeStats(market.id, windowStartMs);
+            return {
+              market,
+              rolling7Day: volumeStats.rolling7Day,
+              allTime:
+                volumeStats.allTime > 0
+                  ? volumeStats.allTime
+                  : getAllTimeMarketVolume(market),
+            };
+          } catch {
+            return {
+              market,
+              rolling7Day: 0,
+              allTime: getAllTimeMarketVolume(market),
+            };
+          }
+        }),
+      );
+
+      if (cancelled) return;
+
+      const sevenDayTrending = rankedWithVolume
+        .filter((entry) => entry.rolling7Day > 0)
+        .sort((a, b) => b.rolling7Day - a.rolling7Day)
+        .slice(0, MAX_TRENDING_MARKETS);
+
+      const useAllTimeFallback = sevenDayTrending.length === 0;
+      const topTrending = useAllTimeFallback
+        ? rankedWithVolume
+            .filter((entry) => entry.allTime > 0)
+            .sort((a, b) => b.allTime - a.allTime)
+            .slice(0, MAX_TRENDING_MARKETS)
+        : sevenDayTrending;
+
+      const volumeMap = Object.fromEntries(
+        topTrending.map((entry) => [
+          entry.market.id,
+          useAllTimeFallback ? entry.allTime : entry.rolling7Day,
+        ]),
+      );
+
+      setTrendingMarkets(topTrending.map((entry) => entry.market));
+      setRollingVolumeByMarketId(volumeMap);
+      setVolumeWindowLabel(useAllTimeFallback ? "all-time" : "7d");
+      setActiveIndex((idx) => {
+        if (topTrending.length === 0) return 0;
+        return Math.min(idx, topTrending.length - 1);
+      });
+      setLoadingTrending(false);
+    }
+
+    loadTrendingMarkets().catch(() => {
+      if (!cancelled) {
+        setTrendingMarkets([]);
+        setRollingVolumeByMarketId({});
+        setVolumeWindowLabel("7d");
+        setActiveIndex(0);
+        setLoadingTrending(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [markets]);
+
+  const activeMarket = trendingMarkets[activeIndex] ?? null;
+  const probability = activeMarket ? getMarketProbability(activeMarket) : 0;
+  const rollingVolume = activeMarket
+    ? rollingVolumeByMarketId[activeMarket.id] ?? 0
+    : 0;
+
+  const loadChart = useCallback(async (m: Market | null) => {
+    if (!m) {
+      setChartData([]);
+      return;
+    }
     if (m.market_type !== "binary") {
       setChartData([]);
       return;
@@ -51,60 +196,115 @@ function FeaturedMarket({ market }: { market: Market }) {
   }, []);
 
   useEffect(() => {
-    loadChart(market);
-  }, [market, loadChart]);
+    loadChart(activeMarket);
+  }, [activeMarket, loadChart]);
+
+  const hasTrendingMarkets = trendingMarkets.length > 0;
+
+  function showPreviousMarket() {
+    setActiveIndex((idx) => Math.max(0, idx - 1));
+  }
+
+  function showNextMarket() {
+    setActiveIndex((idx) => Math.min(trendingMarkets.length - 1, idx + 1));
+  }
 
   return (
-    <Link href={`/markets/${market.id}`}>
-      <Card className="h-full market-card-open border-0 rounded-xl !py-0">
-        <div className="grid sm:grid-cols-2 h-full">
-          <div className="flex flex-col gap-3 p-6">
-            <div className="flex items-center gap-2">
-              <span className="glimmer-dot size-2.5 rounded-full bg-success" />
-              <Badge variant="outline">{market.category}</Badge>
-            </div>
-            <h3 className="text-lg font-semibold leading-snug">
-              {market.title}
-            </h3>
-            {market.description && (
-              <p className="text-sm text-muted-foreground line-clamp-2">
-                {market.description}
-              </p>
-            )}
-            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <BananaCoin size={14} />
-              <span>{volume.toLocaleString()} vol</span>
-            </div>
-            <div className="mt-auto flex flex-col gap-2">
-              <Button
-                size="lg"
-                className="w-full bg-success text-success-foreground [box-shadow:0_4px_0_color-mix(in_oklch,var(--color-success)_70%,black)] active:[box-shadow:0_2px_0_color-mix(in_oklch,var(--color-success)_70%,black)]"
-              >
-                Yes {probability}%
-              </Button>
-              <Button
-                size="lg"
-                className="w-full bg-danger text-danger-foreground [box-shadow:0_4px_0_color-mix(in_oklch,var(--color-danger)_70%,black)] active:[box-shadow:0_2px_0_color-mix(in_oklch,var(--color-danger)_70%,black)]"
-              >
-                No {100 - probability}%
-              </Button>
-            </div>
-          </div>
+    <Card className="h-full market-card-open border-0 rounded-xl">
+      <CardHeader className="pb-0">
+        <CardTitle className="flex items-center gap-2 text-base font-semibold">
+          Trending Markets
+        </CardTitle>
+        <CardAction className="flex items-center gap-1.5">
+          <button
+            type="button"
+            aria-label="Previous trending market"
+            onClick={showPreviousMarket}
+            disabled={!hasTrendingMarkets || activeIndex === 0}
+            className="flex size-7 items-center justify-center rounded-full border border-border bg-background text-xs font-medium text-foreground leading-none transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {"<"}
+          </button>
+          <span className="min-w-12 text-center text-xs font-medium text-foreground tabular-nums">
+            {hasTrendingMarkets
+              ? `${activeIndex + 1} of ${trendingMarkets.length}`
+              : "0 of 0"}
+          </span>
+          <button
+            type="button"
+            aria-label="Next trending market"
+            onClick={showNextMarket}
+            disabled={!hasTrendingMarkets || activeIndex === trendingMarkets.length - 1}
+            className="flex size-7 items-center justify-center rounded-full border border-border bg-background text-xs font-medium text-foreground leading-none transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {">"}
+          </button>
+        </CardAction>
+      </CardHeader>
 
-          <div className="p-6 pl-0 min-h-[200px]">
-            {market.market_type === "binary" && chartData.length > 0 ? (
-              <ProbabilityChart data={chartData} />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center rounded-lg bg-muted/30 text-sm text-muted-foreground">
-                {market.market_type === "binary"
-                  ? "No bet history yet"
-                  : "Multichoice market"}
-              </div>
-            )}
+      <CardContent className="!pt-0 pb-0">
+        {loadingTrending ? (
+          <div className="flex min-h-[220px] items-center justify-center">
+            <Spinner className="size-6" />
           </div>
-        </div>
-      </Card>
-    </Link>
+        ) : !activeMarket ? (
+          <div className="flex min-h-[220px] items-center justify-center rounded-lg bg-muted/30 px-4 text-center text-sm text-muted-foreground">
+            No trending markets yet.
+          </div>
+        ) : (
+          <Link href={`/markets/${activeMarket.id}`}>
+            <div className="grid h-full sm:grid-cols-2">
+              <div className="flex flex-col gap-2.5 px-2 pb-0 pt-0 sm:pr-6">
+                <div className="flex items-center gap-2">
+                  <span className="glimmer-dot size-2.5 rounded-full bg-success" />
+                  <Badge variant="outline">{activeMarket.category}</Badge>
+                </div>
+                <h3 className="text-lg font-semibold leading-snug">
+                  {activeMarket.title}
+                </h3>
+                {activeMarket.description && (
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {activeMarket.description}
+                  </p>
+                )}
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <BananaCoin size={14} />
+                  <span>
+                    {rollingVolume.toLocaleString()} {volumeWindowLabel} vol
+                  </span>
+                </div>
+                <div className="mt-auto flex flex-col gap-2">
+                  <Button
+                    size="lg"
+                    className="w-full bg-success text-success-foreground [box-shadow:0_4px_0_color-mix(in_oklch,var(--color-success)_70%,black)] active:[box-shadow:0_2px_0_color-mix(in_oklch,var(--color-success)_70%,black)]"
+                  >
+                    Yes {probability}%
+                  </Button>
+                  <Button
+                    size="lg"
+                    className="w-full bg-danger text-danger-foreground [box-shadow:0_4px_0_color-mix(in_oklch,var(--color-danger)_70%,black)] active:[box-shadow:0_2px_0_color-mix(in_oklch,var(--color-danger)_70%,black)]"
+                  >
+                    No {100 - probability}%
+                  </Button>
+                </div>
+              </div>
+
+              <div className="min-h-[200px] px-2 pb-0 pt-0 sm:pl-0 sm:pr-2">
+                {activeMarket.market_type === "binary" && chartData.length > 0 ? (
+                  <ProbabilityChart data={chartData} />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center rounded-lg bg-muted/30 text-sm text-muted-foreground">
+                    {activeMarket.market_type === "binary"
+                      ? "No bet history yet"
+                      : "Multichoice market"}
+                  </div>
+                )}
+              </div>
+            </div>
+          </Link>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -162,7 +362,6 @@ function Trending({ markets }: { markets: Market[] }) {
   );
 }
 
-
 export default function MarketsPage() {
   const { markets, loading } = useData();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -184,16 +383,6 @@ export default function MarketsPage() {
       new Date(m.resolution_window_end).getTime() > now
     );
   }
-
-  const featuredMarket = useMemo(() => {
-    const open = filtered.filter((m) => m.status === "open");
-    if (open.length === 0) return null;
-    return open.reduce((best, m) => {
-      const vol = m.yes_pool_total + m.no_pool_total;
-      const bestVol = best.yes_pool_total + best.no_pool_total;
-      return vol > bestVol ? m : best;
-    });
-  }, [filtered]);
 
   const openMarkets = filtered.filter((m) => m.status === "open");
   const inResolutionMarkets = filtered.filter(
@@ -222,9 +411,9 @@ export default function MarketsPage() {
       <div className="mt-6 space-y-8">
         <section className="space-y-4">
           <h1 className="text-3xl font-bold tracking-tight">Markets</h1>
-          {!loading && featuredMarket && (
+          {!loading && (
             <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-              <FeaturedMarket market={featuredMarket} />
+              <TrendingFeaturedMarkets markets={filtered} />
               <Trending markets={filtered} />
             </div>
           )}
