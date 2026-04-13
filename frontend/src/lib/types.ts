@@ -218,10 +218,11 @@ export interface NotificationResponse {
 
 export interface AdminStats {
   total_users: number;
+  users_by_role: Record<string, number>;
   total_markets: number;
-  pending_markets: number;
-  total_bets: number;
-  total_volume: number;
+  markets_by_status: Record<string, number>;
+  total_banana_traded: number;
+  total_active_bets: number;
 }
 
 export interface UserSearchResult {
