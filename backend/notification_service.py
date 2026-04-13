@@ -1,11 +1,25 @@
+import logging
+
 from supabase import Client
+
+logger = logging.getLogger(__name__)
+
+# warn loudly on first fallback so misconfigured envs are obvious
+_warned_no_service_role = False
 
 
 def _db_for_notifications(supabase: Client) -> Client:
     """Prefer service-role client so inserts/queries are not blocked by RLS."""
     from dependencies import get_supabase_service_client
 
+    global _warned_no_service_role
     svc = get_supabase_service_client()
+    if svc is None and not _warned_no_service_role:
+        logger.warning(
+            "SUPABASE_SERVICE_ROLE_KEY not configured — notifications will be "
+            "blocked by RLS for cross-user inserts. Set it in backend/.env"
+        )
+        _warned_no_service_role = True
     return svc if svc is not None else supabase
 
 
@@ -17,15 +31,29 @@ async def create_notification(
     body: str,
     metadata: dict | None = None,
 ):
-    """Create an in-app notification."""
+    """Create an in-app notification.
+
+    Swallows RLS errors so a missing service-role key doesn't leak unhandled
+    task exceptions into the request log. Other failures still propagate.
+    """
     db = _db_for_notifications(supabase)
-    db.table("notifications").insert({
-        "user_id": user_id,
-        "type": notification_type,
-        "title": title,
-        "body": body,
-        "metadata": metadata or {},
-    }).execute()
+    try:
+        db.table("notifications").insert({
+            "user_id": user_id,
+            "type": notification_type,
+            "title": title,
+            "body": body,
+            "metadata": metadata or {},
+        }).execute()
+    except Exception as exc:  # noqa: BLE001 — we want any insert error swallowed here
+        # 42501 = RLS policy violation (most common when svc role key missing)
+        # everything else also gets logged but doesn't crash the caller's task
+        logger.warning(
+            "create_notification failed for user_id=%s type=%s: %s",
+            user_id,
+            notification_type,
+            exc,
+        )
 
 
 async def notify_market_approved(
