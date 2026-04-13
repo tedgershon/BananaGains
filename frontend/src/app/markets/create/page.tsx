@@ -511,7 +511,7 @@ export default function CreateMarketPage() {
                   htmlFor="closeAt"
                   className="text-sm font-medium text-foreground"
                 >
-                  Close Date
+                  Close date &amp; time
                 </label>
                 <input
                   id="closeAt"
@@ -520,6 +520,10 @@ export default function CreateMarketPage() {
                   onChange={(e) => setCloseAt(e.target.value)}
                   className={inputClass}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Uses your computer&apos;s local timezone; the server stores it
+                  as UTC so everyone sees the same instant.
+                </p>
               </div>
 
               <div className="space-y-1.5">

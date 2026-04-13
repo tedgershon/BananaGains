@@ -17,3 +17,6 @@ node_modules/
 
 # macOS
 .DS_Store
+
+# Local dev server logs / PIDs (scripts/start-dev.sh)
+.dev/

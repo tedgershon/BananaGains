@@ -1,6 +1,10 @@
 {
   "name": "s26_team_11",
   "private": true,
+  "scripts": {
+    "dev": "bash scripts/start-dev.sh",
+    "dev:stop": "bash scripts/stop-dev.sh"
+  },
   "devDependencies": {
     "supabase": "^2.84.5"
   }

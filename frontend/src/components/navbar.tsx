@@ -3,29 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BananaCoin } from "@/components/banana-coin";
-import { RoleToggle } from "@/components/role-toggle";
 import { buttonVariants } from "@/components/ui/button";
 import { UserMenu } from "@/components/user-menu";
 import { useSession } from "@/lib/SessionProvider";
 import { cn } from "@/lib/utils";
 
-const NAV_LINKS: {
-  href: string;
-  label: string;
-  adminOnly?: boolean;
-  authOnly?: boolean;
-}[] = [
-  { href: "/markets", label: "Markets" },
-  { href: "/resolutions", label: "Resolutions", authOnly: true },
+const NAV_LINKS = [
+  { href: "/", label: "Markets" },
   { href: "/leaderboard", label: "Leaderboard" },
-  { href: "/admin", label: "Admin", adminOnly: true, authOnly: true },
 ];
 
 export function Navbar() {
   const pathname = usePathname();
-  const { user, isDemo, viewAsRole } = useSession();
-
-  const isAdminView = viewAsRole === "admin" || viewAsRole === "super_admin";
+  const { user, isDemo } = useSession();
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-white">
@@ -38,32 +28,23 @@ export function Navbar() {
             <span>BananaGains</span>
           </Link>
           <nav className="hidden items-center gap-1 sm:flex">
-            {NAV_LINKS.filter(
-              (link) =>
-                (!link.adminOnly || isAdminView) &&
-                (!link.authOnly || !isDemo),
-            ).map(
-              (link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={cn(
-                    "rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent",
-                    pathname === link.href ||
-                      (link.href === "/admin" && pathname.startsWith("/admin")) ||
-                      (link.href === "/markets" && pathname.startsWith("/markets"))
-                      ? "text-foreground"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  {link.label}
-                </Link>
-              ),
-            )}
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={cn(
+                  "rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent",
+                  pathname === link.href
+                    ? "text-foreground"
+                    : "text-muted-foreground",
+                )}
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          {!isDemo && user.role !== "user" && <RoleToggle />}
           {!isDemo && (
             <>
               <Link

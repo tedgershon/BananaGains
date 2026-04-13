@@ -1,7 +1,19 @@
+import logging
+
 import httpx
 from supabase import Client
 
 from config import get_settings
+
+logger = logging.getLogger(__name__)
+
+
+def _db_for_notifications(supabase: Client) -> Client:
+    """Prefer service-role client so inserts/queries are not blocked by RLS."""
+    from dependencies import get_supabase_service_client
+
+    svc = get_supabase_service_client()
+    return svc if svc is not None else supabase
 
 
 async def create_notification(
@@ -15,7 +27,8 @@ async def create_notification(
     recipient_email: str | None = None,
 ):
     """Create an in-app notification and optionally send an email."""
-    supabase.table("notifications").insert({
+    db = _db_for_notifications(supabase)
+    db.table("notifications").insert({
         "user_id": user_id,
         "type": notification_type,
         "title": title,
@@ -141,7 +154,7 @@ async def notify_market_closed(
 
     existing = (
         supabase.table("notifications")
-        .select("id")
+        .select("id, metadata")
         .eq("user_id", creator_id)
         .eq("type", "market_closed")
         .execute()
@@ -174,3 +187,117 @@ async def notify_market_closed(
         send_email=True,
         recipient_email=email,
     )
+
+
+async def send_market_submitted_admin_emails(
+    supabase: Client,
+    market: dict,
+    creator: dict,
+):
+    """Email admins after a market submit. In-app rows are created by RPC notify_admins_market_submitted."""
+    settings = get_settings()
+    if not settings.resend_api_key:
+        return
+
+    admins = (
+        supabase.table("profiles")
+        .select("id, andrew_id")
+        .in_("role", ["admin", "super_admin"])
+        .execute()
+    )
+
+    if not admins.data:
+        logger.warning(
+            "send_market_submitted_admin_emails: no admin/super_admin profiles found"
+        )
+        return
+
+    body = (
+        f"A new market has been submitted for review by {creator.get('display_name', creator.get('andrew_id', 'Unknown'))}.\n\n"
+        f"Title: {market['title']}\n"
+        f"Description: {market['description']}\n"
+        f"Category: {market['category']}\n"
+        f"Close Date: {market['close_at']}\n\n"
+        "Please review the market in the Admin panel."
+    )
+
+    for admin in admins.data:
+        email = f"{admin['andrew_id']}@andrew.cmu.edu" if admin.get("andrew_id") else None
+        if not email:
+            continue
+        await _send_email(
+            to=email,
+            subject="New Market Awaiting Review",
+            body=body,
+            api_key=settings.resend_api_key,
+            from_email=settings.notification_from_email,
+        )
+
+
+async def notify_resolution_reminder(
+    supabase: Client,
+    market: dict,
+):
+    """Send a periodic reminder to the market creator to resolve their closed market."""
+    creator_id = market["creator_id"]
+
+    creator = supabase.table("profiles").select("andrew_id").eq("id", creator_id).single().execute()
+    email = f"{creator.data['andrew_id']}@andrew.cmu.edu" if creator.data else None
+
+    body = (
+        f"Reminder: Your market \"{market['title']}\" is still awaiting resolution.\n\n"
+        "Users are waiting for the outcome to be decided. Please visit the market page "
+        "and propose a resolution as soon as possible.\n\n"
+        "If you don't resolve the market, it may be escalated to community voting or admin review."
+    )
+
+    await create_notification(
+        supabase=supabase,
+        user_id=creator_id,
+        notification_type="resolution_reminder",
+        title="Reminder: Resolve Your Market",
+        body=body,
+        metadata={"market_id": market["id"]},
+        send_email=True,
+        recipient_email=email,
+    )
+
+
+async def send_resolution_reminders_for_closed_markets(supabase: Client):
+    """
+    Check for closed markets that haven't been resolved and send reminders.
+    Called periodically (e.g., by a cron job or background task).
+    Only sends one reminder per market per 24 hours.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(tz=timezone.utc)
+    reminder_interval = timedelta(hours=24)
+
+    closed_markets = (
+        supabase.table("markets")
+        .select("id, title, description, creator_id, close_at, status")
+        .eq("status", "closed")
+        .execute()
+    )
+
+    if not closed_markets.data:
+        return
+
+    for market in closed_markets.data:
+        existing_reminders = (
+            supabase.table("notifications")
+            .select("created_at, metadata")
+            .eq("user_id", market["creator_id"])
+            .eq("type", "resolution_reminder")
+            .execute()
+        )
+
+        recent_reminder = any(
+            n.get("metadata", {}).get("market_id") == market["id"]
+            and (now - datetime.fromisoformat(n["created_at"].replace("Z", "+00:00"))) < reminder_interval
+            for n in (existing_reminders.data or [])
+        )
+
+        if not recent_reminder:
+            await notify_resolution_reminder(supabase, market)
