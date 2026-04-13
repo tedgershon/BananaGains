@@ -270,7 +270,7 @@ function TrendingFeaturedMarkets({ markets }: { markets: Market[] }) {
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
                   <BananaCoin size={14} />
                   <span>
-                    {rollingVolume.toLocaleString()} {volumeWindowLabel} vol
+                    {rollingVolume.toLocaleString()} {volumeWindowLabel === "all-time" ? "total coin volume" : "7d vol"}
                   </span>
                 </div>
                 <div className="mt-auto flex flex-col gap-2">
