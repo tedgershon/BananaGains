@@ -120,6 +120,7 @@ export interface CreateMarketRequest {
   title: string;
   description: string;
   close_at: string;
+  close_timezone?: string;
   resolution_criteria: string;
   category?: string;
   official_source?: string;

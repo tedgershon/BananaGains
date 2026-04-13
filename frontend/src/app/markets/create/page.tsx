@@ -20,6 +20,89 @@ const CATEGORIES = [
 const URL_REGEX = /^https?:\/\/[^\s/$.?#].[^\s]*$/;
 const MAX_OPTIONS = 10;
 const MIN_OPTIONS = 2;
+const TIME_ZONE_OPTIONS = [
+  { value: "America/New_York", label: "Eastern (EST/EDT)" },
+  { value: "America/Chicago", label: "Central (CST/CDT)" },
+  { value: "America/Denver", label: "Mountain (MST/MDT)" },
+  { value: "America/Los_Angeles", label: "Pacific (PST/PDT)" },
+  { value: "America/Phoenix", label: "Arizona (MST)" },
+  { value: "Pacific/Honolulu", label: "Hawaii (HST)" },
+  { value: "UTC", label: "UTC" },
+];
+
+function getBrowserTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
+}
+
+function parseDateTimeLocal(value: string) {
+  const [datePart, timePart] = value.split("T");
+  if (!datePart || !timePart) return null;
+
+  const [yearStr, monthStr, dayStr] = datePart.split("-");
+  const [hourStr, minuteStr] = timePart.split(":");
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  const hour = Number(hourStr);
+  const minute = Number(minuteStr);
+
+  if ([year, month, day, hour, minute].some(Number.isNaN)) return null;
+  return { year, month, day, hour, minute };
+}
+
+function getOffsetMinutesAt(utcDate: Date, timeZone: string): number {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "shortOffset",
+  });
+  const offsetPart = formatter
+    .formatToParts(utcDate)
+    .find((part) => part.type === "timeZoneName")?.value;
+
+  if (!offsetPart || offsetPart === "GMT") return 0;
+
+  const match = offsetPart.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/);
+  if (!match) return 0;
+
+  const sign = match[1] === "-" ? -1 : 1;
+  const hours = Number(match[2]);
+  const minutes = Number(match[3] || "0");
+  return sign * (hours * 60 + minutes);
+}
+
+function zonedLocalDateTimeToUtcDate(value: string, timeZone: string): Date | null {
+  const parsed = parseDateTimeLocal(value);
+  if (!parsed) return null;
+
+  let utcMillis = Date.UTC(
+    parsed.year,
+    parsed.month - 1,
+    parsed.day,
+    parsed.hour,
+    parsed.minute,
+    0,
+    0,
+  );
+
+  for (let i = 0; i < 3; i += 1) {
+    const offsetMinutes = getOffsetMinutesAt(new Date(utcMillis), timeZone);
+    const corrected = Date.UTC(
+      parsed.year,
+      parsed.month - 1,
+      parsed.day,
+      parsed.hour,
+      parsed.minute,
+      0,
+      0,
+    ) - offsetMinutes * 60_000;
+    if (corrected === utcMillis) break;
+    utcMillis = corrected;
+  }
+
+  return new Date(utcMillis);
+}
 
 export default function CreateMarketPage() {
   const { addMarket } = useData();
@@ -27,6 +110,7 @@ export default function CreateMarketPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [closeAt, setCloseAt] = useState("");
+  const [closeTimezone, setCloseTimezone] = useState(getBrowserTimeZone);
   const [resolutionCriteria, setResolutionCriteria] = useState("");
   const [officialSource, setOfficialSource] = useState("");
   const [yesCriteria, setYesCriteria] = useState("");
@@ -81,7 +165,12 @@ export default function CreateMarketPage() {
       setError("Close date is required.");
       return;
     }
-    if (new Date(closeAt) <= new Date()) {
+    const convertedCloseAt = zonedLocalDateTimeToUtcDate(closeAt, closeTimezone);
+    if (!convertedCloseAt) {
+      setError("Close date and timezone are invalid.");
+      return;
+    }
+    if (convertedCloseAt <= new Date()) {
       setError("Close date must be in the future.");
       return;
     }
@@ -130,7 +219,8 @@ export default function CreateMarketPage() {
       const base = {
         title: title.trim(),
         description: description.trim(),
-        close_at: new Date(closeAt).toISOString(),
+        close_at: convertedCloseAt.toISOString(),
+        close_timezone: closeTimezone,
         resolution_criteria: resolutionCriteria.trim(),
         category,
         official_source: officialSource.trim(),
@@ -521,9 +611,32 @@ export default function CreateMarketPage() {
                   className={inputClass}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Uses your computer&apos;s local timezone; the server stores it
-                  as UTC so everyone sees the same instant.
+                  Selected timezone: {closeTimezone}
                 </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="closeTimezone"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Close Date Timezone
+                </label>
+                <select
+                  id="closeTimezone"
+                  value={closeTimezone}
+                  onChange={(e) => setCloseTimezone(e.target.value)}
+                  className={inputClass}
+                >
+                  {!TIME_ZONE_OPTIONS.some((tz) => tz.value === closeTimezone) && (
+                    <option value={closeTimezone}>{closeTimezone} (Browser Default)</option>
+                  )}
+                  {TIME_ZONE_OPTIONS.map((tz) => (
+                    <option key={tz.value} value={tz.value}>
+                      {tz.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-1.5">

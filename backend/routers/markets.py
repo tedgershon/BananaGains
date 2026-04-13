@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
@@ -21,7 +22,14 @@ from schemas.market import (
 
 router = APIRouter(prefix="/api/markets", tags=["markets"])
 _log = logging.getLogger(__name__)
+=======
+EASTERN_TZ = ZoneInfo("America/New_York")
 
+
+def _to_eastern(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(EASTERN_TZ)
 
 def _normalize_for_response(markets: list[dict], supabase: Client) -> list[dict]:
     market_ids = [market["id"] for market in markets]
@@ -197,7 +205,7 @@ async def create_market(
         "title": linted.title,
         "description": linted.description,
         "creator_id": current_user["id"],
-        "close_at": linted.close_at.isoformat(),
+        "close_at": _to_eastern(linted.close_at).isoformat(),
         "resolution_criteria": linted.resolution_criteria,
         "category": linted.category,
         "official_source": linted.official_source,

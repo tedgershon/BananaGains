@@ -30,6 +30,7 @@ import type {
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export const MAX_PROFILE_AVATAR_BYTES = 5 * 1024 * 1024;
 
 // ---------------------------------------------------------------------------
 // Fetch helper
@@ -115,6 +116,13 @@ export async function uploadAvatar(
 ): Promise<string> {
   const { supabase } = await import("./supabase");
   if (!supabase) throw new Error("Supabase not configured");
+
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Please select an image file.");
+  }
+  if (file.size > MAX_PROFILE_AVATAR_BYTES) {
+    throw new Error("Profile photo is too large. Please upload an image under 5 MB.");
+  }
 
   const ext = file.name.split(".").pop() ?? "jpg";
   const path = `${userId}/avatar.${ext}`;
