@@ -912,14 +912,14 @@ export default function MarketDetailClient({ id }: { id: string }) {
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <Button
-                        className="h-14 text-base bg-success text-success-foreground border-b-success/40 active:border-b-success/40 hover:bg-success/80"
+                        className="h-14 text-base bg-success text-success-foreground [box-shadow:0_4px_0_color-mix(in_oklch,var(--color-success)_70%,black)] active:[box-shadow:0_2px_0_color-mix(in_oklch,var(--color-success)_70%,black)] hover:bg-success/90"
                         onClick={() => handleBet("YES")}
                         disabled={betting}
                       >
                         Yes {probability}%
                       </Button>
                       <Button
-                        className="h-14 text-base bg-danger text-danger-foreground border-b-danger/40 active:border-b-danger/40 hover:bg-danger/80"
+                        className="h-14 text-base bg-danger text-danger-foreground [box-shadow:0_4px_0_color-mix(in_oklch,var(--color-danger)_70%,black)] active:[box-shadow:0_2px_0_color-mix(in_oklch,var(--color-danger)_70%,black)] hover:bg-danger/90"
                         onClick={() => handleBet("NO")}
                         disabled={betting}
                       >
