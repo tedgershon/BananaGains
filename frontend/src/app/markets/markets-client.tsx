@@ -1,6 +1,6 @@
 "use client";
 
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
@@ -18,30 +18,21 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { betsForMarketQuery, marketsQuery } from "@/lib/query/queries/markets";
-import type { Bet, Market } from "@/lib/types";
+import {
+  betsForMarketQuery,
+  marketsQuery,
+  trendingMarketsQuery,
+} from "@/lib/query/queries/markets";
+import type { Market } from "@/lib/types";
 import { getMarketProbability } from "@/lib/types";
 
 const MAX_TRENDING_MARKETS = 4;
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-function getAllTimeMarketVolume(market: Market) {
+function getMarketVolume(market: Market) {
   if (market.market_type === "multichoice" && market.options?.length) {
     return market.options.reduce((sum, opt) => sum + opt.pool_total, 0);
   }
   return market.yes_pool_total + market.no_pool_total;
-}
-
-function sumVolume(bets: Bet[], windowStartMs: number) {
-  let rolling7Day = 0;
-  let allTime = 0;
-  for (const bet of bets) {
-    allTime += bet.amount;
-    if (new Date(bet.created_at).getTime() >= windowStartMs) {
-      rolling7Day += bet.amount;
-    }
-  }
-  return { rolling7Day, allTime };
 }
 
 function getDominantChoice(market: Market): { label: string; pct: number } {
@@ -60,69 +51,13 @@ function getDominantChoice(market: Market): { label: string; pct: number } {
     : { label: "No", pct: 100 - probability };
 }
 
-// ranks open markets by rolling 7-day bet volume, falls back to all-time
-// when nothing has traded in the last week
-function TrendingFeaturedMarkets({ markets }: { markets: Market[] }) {
-  const openMarkets = useMemo(
-    () => markets.filter((m) => m.status === "open"),
-    [markets],
+// one backend call ranks trending markets for us, no more client fan-out
+// over every open market to compute 7d volume
+function TrendingFeaturedMarkets() {
+  const { data: trendingMarkets = [], isLoading } = useQuery(
+    trendingMarketsQuery(MAX_TRENDING_MARKETS),
   );
-
-  // one bets fetch per open market — RQ dedups with any other page that
-  // might have already fetched bets for these
-  const betQueries = useQueries({
-    queries: openMarkets.map((m) => ({
-      ...betsForMarketQuery(m.id, { limit: 200 }),
-    })),
-  });
-
-  const anyBetsLoading = betQueries.some((q) => q.isLoading);
   const [activeIndex, setActiveIndex] = useState(0);
-
-  const { trendingMarkets, volumeByMarketId, volumeWindowLabel } =
-    useMemo(() => {
-      if (openMarkets.length === 0) {
-        return {
-          trendingMarkets: [] as Market[],
-          volumeByMarketId: {} as Record<string, number>,
-          volumeWindowLabel: "7d" as "7d" | "all-time",
-        };
-      }
-
-      const windowStartMs = Date.now() - WEEK_MS;
-      const ranked = openMarkets.map((market, i) => {
-        const bets = betQueries[i]?.data ?? [];
-        const { rolling7Day, allTime } = sumVolume(bets, windowStartMs);
-        return {
-          market,
-          rolling7Day,
-          allTime: allTime > 0 ? allTime : getAllTimeMarketVolume(market),
-        };
-      });
-
-      const sevenDay = ranked
-        .filter((e) => e.rolling7Day > 0)
-        .sort((a, b) => b.rolling7Day - a.rolling7Day)
-        .slice(0, MAX_TRENDING_MARKETS);
-
-      const useAllTime = sevenDay.length === 0;
-      const top = useAllTime
-        ? ranked
-            .filter((e) => e.allTime > 0)
-            .sort((a, b) => b.allTime - a.allTime)
-            .slice(0, MAX_TRENDING_MARKETS)
-        : sevenDay;
-
-      const volumeMap = Object.fromEntries(
-        top.map((e) => [e.market.id, useAllTime ? e.allTime : e.rolling7Day]),
-      );
-
-      return {
-        trendingMarkets: top.map((e) => e.market),
-        volumeByMarketId: volumeMap,
-        volumeWindowLabel: useAllTime ? ("all-time" as const) : ("7d" as const),
-      };
-    }, [openMarkets, betQueries]);
 
   // clamp active index when the trending set shrinks
   const safeActiveIndex =
@@ -131,11 +66,10 @@ function TrendingFeaturedMarkets({ markets }: { markets: Market[] }) {
       : Math.min(activeIndex, trendingMarkets.length - 1);
   const activeMarket = trendingMarkets[safeActiveIndex] ?? null;
   const probability = activeMarket ? getMarketProbability(activeMarket) : 0;
-  const rollingVolume = activeMarket
-    ? (volumeByMarketId[activeMarket.id] ?? 0)
-    : 0;
+  const totalVolume = activeMarket ? getMarketVolume(activeMarket) : 0;
 
-  // chart for the currently-active trending market
+  // chart for the currently-active trending market — same key as the
+  // detail page and its SSR prefetch so cache is shared on navigation
   const { data: activeBets = [] } = useQuery({
     ...betsForMarketQuery(activeMarket?.id ?? ""),
     enabled: !!activeMarket && activeMarket.market_type === "binary",
@@ -184,7 +118,7 @@ function TrendingFeaturedMarkets({ markets }: { markets: Market[] }) {
       </CardHeader>
 
       <CardContent className="!pt-0 pb-0">
-        {anyBetsLoading ? (
+        {isLoading ? (
           <div className="flex min-h-[220px] items-center justify-center">
             <Spinner className="size-6" />
           </div>
@@ -210,12 +144,7 @@ function TrendingFeaturedMarkets({ markets }: { markets: Market[] }) {
                 )}
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
                   <BananaCoin size={14} />
-                  <span>
-                    {rollingVolume.toLocaleString()}{" "}
-                    {volumeWindowLabel === "all-time"
-                      ? "total coin volume"
-                      : "7d vol"}
-                  </span>
+                  <span>{totalVolume.toLocaleString()} total coin volume</span>
                 </div>
                 <div className="mt-auto flex flex-col gap-2">
                   <Button
@@ -358,7 +287,7 @@ export default function MarketsClient() {
           <h1 className="text-3xl font-bold tracking-tight">Markets</h1>
           {!isLoading && (
             <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-              <TrendingFeaturedMarkets markets={filtered} />
+              <TrendingFeaturedMarkets />
               <NewestMarkets markets={filtered} />
             </div>
           )}

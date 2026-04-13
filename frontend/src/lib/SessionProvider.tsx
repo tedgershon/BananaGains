@@ -8,6 +8,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { queryKeys } from "./query/keys";
@@ -68,6 +69,11 @@ export function SessionProvider({
     if (initialUser) qc.setQueryData(queryKeys.me, initialUser);
   });
 
+  // track the last user id we've seen so onAuthStateChange only invalidates
+  // when the user actually changes — supabase fires INITIAL_SESSION and
+  // TOKEN_REFRESHED without an actual transition, we want to ignore those
+  const lastUserIdRef = useRef<string | null>(initialUser?.id ?? null);
+
   useEffect(() => {
     if (!supabase) {
       // no supabase configured — we're permanently in demo mode
@@ -76,28 +82,25 @@ export function SessionProvider({
       return;
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setIsDemo(false);
-        // refresh the cache in the background so we're not trusting stale SSR
-        qc.invalidateQueries({ queryKey: queryKeys.me });
-      } else {
-        setIsDemo(true);
-        qc.removeQueries({ queryKey: queryKeys.me });
-      }
-      setIsLoading(false);
-    });
-
+    // onAuthStateChange fires INITIAL_SESSION right after subscribe with
+    // the current session, so we don't need a separate getSession() call —
+    // that was just a duplicate refetch
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      const newUserId = session?.user.id ?? null;
+      const changed = newUserId !== lastUserIdRef.current;
+      lastUserIdRef.current = newUserId;
+
       if (session) {
         setIsDemo(false);
-        qc.invalidateQueries({ queryKey: queryKeys.me });
+        // only refetch when it's actually a different user (sign-in, switch)
+        if (changed) qc.invalidateQueries({ queryKey: queryKeys.me });
       } else {
         setIsDemo(true);
-        qc.removeQueries({ queryKey: queryKeys.me });
+        if (changed) qc.removeQueries({ queryKey: queryKeys.me });
       }
+      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -108,6 +111,7 @@ export function SessionProvider({
       await supabase.auth.signOut();
     }
     setIsDemo(true);
+    lastUserIdRef.current = null;
     qc.removeQueries({ queryKey: queryKeys.me });
   }, [qc]);
 
