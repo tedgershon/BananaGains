@@ -14,7 +14,7 @@ export type MarketStatus =
 export type BetSide = "YES" | "NO";
 
 export type UserRole = "user" | "admin" | "super_admin";
-export type EquippedBadgesMap = Record<string, string>;
+export type EquippedBadgesMap = Record<string, string | null>;
 
 export interface UserProfile {
   id: string;
@@ -213,8 +213,9 @@ export interface BackrollResponse {
   market_id: string;
   bets_cancelled: number;
   total_refunded: number;
-  new_close_at: string;
-  status: string;
+  market_closed?: boolean;
+  cutoff_date?: string;
+  status?: string;
 }
 
 export interface CreateProfileRequest {
