@@ -20,6 +20,13 @@ const CATEGORIES = [
 const URL_REGEX = /^https?:\/\/[^\s/$.?#].[^\s]*$/;
 const MAX_OPTIONS = 10;
 const MIN_OPTIONS = 2;
+const MAX_MARKET_TITLE_LENGTH = 160;
+const MAX_MARKET_DESCRIPTION_LENGTH = 2000;
+const MAX_MARKET_RESOLUTION_LENGTH = 2000;
+const MAX_MARKET_OFFICIAL_SOURCE_LENGTH = 300;
+const MAX_MARKET_CRITERIA_LENGTH = 1000;
+const MAX_MARKET_LINK_LENGTH = 2048;
+const MAX_MARKET_OPTION_LENGTH = 80;
 const TIME_ZONE_OPTIONS = [
   { value: "America/New_York", label: "Eastern (EST/EDT)" },
   { value: "America/Chicago", label: "Central (CST/CDT)" },
@@ -162,8 +169,18 @@ export default function CreateMarketPage() {
       setError("Title is required.");
       return;
     }
+    if (title.trim().length > MAX_MARKET_TITLE_LENGTH) {
+      setError(`Title must be ${MAX_MARKET_TITLE_LENGTH} characters or fewer.`);
+      return;
+    }
     if (!description.trim()) {
       setError("Description is required.");
+      return;
+    }
+    if (description.trim().length > MAX_MARKET_DESCRIPTION_LENGTH) {
+      setError(
+        `Description must be ${MAX_MARKET_DESCRIPTION_LENGTH} characters or fewer.`,
+      );
       return;
     }
     if (!closeAt) {
@@ -186,6 +203,16 @@ export default function CreateMarketPage() {
       setError("Resolution criteria is required.");
       return;
     }
+    if (resolutionCriteria.trim().length > MAX_MARKET_RESOLUTION_LENGTH) {
+      setError(
+        `Resolution criteria must be ${MAX_MARKET_RESOLUTION_LENGTH} characters or fewer.`,
+      );
+      return;
+    }
+    if (link.trim().length > MAX_MARKET_LINK_LENGTH) {
+      setLinkError(`Link must be ${MAX_MARKET_LINK_LENGTH} characters or fewer.`);
+      return;
+    }
     if (link && !URL_REGEX.test(link)) {
       setLinkError("Invalid URL. Must start with http:// or https://");
       return;
@@ -194,18 +221,42 @@ export default function CreateMarketPage() {
       setError("Official source is required.");
       return;
     }
+    if (officialSource.trim().length > MAX_MARKET_OFFICIAL_SOURCE_LENGTH) {
+      setError(
+        `Official source must be ${MAX_MARKET_OFFICIAL_SOURCE_LENGTH} characters or fewer.`,
+      );
+      return;
+    }
 
     if (marketType === "binary") {
       if (!yesCriteria.trim()) {
         setError("Yes criteria is required.");
         return;
       }
+      if (yesCriteria.trim().length > MAX_MARKET_CRITERIA_LENGTH) {
+        setError(
+          `Yes criteria must be ${MAX_MARKET_CRITERIA_LENGTH} characters or fewer.`,
+        );
+        return;
+      }
       if (!noCriteria.trim()) {
         setError("No criteria is required.");
         return;
       }
+      if (noCriteria.trim().length > MAX_MARKET_CRITERIA_LENGTH) {
+        setError(
+          `No criteria must be ${MAX_MARKET_CRITERIA_LENGTH} characters or fewer.`,
+        );
+        return;
+      }
       if (!ambiguityCriteria.trim()) {
         setError("Ambiguity criteria is required.");
+        return;
+      }
+      if (ambiguityCriteria.trim().length > MAX_MARKET_CRITERIA_LENGTH) {
+        setError(
+          `Ambiguity criteria must be ${MAX_MARKET_CRITERIA_LENGTH} characters or fewer.`,
+        );
         return;
       }
     }
@@ -214,6 +265,12 @@ export default function CreateMarketPage() {
       const filledOptions = options.filter((o) => o.trim());
       if (filledOptions.length < MIN_OPTIONS) {
         setError(`At least ${MIN_OPTIONS} options are required.`);
+        return;
+      }
+      if (filledOptions.some((o) => o.trim().length > MAX_MARKET_OPTION_LENGTH)) {
+        setError(
+          `Each option must be ${MAX_MARKET_OPTION_LENGTH} characters or fewer.`,
+        );
         return;
       }
       if (new Set(filledOptions).size !== filledOptions.length) {
@@ -356,6 +413,7 @@ export default function CreateMarketPage() {
                   placeholder="Will CMU...?"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
+                  maxLength={MAX_MARKET_TITLE_LENGTH}
                   className={inputClass}
                 />
               </div>
@@ -373,6 +431,7 @@ export default function CreateMarketPage() {
                   rows={3}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
+                  maxLength={MAX_MARKET_DESCRIPTION_LENGTH}
                   className={`${inputClass} resize-none`}
                 />
               </div>
@@ -393,6 +452,7 @@ export default function CreateMarketPage() {
                     setLink(e.target.value);
                     setLinkError(null);
                   }}
+                  maxLength={MAX_MARKET_LINK_LENGTH}
                   className={`${inputClass} ${linkError ? "border-danger" : ""}`}
                 />
                 {linkError && (
@@ -413,6 +473,7 @@ export default function CreateMarketPage() {
                   rows={2}
                   value={resolutionCriteria}
                   onChange={(e) => setResolutionCriteria(e.target.value)}
+                  maxLength={MAX_MARKET_RESOLUTION_LENGTH}
                   className={`${inputClass} resize-none`}
                 />
               </div>
@@ -480,6 +541,7 @@ export default function CreateMarketPage() {
                         placeholder={`Option ${idx + 1}`}
                         value={opt}
                         onChange={(e) => updateOption(idx, e.target.value)}
+                        maxLength={MAX_MARKET_OPTION_LENGTH}
                         className={inputClass}
                       />
                       {options.length > MIN_OPTIONS && (
@@ -536,6 +598,7 @@ export default function CreateMarketPage() {
                   placeholder="e.g. CMU news, official website, verified report"
                   value={officialSource}
                   onChange={(e) => setOfficialSource(e.target.value)}
+                  maxLength={MAX_MARKET_OFFICIAL_SOURCE_LENGTH}
                   className={inputClass}
                 />
               </div>
@@ -555,6 +618,7 @@ export default function CreateMarketPage() {
                       rows={2}
                       value={yesCriteria}
                       onChange={(e) => setYesCriteria(e.target.value)}
+                      maxLength={MAX_MARKET_CRITERIA_LENGTH}
                       className={`${inputClass} resize-none`}
                     />
                   </div>
@@ -572,6 +636,7 @@ export default function CreateMarketPage() {
                       rows={2}
                       value={noCriteria}
                       onChange={(e) => setNoCriteria(e.target.value)}
+                      maxLength={MAX_MARKET_CRITERIA_LENGTH}
                       className={`${inputClass} resize-none`}
                     />
                   </div>
@@ -589,6 +654,7 @@ export default function CreateMarketPage() {
                       rows={2}
                       value={ambiguityCriteria}
                       onChange={(e) => setAmbiguityCriteria(e.target.value)}
+                      maxLength={MAX_MARKET_CRITERIA_LENGTH}
                       className={`${inputClass} resize-none`}
                     />
                   </div>

@@ -24,6 +24,12 @@ const CATEGORIES = [
   "Politics",
 ];
 
+const MAX_MARKET_TITLE_LENGTH = 160;
+const MAX_MARKET_DESCRIPTION_LENGTH = 2000;
+const MAX_MARKET_RESOLUTION_LENGTH = 2000;
+const MAX_MARKET_LINK_LENGTH = 2048;
+const MAX_MARKET_REVIEW_NOTES_LENGTH = 1000;
+
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "—";
   return new Date(dateStr).toLocaleString("en-US", {
@@ -124,6 +130,7 @@ function ReviewPanel({ market, onAction }: ReviewPanelProps) {
               id={`${prefix}-title`}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              maxLength={MAX_MARKET_TITLE_LENGTH}
               className={inputClass}
             />
           </div>
@@ -139,6 +146,7 @@ function ReviewPanel({ market, onAction }: ReviewPanelProps) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
+              maxLength={MAX_MARKET_DESCRIPTION_LENGTH}
               className={`${inputClass} resize-none`}
             />
           </div>
@@ -154,6 +162,7 @@ function ReviewPanel({ market, onAction }: ReviewPanelProps) {
               value={resolutionCriteria}
               onChange={(e) => setResolutionCriteria(e.target.value)}
               rows={2}
+              maxLength={MAX_MARKET_RESOLUTION_LENGTH}
               className={`${inputClass} resize-none`}
             />
           </div>
@@ -204,6 +213,7 @@ function ReviewPanel({ market, onAction }: ReviewPanelProps) {
               value={link}
               onChange={(e) => setLink(e.target.value)}
               placeholder="https://..."
+              maxLength={MAX_MARKET_LINK_LENGTH}
               className={inputClass}
             />
           </div>
@@ -262,6 +272,7 @@ function ReviewPanel({ market, onAction }: ReviewPanelProps) {
             }}
             placeholder="Leave a note for the market creator with feedback or suggested changes..."
             rows={3}
+            maxLength={MAX_MARKET_REVIEW_NOTES_LENGTH}
             className={`${inputClass} resize-none ${notesError ? "border-danger" : ""}`}
           />
           {notesError && <p className="text-xs text-danger">{notesError}</p>}

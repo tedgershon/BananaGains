@@ -5,6 +5,17 @@ from typing import Literal
 from pydantic import BaseModel, field_validator
 
 
+MAX_MARKET_TITLE_LENGTH = 160
+MAX_MARKET_DESCRIPTION_LENGTH = 2000
+MAX_MARKET_RESOLUTION_LENGTH = 2000
+MAX_MARKET_OFFICIAL_SOURCE_LENGTH = 300
+MAX_MARKET_CRITERIA_LENGTH = 1000
+MAX_MARKET_CATEGORY_LENGTH = 50
+MAX_MARKET_LINK_LENGTH = 2048
+MAX_MARKET_OPTION_LENGTH = 80
+MAX_MARKET_REVIEW_NOTES_LENGTH = 1000
+
+
 class MarketStatus(str, Enum):
     PENDING_REVIEW = "pending_review"
     OPEN = "open"
@@ -39,12 +50,73 @@ class CreateMarketRequest(BaseModel):
             raise ValueError("Field must not be empty")
         return v.strip()
 
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v: str) -> str:
+        if len(v) > MAX_MARKET_TITLE_LENGTH:
+            raise ValueError(f"Title must be {MAX_MARKET_TITLE_LENGTH} characters or fewer")
+        return v
+
+    @field_validator("description")
+    @classmethod
+    def validate_description(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Description must not be empty")
+        if len(v) > MAX_MARKET_DESCRIPTION_LENGTH:
+            raise ValueError(
+                f"Description must be {MAX_MARKET_DESCRIPTION_LENGTH} characters or fewer"
+            )
+        return v
+
+    @field_validator("resolution_criteria")
+    @classmethod
+    def validate_resolution_criteria(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Resolution criteria must not be empty")
+        if len(v) > MAX_MARKET_RESOLUTION_LENGTH:
+            raise ValueError(
+                f"Resolution criteria must be {MAX_MARKET_RESOLUTION_LENGTH} characters or fewer"
+            )
+        return v
+
+    @field_validator("official_source")
+    @classmethod
+    def validate_official_source(cls, v: str) -> str:
+        if len(v) > MAX_MARKET_OFFICIAL_SOURCE_LENGTH:
+            raise ValueError(
+                f"Official source must be {MAX_MARKET_OFFICIAL_SOURCE_LENGTH} characters or fewer"
+            )
+        return v
+
+    @field_validator("category")
+    @classmethod
+    def validate_category(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Category must not be empty")
+        if len(v) > MAX_MARKET_CATEGORY_LENGTH:
+            raise ValueError(f"Category must be {MAX_MARKET_CATEGORY_LENGTH} characters or fewer")
+        return v
+
     @field_validator("yes_criteria", "no_criteria", "ambiguity_criteria")
     @classmethod
     def not_empty_if_present(cls, v: str | None) -> str | None:
         if v is not None and not v.strip():
             raise ValueError("Field must not be empty if provided")
         return v.strip() if v else v
+
+    @field_validator("yes_criteria", "no_criteria", "ambiguity_criteria")
+    @classmethod
+    def validate_optional_criteria_length(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        if len(v) > MAX_MARKET_CRITERIA_LENGTH:
+            raise ValueError(
+                f"Criteria fields must be {MAX_MARKET_CRITERIA_LENGTH} characters or fewer"
+            )
+        return v
 
     @field_validator("close_at")
     @classmethod
@@ -64,6 +136,8 @@ class CreateMarketRequest(BaseModel):
         if v is None or v.strip() == "":
             return None
         v = v.strip()
+        if len(v) > MAX_MARKET_LINK_LENGTH:
+            raise ValueError(f"Link must be {MAX_MARKET_LINK_LENGTH} characters or fewer")
         import re
         url_pattern = r"^https?://[^\s/$.?#].[^\s]*$"
         if not re.match(url_pattern, v):
@@ -78,8 +152,20 @@ class CreateMarketRequest(BaseModel):
                 raise ValueError("Multichoice markets require at least 2 options")
             if len(v) > 10:
                 raise ValueError("Maximum 10 options allowed")
-            if len(set(v)) != len(v):
+            normalized = []
+            for option in v:
+                cleaned = option.strip()
+                if not cleaned:
+                    raise ValueError("Option labels must not be empty")
+                if len(cleaned) > MAX_MARKET_OPTION_LENGTH:
+                    raise ValueError(
+                        f"Option labels must be {MAX_MARKET_OPTION_LENGTH} characters or fewer"
+                    )
+                normalized.append(cleaned)
+
+            if len(set(opt.lower() for opt in normalized)) != len(normalized):
                 raise ValueError("Option labels must be unique")
+            return normalized
         return v
 
     @field_validator("multichoice_type")
@@ -149,6 +235,79 @@ class ReviewMarketRequest(BaseModel):
     def notes_required_for_deny(cls, v, info):
         if info.data.get("action") == "deny" and (v is None or v.strip() == ""):
             raise ValueError("Notes are required when denying a market")
+        if v is None:
+            return None
+        v = v.strip()
+        if len(v) > MAX_MARKET_REVIEW_NOTES_LENGTH:
+            raise ValueError(
+                f"Notes must be {MAX_MARKET_REVIEW_NOTES_LENGTH} characters or fewer"
+            )
+        return v
+
+    @field_validator("title")
+    @classmethod
+    def validate_review_title(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            raise ValueError("Title must not be empty")
+        if len(v) > MAX_MARKET_TITLE_LENGTH:
+            raise ValueError(f"Title must be {MAX_MARKET_TITLE_LENGTH} characters or fewer")
+        return v
+
+    @field_validator("description")
+    @classmethod
+    def validate_review_description(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            raise ValueError("Description must not be empty")
+        if len(v) > MAX_MARKET_DESCRIPTION_LENGTH:
+            raise ValueError(
+                f"Description must be {MAX_MARKET_DESCRIPTION_LENGTH} characters or fewer"
+            )
+        return v
+
+    @field_validator("resolution_criteria")
+    @classmethod
+    def validate_review_resolution_criteria(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            raise ValueError("Resolution criteria must not be empty")
+        if len(v) > MAX_MARKET_RESOLUTION_LENGTH:
+            raise ValueError(
+                f"Resolution criteria must be {MAX_MARKET_RESOLUTION_LENGTH} characters or fewer"
+            )
+        return v
+
+    @field_validator("category")
+    @classmethod
+    def validate_review_category(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            raise ValueError("Category must not be empty")
+        if len(v) > MAX_MARKET_CATEGORY_LENGTH:
+            raise ValueError(f"Category must be {MAX_MARKET_CATEGORY_LENGTH} characters or fewer")
+        return v
+
+    @field_validator("link")
+    @classmethod
+    def validate_review_link(cls, v: str | None) -> str | None:
+        if v is None or v.strip() == "":
+            return None
+        v = v.strip()
+        if len(v) > MAX_MARKET_LINK_LENGTH:
+            raise ValueError(f"Link must be {MAX_MARKET_LINK_LENGTH} characters or fewer")
+        import re
+        url_pattern = r"^https?://[^\s/$.?#].[^\s]*$"
+        if not re.match(url_pattern, v):
+            raise ValueError("Invalid URL format. Must start with http:// or https://")
         return v
 
 
