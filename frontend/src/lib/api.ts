@@ -48,15 +48,21 @@ export class ApiError extends Error {
 
 async function authHeaders(): Promise<HeadersInit> {
   const headers: HeadersInit = { "Content-Type": "application/json" };
-  if (!supabase) return headers;
+  // browser client can't read cookies on the server — skip auth there
+  // (server prefetch only hits public endpoints anyway)
+  if (!supabase || typeof window === "undefined") return headers;
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-  if (session?.access_token) {
-    (headers as Record<string, string>).Authorization =
-      `Bearer ${session.access_token}`;
+    if (session?.access_token) {
+      (headers as Record<string, string>).Authorization =
+        `Bearer ${session.access_token}`;
+    }
+  } catch {
+    // session lookup failed — fall back to unauthenticated request
   }
   return headers;
 }

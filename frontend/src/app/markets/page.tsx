@@ -5,9 +5,10 @@ import MarketsClient from "./markets-client";
 
 // server component — prefetches the markets list so the client renders with
 // real data on first paint, no loading spinner
+// prefetch failures are swallowed — client refetches on mount
 export default async function MarketsPage() {
   const qc = getQueryClient();
-  await qc.prefetchQuery(marketsQuery());
+  await Promise.allSettled([qc.prefetchQuery(marketsQuery())]);
   return (
     <HydrationBoundary state={dehydrate(qc)}>
       <MarketsClient />
