@@ -2,12 +2,13 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { datetimeLocalToIso, formatForDatetimeLocal } from "@/lib/datetime";
 import { queryKeys } from "@/lib/query/keys";
 import { useReviewMarket } from "@/lib/query/mutations/admin";
 import { marketsForReviewQuery } from "@/lib/query/queries/admin";
@@ -61,7 +62,7 @@ function ReviewPanel({ market, onAction }: ReviewPanelProps) {
     market.resolution_criteria,
   );
   const [closeAt, setCloseAt] = useState(
-    new Date(market.close_at).toISOString().slice(0, 16),
+    formatForDatetimeLocal(market.close_at),
   );
   const [category, setCategory] = useState(market.category);
   const [link, setLink] = useState(market.link ?? "");
@@ -95,8 +96,8 @@ function ReviewPanel({ market, onAction }: ReviewPanelProps) {
               ? resolutionCriteria
               : null,
           close_at:
-            closeAt !== new Date(market.close_at).toISOString().slice(0, 16)
-              ? new Date(closeAt).toISOString()
+            closeAt !== formatForDatetimeLocal(market.close_at)
+              ? datetimeLocalToIso(closeAt)
               : null,
           category: category !== market.category ? category : null,
           link: link !== (market.link ?? "") ? link || null : null,
@@ -416,17 +417,40 @@ export default function AdminReviewPage() {
   const router = useRouter();
   const { user } = useMe();
   const qc = useQueryClient();
+  const searchParams = useSearchParams();
   const { data, isLoading } = useQuery({
     ...marketsForReviewQuery(),
     enabled: user.role !== "user",
   });
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [appliedDeepLink, setAppliedDeepLink] = useState(false);
 
   useEffect(() => {
     if (user.role === "user") {
       router.replace("/");
     }
   }, [user.role, router]);
+
+  // deep-link from notification: scroll to and expand the market row
+  useEffect(() => {
+    if (isLoading || !data || appliedDeepLink) return;
+
+    const marketId = searchParams.get("marketId");
+    if (!marketId) {
+      setAppliedDeepLink(true);
+      return;
+    }
+
+    const existsInPending = (data.pending ?? []).some((m) => m.id === marketId);
+    setAppliedDeepLink(true);
+    if (!existsInPending) return;
+
+    setExpandedId(marketId);
+    requestAnimationFrame(() => {
+      const row = document.getElementById(`review-market-${marketId}`);
+      row?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [appliedDeepLink, data, isLoading, searchParams]);
 
   if (user.role === "user") return null;
 
@@ -449,7 +473,7 @@ export default function AdminReviewPage() {
 
   function handleAction() {
     setExpandedId(null);
-    // mutation already invalidates, just collapse
+    // mutation already invalidates the review list
   }
 
   function renderTable(
@@ -478,7 +502,7 @@ export default function AdminReviewPage() {
           const m = market as Market & Record<string, unknown>;
           const isExpanded = expandedId === market.id;
           return (
-            <div key={market.id}>
+            <div key={market.id} id={`review-market-${market.id}`}>
               <button
                 type="button"
                 onClick={() => setExpandedId(isExpanded ? null : market.id)}

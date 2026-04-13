@@ -3,7 +3,10 @@ import { cookies } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const url = new URL(request.url);
+  const searchParams = url.searchParams;
+  // 0.0.0.0 is not a valid browser URL, replace with localhost
+  const origin = url.origin.replace("0.0.0.0", "localhost");
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/";
 

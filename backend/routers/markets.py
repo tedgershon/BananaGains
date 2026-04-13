@@ -1,9 +1,11 @@
+import logging
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
 
-from dependencies import get_current_user, get_current_user_optional, get_supabase_client, get_user_token, user_auth
+from dependencies import get_current_user, get_current_user_optional, get_supabase_client, get_supabase_service_client, get_user_token, user_auth
 from market_linter import lint_market_fields
 from services.market_state_machine import normalize_market_state, normalize_markets
 from schemas.dispute import CastVoteRequest, DisputeResponse, FileDisputeRequest, VoteResponse
@@ -17,7 +19,14 @@ from schemas.market import (
 )
 
 router = APIRouter(prefix="/api/markets", tags=["markets"])
+_log = logging.getLogger(__name__)
+EASTERN_TZ = ZoneInfo("America/New_York")
 
+
+def _to_eastern(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(EASTERN_TZ)
 
 def _normalize_for_response(markets: list[dict], supabase: Client) -> list[dict]:
     market_ids = [market["id"] for market in markets]
@@ -65,6 +74,21 @@ async def list_markets(
     supabase: Client = Depends(get_supabase_client),
     _current_user: dict | None = Depends(get_current_user_optional),
 ):
+    state_client = get_supabase_service_client() or supabase
+    if market_status in {"pending_review", "denied"}:
+        pending_for_normalization = (
+            supabase.table("markets")
+            .select("id")
+            .eq("status", "pending_review")
+            .execute()
+        )
+        pending_ids = [row["id"] for row in (pending_for_normalization.data or []) if row.get("id")]
+        if pending_ids:
+            try:
+                normalize_markets(state_client, market_ids=pending_ids)
+            except Exception:
+                _log.warning("Failed to normalize pending markets before list", exc_info=True)
+
     query = supabase.table("markets").select("*")
 
     if market_status:
@@ -78,6 +102,8 @@ async def list_markets(
     result = query.execute()
 
     markets = _normalize_for_response(result.data or [], supabase)
+    if market_status:
+        markets = [market for market in markets if market.get("status") == market_status]
     return _attach_options(markets, supabase)
 
 
@@ -183,7 +209,7 @@ async def create_market(
         "title": linted.title,
         "description": linted.description,
         "creator_id": current_user["id"],
-        "close_at": linted.close_at.isoformat(),
+        "close_at": _to_eastern(linted.close_at).isoformat(),
         "resolution_criteria": linted.resolution_criteria,
         "category": linted.category,
         "official_source": linted.official_source,
@@ -217,6 +243,14 @@ async def create_market(
             ]
             options_result = supabase.table("market_options").insert(option_rows).execute()
             market["options"] = options_result.data or []
+
+        try:
+            supabase.rpc(
+                "notify_admins_market_submitted",
+                {"p_market_id": market["id"]},
+            ).execute()
+        except Exception:
+            _log.exception("notify_admins_market_submitted RPC failed")
 
     return market
 

@@ -10,6 +10,7 @@ _security = HTTPBearer(auto_error=False)
 _security_optional = HTTPBearer(auto_error=False)
 
 _supabase_client: Client | None = None
+_supabase_service_client: Client | None = None
 
 
 def get_supabase_client() -> Client:
@@ -28,6 +29,20 @@ def get_supabase_client() -> Client:
             )
         _supabase_client = create_client(s.supabase_url, s.supabase_key)
     return _supabase_client
+
+
+def get_supabase_service_client() -> Client | None:
+    """Supabase client with service role — bypasses RLS. Use for trusted server writes."""
+    global _supabase_service_client
+    s = get_settings()
+    if not s.supabase_url or not s.supabase_service_role_key:
+        return None
+    if _supabase_service_client is None:
+        _supabase_service_client = create_client(
+            s.supabase_url,
+            s.supabase_service_role_key,
+        )
+    return _supabase_service_client
 
 
 def _resolve_user(token: str, supabase: Client) -> dict:

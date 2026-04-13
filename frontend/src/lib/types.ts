@@ -158,6 +158,7 @@ export interface CreateMarketRequest {
   title: string;
   description: string;
   close_at: string;
+  close_timezone?: string;
   resolution_criteria: string;
   category?: string;
   official_source?: string;
@@ -277,7 +278,7 @@ export interface NotificationResponse {
   type: string;
   title: string;
   body: string;
-  metadata: Record<string, string>;
+  metadata: Record<string, unknown>;
   is_read: boolean;
   created_at: string;
 }

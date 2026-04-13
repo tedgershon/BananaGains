@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
@@ -10,11 +10,39 @@ import { MarketCard } from "@/components/market-card";
 import { ProbabilityChart } from "@/components/probability-chart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { betsForMarketQuery, marketsQuery } from "@/lib/query/queries/markets";
-import type { Market } from "@/lib/types";
+import type { Bet, Market } from "@/lib/types";
 import { getMarketProbability } from "@/lib/types";
+
+const MAX_TRENDING_MARKETS = 4;
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+function getAllTimeMarketVolume(market: Market) {
+  if (market.market_type === "multichoice" && market.options?.length) {
+    return market.options.reduce((sum, opt) => sum + opt.pool_total, 0);
+  }
+  return market.yes_pool_total + market.no_pool_total;
+}
+
+function sumVolume(bets: Bet[], windowStartMs: number) {
+  let rolling7Day = 0;
+  let allTime = 0;
+  for (const bet of bets) {
+    allTime += bet.amount;
+    if (new Date(bet.created_at).getTime() >= windowStartMs) {
+      rolling7Day += bet.amount;
+    }
+  }
+  return { rolling7Day, allTime };
+}
 
 function getDominantChoice(market: Market): { label: string; pct: number } {
   if (market.market_type === "multichoice" && market.options?.length) {
@@ -32,71 +60,200 @@ function getDominantChoice(market: Market): { label: string; pct: number } {
     : { label: "No", pct: 100 - probability };
 }
 
-function FeaturedMarket({ market }: { market: Market }) {
-  // only binary markets get a chart — multichoice gets a placeholder
-  const isBinary = market.market_type === "binary";
-  const { data: bets = [] } = useQuery({
-    ...betsForMarketQuery(market.id),
-    enabled: isBinary,
-  });
-  const chartData = isBinary ? buildPriceHistory(bets) : [];
+// ranks open markets by rolling 7-day bet volume, falls back to all-time
+// when nothing has traded in the last week
+function TrendingFeaturedMarkets({ markets }: { markets: Market[] }) {
+  const openMarkets = useMemo(
+    () => markets.filter((m) => m.status === "open"),
+    [markets],
+  );
 
-  const volume = market.yes_pool_total + market.no_pool_total;
-  const probability = getMarketProbability(market);
+  // one bets fetch per open market — RQ dedups with any other page that
+  // might have already fetched bets for these
+  const betQueries = useQueries({
+    queries: openMarkets.map((m) => ({
+      ...betsForMarketQuery(m.id, { limit: 200 }),
+    })),
+  });
+
+  const anyBetsLoading = betQueries.some((q) => q.isLoading);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const { trendingMarkets, volumeByMarketId, volumeWindowLabel } =
+    useMemo(() => {
+      if (openMarkets.length === 0) {
+        return {
+          trendingMarkets: [] as Market[],
+          volumeByMarketId: {} as Record<string, number>,
+          volumeWindowLabel: "7d" as "7d" | "all-time",
+        };
+      }
+
+      const windowStartMs = Date.now() - WEEK_MS;
+      const ranked = openMarkets.map((market, i) => {
+        const bets = betQueries[i]?.data ?? [];
+        const { rolling7Day, allTime } = sumVolume(bets, windowStartMs);
+        return {
+          market,
+          rolling7Day,
+          allTime: allTime > 0 ? allTime : getAllTimeMarketVolume(market),
+        };
+      });
+
+      const sevenDay = ranked
+        .filter((e) => e.rolling7Day > 0)
+        .sort((a, b) => b.rolling7Day - a.rolling7Day)
+        .slice(0, MAX_TRENDING_MARKETS);
+
+      const useAllTime = sevenDay.length === 0;
+      const top = useAllTime
+        ? ranked
+            .filter((e) => e.allTime > 0)
+            .sort((a, b) => b.allTime - a.allTime)
+            .slice(0, MAX_TRENDING_MARKETS)
+        : sevenDay;
+
+      const volumeMap = Object.fromEntries(
+        top.map((e) => [e.market.id, useAllTime ? e.allTime : e.rolling7Day]),
+      );
+
+      return {
+        trendingMarkets: top.map((e) => e.market),
+        volumeByMarketId: volumeMap,
+        volumeWindowLabel: useAllTime ? ("all-time" as const) : ("7d" as const),
+      };
+    }, [openMarkets, betQueries]);
+
+  // clamp active index when the trending set shrinks
+  const safeActiveIndex =
+    trendingMarkets.length === 0
+      ? 0
+      : Math.min(activeIndex, trendingMarkets.length - 1);
+  const activeMarket = trendingMarkets[safeActiveIndex] ?? null;
+  const probability = activeMarket ? getMarketProbability(activeMarket) : 0;
+  const rollingVolume = activeMarket
+    ? (volumeByMarketId[activeMarket.id] ?? 0)
+    : 0;
+
+  // chart for the currently-active trending market
+  const { data: activeBets = [] } = useQuery({
+    ...betsForMarketQuery(activeMarket?.id ?? ""),
+    enabled: !!activeMarket && activeMarket.market_type === "binary",
+  });
+  const chartData =
+    activeMarket?.market_type === "binary" ? buildPriceHistory(activeBets) : [];
+
+  const hasTrendingMarkets = trendingMarkets.length > 0;
 
   return (
-    <Link href={`/markets/${market.id}`}>
-      <Card className="h-full market-card-open border-0 rounded-xl !py-0">
-        <div className="grid sm:grid-cols-2 h-full">
-          <div className="flex flex-col gap-3 p-6">
-            <div className="flex items-center gap-2">
-              <span className="glimmer-dot size-2.5 rounded-full bg-success" />
-              <Badge variant="outline">{market.category}</Badge>
-            </div>
-            <h3 className="text-lg font-semibold leading-snug">
-              {market.title}
-            </h3>
-            {market.description && (
-              <p className="text-sm text-muted-foreground line-clamp-2">
-                {market.description}
-              </p>
-            )}
-            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <BananaCoin size={14} />
-              <span>{volume.toLocaleString()} vol</span>
-            </div>
-            <div className="mt-auto flex flex-col gap-2">
-              <Button
-                size="lg"
-                className="w-full bg-success text-success-foreground [box-shadow:0_4px_0_color-mix(in_oklch,var(--color-success)_70%,black)] active:[box-shadow:0_2px_0_color-mix(in_oklch,var(--color-success)_70%,black)]"
-              >
-                Yes {probability}%
-              </Button>
-              <Button
-                size="lg"
-                className="w-full bg-danger text-danger-foreground [box-shadow:0_4px_0_color-mix(in_oklch,var(--color-danger)_70%,black)] active:[box-shadow:0_2px_0_color-mix(in_oklch,var(--color-danger)_70%,black)]"
-              >
-                No {100 - probability}%
-              </Button>
-            </div>
-          </div>
+    <Card className="h-full market-card-open border-0 rounded-xl">
+      <CardHeader className="pb-0">
+        <CardTitle className="flex items-center gap-2 text-base font-semibold">
+          Trending Markets
+        </CardTitle>
+        <CardAction className="flex items-center gap-1.5">
+          <button
+            type="button"
+            aria-label="Previous trending market"
+            onClick={() => setActiveIndex((i) => Math.max(0, i - 1))}
+            disabled={!hasTrendingMarkets || safeActiveIndex === 0}
+            className="flex size-7 items-center justify-center rounded-full border border-border bg-background text-xs font-medium text-foreground leading-none transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {"<"}
+          </button>
+          <span className="min-w-12 text-center text-xs font-medium text-foreground tabular-nums">
+            {hasTrendingMarkets
+              ? `${safeActiveIndex + 1} of ${trendingMarkets.length}`
+              : "0 of 0"}
+          </span>
+          <button
+            type="button"
+            aria-label="Next trending market"
+            onClick={() =>
+              setActiveIndex((i) => Math.min(trendingMarkets.length - 1, i + 1))
+            }
+            disabled={
+              !hasTrendingMarkets ||
+              safeActiveIndex === trendingMarkets.length - 1
+            }
+            className="flex size-7 items-center justify-center rounded-full border border-border bg-background text-xs font-medium text-foreground leading-none transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {">"}
+          </button>
+        </CardAction>
+      </CardHeader>
 
-          <div className="p-6 pl-0 min-h-[200px]">
-            {isBinary && chartData.length > 0 ? (
-              <ProbabilityChart data={chartData} />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center rounded-lg bg-muted/30 text-sm text-muted-foreground">
-                {isBinary ? "No bet history yet" : "Multichoice market"}
-              </div>
-            )}
+      <CardContent className="!pt-0 pb-0">
+        {anyBetsLoading ? (
+          <div className="flex min-h-[220px] items-center justify-center">
+            <Spinner className="size-6" />
           </div>
-        </div>
-      </Card>
-    </Link>
+        ) : !activeMarket ? (
+          <div className="flex min-h-[220px] items-center justify-center rounded-lg bg-muted/30 px-4 text-center text-sm text-muted-foreground">
+            No trending markets yet.
+          </div>
+        ) : (
+          <Link href={`/markets/${activeMarket.id}`}>
+            <div className="grid h-full sm:grid-cols-2">
+              <div className="flex flex-col gap-2.5 px-2 pb-0 pt-0 sm:pr-6">
+                <div className="flex items-center gap-2">
+                  <span className="glimmer-dot size-2.5 rounded-full bg-success" />
+                  <Badge variant="outline">{activeMarket.category}</Badge>
+                </div>
+                <h3 className="text-lg font-semibold leading-snug">
+                  {activeMarket.title}
+                </h3>
+                {activeMarket.description && (
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {activeMarket.description}
+                  </p>
+                )}
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <BananaCoin size={14} />
+                  <span>
+                    {rollingVolume.toLocaleString()}{" "}
+                    {volumeWindowLabel === "all-time"
+                      ? "total coin volume"
+                      : "7d vol"}
+                  </span>
+                </div>
+                <div className="mt-auto flex flex-col gap-2">
+                  <Button
+                    size="lg"
+                    className="w-full bg-success text-success-foreground [box-shadow:0_4px_0_color-mix(in_oklch,var(--color-success)_70%,black)] active:[box-shadow:0_2px_0_color-mix(in_oklch,var(--color-success)_70%,black)]"
+                  >
+                    Yes {probability}%
+                  </Button>
+                  <Button
+                    size="lg"
+                    className="w-full bg-danger text-danger-foreground [box-shadow:0_4px_0_color-mix(in_oklch,var(--color-danger)_70%,black)] active:[box-shadow:0_2px_0_color-mix(in_oklch,var(--color-danger)_70%,black)]"
+                  >
+                    No {100 - probability}%
+                  </Button>
+                </div>
+              </div>
+
+              <div className="min-h-[200px] px-2 pb-0 pt-0 sm:pl-0 sm:pr-2">
+                {activeMarket.market_type === "binary" &&
+                chartData.length > 0 ? (
+                  <ProbabilityChart data={chartData} />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center rounded-lg bg-muted/30 text-sm text-muted-foreground">
+                    {activeMarket.market_type === "binary"
+                      ? "No bet history yet"
+                      : "Multichoice market"}
+                  </div>
+                )}
+              </div>
+            </div>
+          </Link>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
-function BreakingNews({ markets }: { markets: Market[] }) {
+function NewestMarkets({ markets }: { markets: Market[] }) {
   const newest = useMemo(() => {
     return [...markets]
       .filter((m) => m.status === "open")
@@ -111,7 +268,7 @@ function BreakingNews({ markets }: { markets: Market[] }) {
     <Card className="h-full market-card-open border-0 rounded-xl">
       <CardHeader className="pb-0">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          📰 Breaking News
+          Newest Markets
         </CardTitle>
       </CardHeader>
       <CardContent className="!p-0">
@@ -150,7 +307,7 @@ function BreakingNews({ markets }: { markets: Market[] }) {
   );
 }
 
-export default function MarketsPage() {
+export default function MarketsClient() {
   const { data: markets = [], isLoading } = useQuery(marketsQuery());
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
@@ -171,16 +328,6 @@ export default function MarketsPage() {
       new Date(m.resolution_window_end).getTime() > now
     );
   }
-
-  const featuredMarket = useMemo(() => {
-    const open = filtered.filter((m) => m.status === "open");
-    if (open.length === 0) return null;
-    return open.reduce((best, m) => {
-      const vol = m.yes_pool_total + m.no_pool_total;
-      const bestVol = best.yes_pool_total + best.no_pool_total;
-      return vol > bestVol ? m : best;
-    });
-  }, [filtered]);
 
   const openMarkets = filtered.filter((m) => m.status === "open");
   const inResolutionMarkets = filtered.filter(
@@ -209,10 +356,10 @@ export default function MarketsPage() {
       <div className="mt-6 space-y-8">
         <section className="space-y-4">
           <h1 className="text-3xl font-bold tracking-tight">Markets</h1>
-          {!isLoading && featuredMarket && (
+          {!isLoading && (
             <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-              <FeaturedMarket market={featuredMarket} />
-              <BreakingNews markets={filtered} />
+              <TrendingFeaturedMarkets markets={filtered} />
+              <NewestMarkets markets={filtered} />
             </div>
           )}
         </section>

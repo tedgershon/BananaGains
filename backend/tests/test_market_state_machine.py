@@ -32,6 +32,12 @@ class FakeRpc:
             market["status"] = "resolved"
             market["resolved_outcome"] = self.args["p_outcome"]
 
+        if self.fn_name == "deny_market":
+            market = self.supabase.markets[self.args["p_market_id"]]
+            market["status"] = "denied"
+            market["reviewed_by"] = self.args["p_admin_id"]
+            market["review_notes"] = self.args["p_notes"]
+
         return FakeResult({})
 
 
@@ -127,6 +133,16 @@ def test_apply_transition_rules_close_at_boundary():
     }
     rules = msm.apply_transition_rules(market, now)
     assert [r.trigger for r in rules] == ["close_at_elapsed"]
+
+
+def test_apply_transition_rules_pending_review_auto_deny_boundary():
+    now = datetime.now(tz=timezone.utc)
+    market = {
+        "status": "pending_review",
+        "close_at": _iso(now),
+    }
+    rules = msm.apply_transition_rules(market, now)
+    assert [r.trigger for r in rules] == ["pending_review_expired_auto_close"]
 
 
 def test_creator_resolution_without_dispute_auto_finalizes(monkeypatch):
@@ -244,3 +260,29 @@ def test_closed_open_race_path_is_normalized_before_action(monkeypatch):
 
     assert market is not None
     assert market["status"] == "closed"
+
+
+def test_pending_review_market_is_auto_denied_after_close(monkeypatch):
+    async def _noop_notify(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(msm, "notify_market_closed", _noop_notify)
+    monkeypatch.setattr(msm, "notify_market_denied", _noop_notify)
+
+    now = datetime.now(tz=timezone.utc)
+    supabase = FakeSupabase(
+        markets=[
+            {
+                "id": "m5",
+                "status": "pending_review",
+                "close_at": _iso(now - timedelta(seconds=1)),
+                "review_notes": None,
+            }
+        ]
+    )
+
+    market = msm.normalize_market_state(supabase, "m5", now=now)
+
+    assert market is not None
+    assert market["status"] == "denied"
+    assert market["review_notes"] == "Market expired before review. Sorry we could not review your market in time. For best results, propose markets at least 72 hours before close time."

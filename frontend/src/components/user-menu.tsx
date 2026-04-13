@@ -6,6 +6,7 @@ import {
   Bell,
   List,
   LogOut,
+  Settings,
   Trophy,
   User,
   Wallet,
@@ -33,12 +34,13 @@ export function UserMenu() {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // unread count polls every 30s via refetchInterval in the query
+  // unread count polls via refetchInterval baked into the query
   const { data: unread } = useQuery({
     ...unreadCountQuery(),
     enabled: !isDemo,
   });
   const unreadCount = unread?.count ?? 0;
+  const isAdmin = user.role === "admin" || user.role === "super_admin";
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -77,6 +79,11 @@ export function UserMenu() {
         type="button"
         onClick={() => setOpen(!open)}
         className="relative flex items-center"
+        aria-label={
+          unreadCount > 0
+            ? `Account menu, ${unreadCount} unread notifications`
+            : "Account menu"
+        }
       >
         <div className="flex size-9 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted text-sm font-medium text-muted-foreground transition-colors hover:bg-accent">
           {user.avatar_url ? (
@@ -90,7 +97,9 @@ export function UserMenu() {
           )}
         </div>
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 size-3 rounded-full bg-danger border-2 border-white" />
+          <span className="absolute -top-0.5 -right-0.5 flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[11px] font-bold text-destructive-foreground ring-2 ring-white">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
         )}
       </button>
 
@@ -109,9 +118,16 @@ export function UserMenu() {
               )}
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">
-                {user.display_name}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="truncate text-sm font-semibold">
+                  {user.display_name}
+                </p>
+                {isAdmin && (
+                  <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                    {user.role === "super_admin" ? "Super Admin" : "Admin"}
+                  </span>
+                )}
+              </div>
               <p className="truncate text-xs text-muted-foreground">
                 {user.andrew_id}
               </p>
@@ -142,18 +158,26 @@ export function UserMenu() {
             <Link
               href="/notifications"
               onClick={() => setOpen(false)}
-              className="flex items-center justify-between px-4 py-2.5 text-sm transition-colors hover:bg-accent"
+              className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-accent"
             >
-              <div className="flex items-center gap-3">
-                <Bell size={16} className="text-muted-foreground" />
-                <span>Notifications</span>
-              </div>
+              <Bell size={16} className="text-muted-foreground" />
+              <span className="flex-1">Notifications</span>
               {unreadCount > 0 && (
-                <span className="inline-flex items-center justify-center size-5 rounded-full bg-danger text-danger-foreground text-xs font-bold">
-                  {unreadCount > 9 ? "9+" : unreadCount}
+                <span className="rounded-full bg-destructive px-2 py-0.5 text-[11px] font-semibold text-destructive-foreground">
+                  {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
               )}
             </Link>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-accent"
+              >
+                <Settings size={16} className="text-muted-foreground" />
+                <span>Admin Panel</span>
+              </Link>
+            )}
           </div>
 
           <div className="border-t border-border py-1">
