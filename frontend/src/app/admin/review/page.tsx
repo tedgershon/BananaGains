@@ -88,7 +88,7 @@ function ReviewPanel({ market, onAction }: ReviewPanelProps) {
         marketId: market.id,
         body: {
           action,
-          notes: notes.trim() || null,
+          notes: notes.trim() || undefined,
           title: title !== market.title ? title : null,
           description: description !== market.description ? description : null,
           resolution_criteria:

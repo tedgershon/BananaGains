@@ -104,7 +104,7 @@ export interface Bet {
   market_id: string;
 
   side: BetSide | null;
-  option_id: string | null;
+  option_id?: string | null;
   amount: number;
   created_at: string;
 }
