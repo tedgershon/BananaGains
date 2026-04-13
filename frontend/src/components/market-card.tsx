@@ -5,15 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { Market } from "@/lib/types";
 import { getMarketProbability } from "@/lib/types";
+import { calendarDaysUntilClose } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 
 function formatCloseDate(dateStr: string): string {
   const date = new Date(dateStr);
-  const now = new Date();
-  const diff = date.getTime() - now.getTime();
-  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-
-  if (days < 0) return "Closed";
+  if (Number.isNaN(date.getTime())) return "—";
+  const diff = date.getTime() - Date.now();
+  if (diff < 0) return "Closed";
+  const days = calendarDaysUntilClose(dateStr);
   if (days === 0) return "Closes today";
   if (days === 1) return "Closes tomorrow";
   if (days <= 7) return `Closes in ${days} days`;
@@ -25,7 +25,17 @@ function StatusDot({ status }: { status: Market["status"] }) {
     return <span className="glimmer-dot size-2.5 rounded-full bg-success" />;
   }
   if (status === "disputed") {
-    return <Badge variant="destructive">Disputed</Badge>;
+    return <Badge variant="destructive">Under Dispute</Badge>;
+  }
+  if (status === "pending_resolution") {
+    return (
+      <Badge
+        variant="secondary"
+        className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+      >
+        Community Resolution
+      </Badge>
+    );
   }
   if (status === "pending_review") {
     return (

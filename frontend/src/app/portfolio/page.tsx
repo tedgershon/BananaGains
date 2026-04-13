@@ -29,6 +29,8 @@ export default function PortfolioPage() {
   const [claimError, setClaimError] = useState<string | null>(null);
   const [pendingMarkets, setPendingMarkets] = useState<Market[]>([]);
   const [deniedMarkets, setDeniedMarkets] = useState<Market[]>([]);
+  const [expandedProposedId, setExpandedProposedId] = useState<string | null>(null);
+  const [showAllProposed, setShowAllProposed] = useState(false);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -72,6 +74,17 @@ export default function PortfolioPage() {
     return markets.find((m) => m.id === id);
   }
 
+  function formatDate(dateStr: string | null | undefined): string {
+    if (!dateStr) return "-";
+    return new Date(dateStr).toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
   if (loading) {
     return (
       <div className="space-y-5">
@@ -94,6 +107,13 @@ export default function PortfolioPage() {
     );
 
   const activeBets = userBets.reduce((sum, b) => sum + b.amount, 0);
+  const proposedMarkets = [...pendingMarkets, ...deniedMarkets].sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+  const visibleProposedMarkets = showAllProposed
+    ? proposedMarkets
+    : proposedMarkets.slice(0, 3);
 
   return (
     <div className="space-y-5">
@@ -200,47 +220,114 @@ export default function PortfolioPage() {
         </div>
       </div>
 
-      {(pendingMarkets.length > 0 || deniedMarkets.length > 0) && (
-        <section className="space-y-2">
-          <h2 className="text-lg font-semibold">Pending Markets</h2>
-          <div className="grid gap-2">
-            {pendingMarkets.map((market) => (
-              <Card key={market.id} size="sm">
-                <CardContent className="flex items-center justify-between">
-                  <div className="flex-1 space-y-0.5">
-                    <p className="text-sm font-medium leading-snug">
-                      {market.title}
-                    </p>
-                    <Badge
-                      variant="outline"
-                      className="border-amber-500 text-amber-500"
+      {proposedMarkets.length > 0 && (
+        <section className="space-y-1.5">
+          <h2 className="text-lg font-semibold">Proposed Markets</h2>
+          <div className="grid gap-1.5">
+            {visibleProposedMarkets.map((market, idx) => {
+              const isExpanded = expandedProposedId === market.id;
+              const isDenied = market.status === "denied";
+              const reviewNotes = (market as Market & { review_notes?: string | null }).review_notes;
+              return (
+                <Card key={market.id} size="sm">
+                  <CardContent className="!p-0">
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between px-3 py-1.5 text-left hover:bg-muted/40"
+                      onClick={() =>
+                        setExpandedProposedId(isExpanded ? null : market.id)
+                      }
                     >
-                      Pending Review
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            {deniedMarkets.map((market) => (
-              <Card key={market.id} size="sm">
-                <CardContent className="flex items-center justify-between">
-                  <div className="flex-1 space-y-0.5">
-                    <p className="text-sm font-medium leading-snug">
-                      {market.title}
-                    </p>
-                    <div className="space-y-1">
-                      <Badge variant="destructive">Denied</Badge>
-                      {market.review_notes && (
-                        <p className="text-xs text-muted-foreground">
-                          {market.review_notes}
+                      <div className="flex-1 space-y-0">
+                        <p className="text-sm font-medium leading-tight">
+                          {market.title}
                         </p>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                        {isDenied ? (
+                          <Badge variant="destructive">Denied</Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="border-amber-500 text-amber-500"
+                          >
+                            Pending Review
+                          </Badge>
+                        )}
+                        {isDenied ? (
+                          reviewNotes && (
+                            <p className="text-xs leading-tight text-muted-foreground line-clamp-2">
+                              {reviewNotes}
+                            </p>
+                          )
+                        ) : (
+                          <p className="text-xs leading-tight text-muted-foreground">
+                            Awaiting admin review.
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                    {isExpanded && (
+                      <div className="border-t px-3 py-1.5">
+                        <div className="grid gap-1.5 md:grid-cols-2">
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground">
+                              Description
+                            </p>
+                            <p className="text-sm">{market.description}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground">
+                              Resolution Criteria
+                            </p>
+                            <p className="text-sm">{market.resolution_criteria}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground">
+                              Close Date
+                            </p>
+                            <p className="text-sm">{formatDate(market.close_at)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground">
+                              Category
+                            </p>
+                            <p className="text-sm">{market.category}</p>
+                          </div>
+                          {reviewNotes && (
+                            <div className="md:col-span-2">
+                              <p className="text-xs font-medium text-muted-foreground">
+                                Reviewer Comment
+                              </p>
+                              <p className="text-sm">{reviewNotes}</p>
+                            </div>
+                          )}
+                          {market.link && (
+                            <div className="md:col-span-2">
+                              <p className="text-xs font-medium text-muted-foreground">
+                                Link
+                              </p>
+                              <p className="text-sm break-all">{market.link}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
+          {proposedMarkets.length > 3 && (
+            <div className="pt-0.5">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-0 text-xs"
+                onClick={() => setShowAllProposed((prev) => !prev)}
+              >
+                {showAllProposed ? "Show less" : "Show all"}
+              </Button>
+            </div>
+          )}
         </section>
       )}
 

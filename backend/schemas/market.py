@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Literal
 
@@ -20,6 +20,7 @@ class CreateMarketRequest(BaseModel):
     title: str
     description: str
     close_at: datetime
+    close_timezone: str | None = None
     resolution_criteria: str
     category: str = "General"
     official_source: str
@@ -48,7 +49,12 @@ class CreateMarketRequest(BaseModel):
     @field_validator("close_at")
     @classmethod
     def close_at_in_future(cls, v: datetime) -> datetime:
-        if v <= datetime.now(tz=v.tzinfo):
+        # Normalize to UTC so "future" matches DB timestamptz regardless of server TZ.
+        if v.tzinfo is None:
+            v = v.replace(tzinfo=timezone.utc)
+        else:
+            v = v.astimezone(timezone.utc)
+        if v <= datetime.now(timezone.utc):
             raise ValueError("close_at must be in the future")
         return v
 

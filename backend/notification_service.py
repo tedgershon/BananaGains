@@ -1,7 +1,12 @@
-import httpx
 from supabase import Client
 
-from config import get_settings
+
+def _db_for_notifications(supabase: Client) -> Client:
+    """Prefer service-role client so inserts/queries are not blocked by RLS."""
+    from dependencies import get_supabase_service_client
+
+    svc = get_supabase_service_client()
+    return svc if svc is not None else supabase
 
 
 def _creator_email(supabase: Client, creator_id: str) -> str | None:
@@ -35,11 +40,10 @@ async def create_notification(
     title: str,
     body: str,
     metadata: dict | None = None,
-    send_email: bool = False,
-    recipient_email: str | None = None,
 ):
-    """Create an in-app notification and optionally send an email."""
-    supabase.table("notifications").insert({
+    """Create an in-app notification."""
+    db = _db_for_notifications(supabase)
+    db.table("notifications").insert({
         "user_id": user_id,
         "type": notification_type,
         "title": title,
@@ -47,56 +51,13 @@ async def create_notification(
         "metadata": metadata or {},
     }).execute()
 
-    settings = get_settings()
-    if send_email and recipient_email and settings.resend_api_key:
-        await _send_email(
-            to=recipient_email,
-            subject=title,
-            body=body,
-            api_key=settings.resend_api_key,
-            from_email=settings.notification_from_email,
-        )
-
-
-async def _send_email(
-    to: str,
-    subject: str,
-    body: str,
-    api_key: str,
-    from_email: str,
-):
-    """Send an email notification via Resend API."""
-    async with httpx.AsyncClient() as client:
-        await client.post(
-            "https://api.resend.com/emails",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "from": from_email,
-                "to": [to],
-                "subject": f"BananaGains: {subject}",
-                "html": f"""
-                    <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
-                        <h2 style="color: #333;">BananaGains</h2>
-                        <p>{body}</p>
-                        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-                        <p style="color: #888; font-size: 12px;">
-                            This is an automated notification from BananaGains, CMU's prediction market.
-                        </p>
-                    </div>
-                """,
-            },
-        )
-
 
 async def notify_market_approved(
     supabase: Client,
     market: dict,
     review_notes: str | None,
 ):
-    """Send notification when a market is approved."""
+    """Send in-app notification when a market is approved."""
     creator_id = market["creator_id"]
 
     email = _creator_email(supabase, creator_id)
@@ -121,8 +82,6 @@ async def notify_market_approved(
         title="Market Approved",
         body=body,
         metadata={"market_id": market["id"]},
-        send_email=True,
-        recipient_email=email,
     )
 
 
@@ -131,7 +90,7 @@ async def notify_market_denied(
     market: dict,
     review_notes: str,
 ):
-    """Send notification when a market is denied."""
+    """Send in-app notification when a market is denied."""
     creator_id = market["creator_id"]
 
     email = _creator_email(supabase, creator_id)
@@ -149,8 +108,6 @@ async def notify_market_denied(
         title="Market Not Approved",
         body=body,
         metadata={"market_id": market["id"]},
-        send_email=True,
-        recipient_email=email,
     )
 
 
@@ -158,12 +115,12 @@ async def notify_market_closed(
     supabase: Client,
     market: dict,
 ):
-    """Send notification when a market closes, prompting the creator to resolve."""
+    """Send in-app notification when a market closes, prompting the creator to resolve."""
     creator_id = market["creator_id"]
 
     existing = (
         supabase.table("notifications")
-        .select("id")
+        .select("id, metadata")
         .eq("user_id", creator_id)
         .eq("type", "market_closed")
         .execute()
@@ -189,9 +146,76 @@ async def notify_market_closed(
         supabase=supabase,
         user_id=creator_id,
         notification_type="market_closed",
-        title="Your Market Has Closed \u2014 Time to Resolve",
+        title="Your Market Has Closed - Time to Resolve",
         body=body,
         metadata={"market_id": market["id"]},
-        send_email=True,
-        recipient_email=email,
     )
+
+
+async def notify_resolution_reminder(
+    supabase: Client,
+    market: dict,
+):
+    """Send a periodic in-app reminder to the market creator to resolve their closed market."""
+    creator_id = market["creator_id"]
+
+    body = (
+        f"Reminder: Your market \"{market['title']}\" is still awaiting resolution.\n\n"
+        "Users are waiting for the outcome to be decided. Please visit the market page "
+        "and propose a resolution as soon as possible.\n\n"
+        "If you don't resolve the market, it may be escalated to community voting or admin review."
+    )
+
+    await create_notification(
+        supabase=supabase,
+        user_id=creator_id,
+        notification_type="resolution_reminder",
+        title="Reminder: Resolve Your Market",
+        body=body,
+        metadata={"market_id": market["id"]},
+    )
+
+
+async def send_resolution_reminders_for_closed_markets(supabase: Client) -> int:
+    """
+    Check for closed markets that haven't been resolved and send reminders.
+    Called periodically (e.g., by a cron job or background task).
+    Only sends one reminder per market per 24 hours.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(tz=timezone.utc)
+    reminder_interval = timedelta(hours=24)
+
+    closed_markets = (
+        supabase.table("markets")
+        .select("id, title, description, creator_id, close_at, status")
+        .eq("status", "closed")
+        .execute()
+    )
+
+    if not closed_markets.data:
+        return 0
+
+    reminders_sent = 0
+
+    for market in closed_markets.data:
+        existing_reminders = (
+            supabase.table("notifications")
+            .select("created_at, metadata")
+            .eq("user_id", market["creator_id"])
+            .eq("type", "resolution_reminder")
+            .execute()
+        )
+
+        recent_reminder = any(
+            n.get("metadata", {}).get("market_id") == market["id"]
+            and (now - datetime.fromisoformat(n["created_at"].replace("Z", "+00:00"))) < reminder_interval
+            for n in (existing_reminders.data or [])
+        )
+
+        if not recent_reminder:
+            await notify_resolution_reminder(supabase, market)
+            reminders_sent += 1
+
+    return reminders_sent
