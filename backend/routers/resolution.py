@@ -1,5 +1,3 @@
-from datetime import datetime, timezone
-
 from fastapi import APIRouter, Depends, HTTPException
 from supabase import Client
 
@@ -15,18 +13,14 @@ async def list_resolution_markets(
     supabase: Client = Depends(get_supabase_client),
     _current_user: dict | None = Depends(get_current_user_optional),
 ):
-    """List markets currently in their resolution period, sorted by expiration (soonest first)."""
-    now = datetime.now(tz=timezone.utc)
+    """List all markets in community resolution or dispute status."""
     normalize_markets(supabase)
 
     community_result = (
         supabase.table("markets")
         .select("*")
         .eq("status", "pending_resolution")
-        .is_("proposed_outcome", "null")
-        .not_.is_("resolution_window_end", "null")
-        .gt("resolution_window_end", now.isoformat())
-        .order("resolution_window_end", desc=False)
+        .order("created_at", desc=True)
         .execute()
     )
 
@@ -34,10 +28,11 @@ async def list_resolution_markets(
         supabase.table("markets")
         .select("*")
         .eq("status", "disputed")
+        .order("created_at", desc=True)
         .execute()
     )
     disputed_markets = disputed_result.data or []
-    active_disputed: list[dict] = []
+    enriched_disputed: list[dict] = []
     if disputed_markets:
         market_ids = [m["id"] for m in disputed_markets]
         disputes_result = (
@@ -51,15 +46,10 @@ async def list_resolution_markets(
         }
         for market in disputed_markets:
             deadline = deadline_by_market.get(market["id"])
-            if not deadline:
-                continue
-            if datetime.fromisoformat(deadline) <= now:
-                continue
             market["voting_ends_at"] = deadline
-            active_disputed.append(market)
+            enriched_disputed.append(market)
 
-    active_disputed.sort(key=lambda m: m["voting_ends_at"])
-    return (community_result.data or []) + active_disputed
+    return (community_result.data or []) + enriched_disputed
 
 
 @router.post("/{market_id}/community-vote")

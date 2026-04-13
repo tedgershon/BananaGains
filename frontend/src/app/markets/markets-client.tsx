@@ -249,21 +249,16 @@ export default function MarketsClient() {
     ? markets.filter((m) => m.category === selectedCategory)
     : markets;
 
-  const now = Date.now();
-
-  function isInResolutionWindow(m: { resolution_window_end?: string | null }) {
-    return (
-      m.resolution_window_end != null &&
-      new Date(m.resolution_window_end).getTime() > now
-    );
+  function isPendingResolutionStatus(status: Market["status"]) {
+    return status === "pending_resolution" || status === "disputed";
   }
 
   const openMarkets = filtered.filter((m) => m.status === "open");
-  const inResolutionMarkets = filtered.filter(
-    (m) => m.status !== "open" && isInResolutionWindow(m),
+  const pendingResolutionMarkets = filtered.filter((m) =>
+    isPendingResolutionStatus(m.status),
   );
   const closedMarkets = filtered.filter(
-    (m) => m.status !== "open" && !isInResolutionWindow(m),
+    (m) => m.status !== "open" && !isPendingResolutionStatus(m.status),
   );
 
   return (
@@ -310,23 +305,27 @@ export default function MarketsClient() {
               </div>
             </section>
 
-            {inResolutionMarkets.length > 0 && (
-              <section className="space-y-4">
-                <h2 className="text-lg font-semibold">
-                  In Resolution ({inResolutionMarkets.length})
-                </h2>
+            <section className="space-y-4">
+              <h2 className="text-lg font-semibold">
+                Markets Pending Resolution ({pendingResolutionMarkets.length})
+              </h2>
+              {pendingResolutionMarkets.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No markets are currently pending resolution.
+                </p>
+              ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {inResolutionMarkets.map((market) => (
+                  {pendingResolutionMarkets.map((market) => (
                     <MarketCard key={market.id} market={market} />
                   ))}
                 </div>
-              </section>
-            )}
+              )}
+            </section>
 
             {closedMarkets.length > 0 && (
               <section className="space-y-4">
                 <h2 className="text-lg font-semibold">
-                  Closed ({closedMarkets.length})
+                  Closed Markets ({closedMarkets.length})
                 </h2>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {closedMarkets.map((market) => (
