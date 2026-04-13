@@ -84,7 +84,8 @@ export interface Bet {
   user_id: string;
   market_id: string;
 
-  side: BetSide;
+  side: BetSide | null;
+  option_id?: string | null;
   amount: number;
   created_at: string;
 }
@@ -246,15 +247,17 @@ export interface ReviewMarketRequest {
 }
 
 export interface BackrollRequest {
-  side: BetSide;
-  amount: number;
+  cutoff_date: string;
+  close_market?: boolean;
 }
 
 export interface BackrollResponse {
-  bet_id: string;
   market_id: string;
-  side: BetSide;
-  amount: number;
+  bets_cancelled: number;
+  total_refunded: number;
+  market_closed?: boolean;
+  cutoff_date?: string;
+  status?: string;
 }
 
 export interface CommunityVote {
