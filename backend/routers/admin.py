@@ -6,10 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
 
 from dependencies import get_supabase_client, get_user_token, require_admin, require_super_admin, user_auth
-from services.market_state_machine import normalize_market_state
-
-logger = logging.getLogger(__name__)
-from notification_service import notify_market_approved, notify_market_denied
+from notification_service import notify_market_approved, notify_market_denied, send_resolution_reminders_for_closed_markets
 from schemas.admin import (
     BackrollRequest,
     StatsResponse,
@@ -18,9 +15,22 @@ from schemas.admin import (
     UserSearchResult,
 )
 from schemas.market import ReviewMarketRequest
+from services.market_state_machine import normalize_market_state
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 EASTERN_TZ = ZoneInfo("America/New_York")
+
+
+@router.post("/markets/resolution-reminders/run")
+async def run_resolution_reminders(
+    _current_user: dict = Depends(require_admin),
+    supabase: Client = Depends(get_supabase_client),
+):
+    """Run reminder dispatch for unresolved closed markets (admin-only trigger)."""
+    reminders_sent = await send_resolution_reminders_for_closed_markets(supabase)
+    return {"status": "ok", "reminders_sent": reminders_sent}
 
 
 def _parse_dt(value: str | None) -> datetime | None:

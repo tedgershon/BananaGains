@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -8,7 +7,6 @@ from supabase import Client
 
 from dependencies import get_current_user, get_current_user_optional, get_supabase_client, get_user_token, user_auth
 from market_linter import lint_market_fields
-from notification_service import send_market_submitted_admin_emails, send_resolution_reminders_for_closed_markets
 from services.market_state_machine import normalize_market_state, normalize_markets
 from schemas.dispute import CastVoteRequest, DisputeResponse, FileDisputeRequest, VoteResponse
 from schemas.market import (
@@ -22,7 +20,6 @@ from schemas.market import (
 
 router = APIRouter(prefix="/api/markets", tags=["markets"])
 _log = logging.getLogger(__name__)
-=======
 EASTERN_TZ = ZoneInfo("America/New_York")
 
 
@@ -35,16 +32,6 @@ def _normalize_for_response(markets: list[dict], supabase: Client) -> list[dict]
     market_ids = [market["id"] for market in markets]
     if not market_ids:
         return markets
-
-    # Keep reminder checks coupled to market reads for now.
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            loop.create_task(send_resolution_reminders_for_closed_markets(supabase))
-        else:
-            loop.run_until_complete(send_resolution_reminders_for_closed_markets(supabase))
-    except RuntimeError:
-        asyncio.run(send_resolution_reminders_for_closed_markets(supabase))
 
     normalized = normalize_markets(supabase, market_ids=market_ids)
     normalized_by_id = {market["id"]: market for market in normalized}
@@ -247,8 +234,6 @@ async def create_market(
             ).execute()
         except Exception:
             _log.exception("notify_admins_market_submitted RPC failed")
-
-    await send_market_submitted_admin_emails(supabase, market, current_user)
 
     return market
 

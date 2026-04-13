@@ -12,9 +12,6 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["http://localhost:3000"]
 
-    resend_api_key: str = ""
-    notification_from_email: str = "BananaGains <notifications@bananagains.app>"
-
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
