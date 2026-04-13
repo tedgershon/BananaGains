@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import Client
 
-from dependencies import get_supabase_client, get_user_token, require_admin, require_super_admin, user_auth
+from dependencies import get_supabase_client, get_supabase_service_client, get_user_token, require_admin, require_super_admin, user_auth
 from notification_service import notify_market_approved, notify_market_denied, send_resolution_reminders_for_closed_markets
 from schemas.admin import (
     BackrollRequest,
@@ -194,6 +194,20 @@ async def list_markets_for_review(
     supabase: Client = Depends(get_supabase_client),
 ):
     """List all markets organized by review status."""
+    state_client = get_supabase_service_client() or supabase
+    pending_for_normalization = (
+        supabase.table("markets")
+        .select("id")
+        .eq("status", "pending_review")
+        .execute()
+    )
+    pending_ids = [row["id"] for row in (pending_for_normalization.data or []) if row.get("id")]
+    if pending_ids:
+        try:
+            normalize_markets(state_client, market_ids=pending_ids)
+        except Exception:
+            logger.warning("Failed to normalize pending markets before review listing", exc_info=True)
+
     review_select = "*, profiles!creator_id(andrew_id, display_name), reviewer:profiles!reviewed_by(andrew_id, display_name)"
 
     pending = (
@@ -238,7 +252,8 @@ async def review_market(
     supabase: Client = Depends(get_supabase_client),
 ):
     """Admin reviews a proposed market — approve or deny."""
-    market = normalize_market_state(supabase, market_id)
+    state_client = get_supabase_service_client() or supabase
+    market = normalize_market_state(state_client, market_id)
     if not market:
         raise HTTPException(status_code=404, detail="Market not found.")
 
@@ -249,7 +264,7 @@ async def review_market(
     if close_at and close_at <= datetime.now(tz=timezone.utc):
         raise HTTPException(
             status_code=400,
-            detail="Market close date has passed. Pending markets are automatically closed and can no longer be updated.",
+            detail="Market close date has passed. Pending markets are automatically denied and can no longer be updated.",
         )
 
     updates = {}
@@ -280,7 +295,7 @@ async def review_market(
             if "close date has passed" in msg:
                 raise HTTPException(
                     status_code=400,
-                    detail="Market close date has passed. Pending markets are automatically closed and can no longer be updated.",
+                    detail="Market close date has passed. Pending markets are automatically denied and can no longer be updated.",
                 )
             raise HTTPException(status_code=500, detail=f"Failed to approve market: {e}")
     else:

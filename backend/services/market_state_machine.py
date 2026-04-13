@@ -8,7 +8,7 @@ from typing import Any
 
 from supabase import Client
 
-from notification_service import notify_market_closed
+from notification_service import notify_market_closed, notify_market_denied
 
 logger = logging.getLogger(__name__)
 
@@ -115,28 +115,78 @@ def _execute_pending_review_expired_auto_close_transition(
     market: dict[str, Any],
     now: datetime,
 ) -> dict[str, Any]:
-    updated = (
-        supabase.table("markets")
-        .update(
-            {
-                "status": "closed",
-                "review_date": now.isoformat(),
-                "review_notes": "Market expired before review. Sorry we could not review your market in time. For best results, propose markets at least 72 hours before close time.",
-            }
-        )
-        .eq("id", market["id"])
-        .eq("status", "pending_review")
-        .execute()
+    auto_deny_notes = (
+        "Market expired before review. Sorry we could not review your market in time. "
+        "For best results, propose markets at least 72 hours before close time."
     )
-    if updated.data:
-        market = updated.data[0]
+    transitioned = False
+    reviewer_id = market.get("reviewed_by") or market.get("creator_id")
+
+    # Prefer SECURITY DEFINER RPC so auto-deny works even when row-level updates are blocked.
+    if reviewer_id:
+        try:
+            supabase.rpc(
+                "deny_market",
+                {
+                    "p_market_id": market["id"],
+                    "p_admin_id": reviewer_id,
+                    "p_notes": auto_deny_notes,
+                },
+            ).execute()
+            transitioned = True
+        except Exception:
+            logger.warning(
+                "deny_market RPC failed during auto-deny for market %s",
+                market["id"],
+                exc_info=True,
+            )
+
+    if not transitioned:
+        updated = (
+            supabase.table("markets")
+            .update(
+                {
+                    "status": "denied",
+                    "review_date": now.isoformat(),
+                    "review_notes": auto_deny_notes,
+                }
+            )
+            .eq("id", market["id"])
+            .eq("status", "pending_review")
+            .execute()
+        )
+        transitioned = bool(updated.data)
+
+    if transitioned:
+        refreshed = supabase.table("markets").select("*").eq("id", market["id"]).single().execute()
+        if refreshed.data:
+            market = refreshed.data
         _log_transition(
             market["id"],
             "pending_review",
-            "closed",
+            "denied",
             "pending_review_close_at_elapsed_auto_close",
             now,
         )
+
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(notify_market_denied(supabase, market, auto_deny_notes))
+        except RuntimeError:
+            try:
+                asyncio.run(notify_market_denied(supabase, market, auto_deny_notes))
+            except Exception:
+                logger.warning(
+                    "Failed to send auto-denied notification for market %s",
+                    market["id"],
+                    exc_info=True,
+                )
+        except Exception:
+            logger.warning(
+                "Failed to send auto-denied notification for market %s",
+                market["id"],
+                exc_info=True,
+            )
     return market
 
 

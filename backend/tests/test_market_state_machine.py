@@ -32,6 +32,12 @@ class FakeRpc:
             market["status"] = "resolved"
             market["resolved_outcome"] = self.args["p_outcome"]
 
+        if self.fn_name == "deny_market":
+            market = self.supabase.markets[self.args["p_market_id"]]
+            market["status"] = "denied"
+            market["reviewed_by"] = self.args["p_admin_id"]
+            market["review_notes"] = self.args["p_notes"]
+
         return FakeResult({})
 
 
@@ -256,11 +262,12 @@ def test_closed_open_race_path_is_normalized_before_action(monkeypatch):
     assert market["status"] == "closed"
 
 
-def test_pending_review_market_is_auto_closed_after_close(monkeypatch):
+def test_pending_review_market_is_auto_denied_after_close(monkeypatch):
     async def _noop_notify(*_args, **_kwargs):
         return None
 
     monkeypatch.setattr(msm, "notify_market_closed", _noop_notify)
+    monkeypatch.setattr(msm, "notify_market_denied", _noop_notify)
 
     now = datetime.now(tz=timezone.utc)
     supabase = FakeSupabase(
@@ -277,5 +284,5 @@ def test_pending_review_market_is_auto_closed_after_close(monkeypatch):
     market = msm.normalize_market_state(supabase, "m5", now=now)
 
     assert market is not None
-    assert market["status"] == "closed"
+    assert market["status"] == "denied"
     assert market["review_notes"] == "Market expired before review. Sorry we could not review your market in time. For best results, propose markets at least 72 hours before close time."
