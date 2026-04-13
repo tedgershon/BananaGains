@@ -132,6 +132,7 @@ export interface LeaderboardEntry {
   andrew_id: string;
   display_name: string;
   banana_balance: number;
+  net_worth: number;
   equipped_badge_id: string | null;
   equipped_badges: EquippedBadgesMap;
   avatar_url: string | null;

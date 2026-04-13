@@ -142,11 +142,9 @@ export default function LeaderboardPage() {
   const { user } = useMe();
   const { data: rawEntries = [], isLoading } = useQuery(leaderboardQuery());
 
-  // sort by balance, and only fetch badges for users who have equipped any —
+  // sort by net worth, and only fetch badges for users who have equipped any —
   // saves a ton of requests on a big leaderboard
-  const entries = [...rawEntries].sort(
-    (a, b) => b.banana_balance - a.banana_balance,
-  );
+  const entries = [...rawEntries].sort((a, b) => b.net_worth - a.net_worth);
   const withEquipped = entries.filter(
     (entry) => getEquippedIds(entry).length > 0,
   );
@@ -231,7 +229,7 @@ export default function LeaderboardPage() {
 
                   <div className="flex items-center gap-1 text-base font-semibold">
                     <BananaCoin size={16} />
-                    {entry.banana_balance.toLocaleString()}
+                    {entry.net_worth.toLocaleString()}
                   </div>
                 </div>
               );
