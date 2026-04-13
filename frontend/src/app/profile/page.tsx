@@ -4,8 +4,10 @@ import { Camera } from "lucide-react";
 import { useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { updateProfile, uploadAvatar } from "@/lib/api";
+import { ApiError, MAX_PROFILE_AVATAR_BYTES, updateProfile, uploadAvatar } from "@/lib/api";
 import { useSession } from "@/lib/SessionProvider";
+
+const MAX_DISPLAY_NAME_LENGTH = 32;
 
 export default function ProfilePage() {
   const { user, isDemo, updateUser } = useSession();
@@ -44,8 +46,11 @@ export default function ProfilePage() {
       setMessage({ type: "error", text: "Please select an image file." });
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setMessage({ type: "error", text: "Image must be under 5 MB." });
+    if (file.size > MAX_PROFILE_AVATAR_BYTES) {
+      setMessage({
+        type: "error",
+        text: "Profile photo is too large. Please upload an image under 5 MB.",
+      });
       return;
     }
 
@@ -55,6 +60,19 @@ export default function ProfilePage() {
   }
 
   async function handleSave() {
+    const normalizedDisplayName = displayName.trim().replace(/\s+/g, " ");
+    if (!normalizedDisplayName) {
+      setMessage({ type: "error", text: "Display name must not be empty." });
+      return;
+    }
+    if (normalizedDisplayName.length > MAX_DISPLAY_NAME_LENGTH) {
+      setMessage({
+        type: "error",
+        text: `Display name is too long. Please keep it to ${MAX_DISPLAY_NAME_LENGTH} characters or fewer.`,
+      });
+      return;
+    }
+
     setSaving(true);
     setMessage(null);
 
@@ -66,8 +84,8 @@ export default function ProfilePage() {
       }
 
       const updates: Record<string, string | null> = {};
-      if (displayName.trim() !== user.display_name) {
-        updates.display_name = displayName.trim();
+      if (normalizedDisplayName !== user.display_name) {
+        updates.display_name = normalizedDisplayName;
       }
       if (newAvatarUrl !== user.avatar_url) {
         updates.avatar_url = newAvatarUrl;
@@ -87,7 +105,21 @@ export default function ProfilePage() {
       setMessage({ type: "success", text: "Profile updated!" });
     } catch (err) {
       console.error("Profile save error:", err);
-      setMessage({ type: "error", text: "Failed to update profile." });
+      if (err instanceof ApiError) {
+        try {
+          const parsed = JSON.parse(err.body) as { detail?: string };
+          setMessage({
+            type: "error",
+            text: parsed.detail || "Failed to update profile.",
+          });
+        } catch {
+          setMessage({ type: "error", text: "Failed to update profile." });
+        }
+      } else if (err instanceof Error) {
+        setMessage({ type: "error", text: err.message });
+      } else {
+        setMessage({ type: "error", text: "Failed to update profile." });
+      }
     } finally {
       setSaving(false);
     }
@@ -152,8 +184,12 @@ export default function ProfilePage() {
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
+              maxLength={MAX_DISPLAY_NAME_LENGTH}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30"
             />
+            <p className="text-xs text-muted-foreground">
+              Up to {MAX_DISPLAY_NAME_LENGTH} characters.
+            </p>
           </div>
 
           <div className="space-y-2">
