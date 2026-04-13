@@ -76,39 +76,51 @@ function ResolutionCard({
   const rewardPool = Math.round(totalPool * 0.04);
   const isExpired = remaining === "Expired";
 
-  const fetchVotes = useCallback(async () => {
-    try {
-      let yes = 0;
-      let no = 0;
+  const fetchVotes = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        let yes = 0;
+        let no = 0;
 
-      if (isDisputeMode) {
-        const votes: VoteResponse[] = await api.listDisputeVotes(market.id);
-        for (const v of votes) {
-          if (v.selected_outcome === "YES") yes++;
-          else if (v.selected_outcome === "NO") no++;
+        if (isDisputeMode) {
+          const votes: VoteResponse[] = await api.listDisputeVotes(market.id, {
+            signal,
+          });
+          if (signal?.aborted) return;
+          for (const v of votes) {
+            if (v.selected_outcome === "YES") yes++;
+            else if (v.selected_outcome === "NO") no++;
+          }
+          const existing = votes.find((v) => v.voter_id === userId);
+          if (existing) setUserVote(existing.selected_outcome);
+          else setUserVote(null);
+        } else {
+          const votes: CommunityVote[] = await api.listCommunityVotes(
+            market.id,
+            { signal },
+          );
+          if (signal?.aborted) return;
+          for (const v of votes) {
+            if (v.selected_outcome === "YES") yes++;
+            else no++;
+          }
+          const existing = votes.find((v) => v.voter_id === userId);
+          if (existing) setUserVote(existing.selected_outcome);
+          else setUserVote(null);
         }
-        const existing = votes.find((v) => v.voter_id === userId);
-        if (existing) setUserVote(existing.selected_outcome);
-        else setUserVote(null);
-      } else {
-        const votes: CommunityVote[] = await api.listCommunityVotes(market.id);
-        for (const v of votes) {
-          if (v.selected_outcome === "YES") yes++;
-          else no++;
-        }
-        const existing = votes.find((v) => v.voter_id === userId);
-        if (existing) setUserVote(existing.selected_outcome);
-        else setUserVote(null);
+
+        setTally({ yes, no });
+      } catch {
+        // ignore
       }
-
-      setTally({ yes, no });
-    } catch {
-      // ignore
-    }
-  }, [isDisputeMode, market.id, userId]);
+    },
+    [isDisputeMode, market.id, userId],
+  );
 
   useEffect(() => {
-    fetchVotes();
+    const ctrl = new AbortController();
+    fetchVotes(ctrl.signal);
+    return () => ctrl.abort();
   }, [fetchVotes]);
 
   async function handleVote(side: "YES" | "NO") {
@@ -238,21 +250,24 @@ export default function ResolutionsPage() {
   const [loading, setLoading] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
     try {
-      const data = await api.listResolutionMarkets();
+      const data = await api.listResolutionMarkets({ signal });
+      if (signal?.aborted) return;
       setMarkets(data);
     } catch {
       // ignore
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    load();
-    intervalRef.current = setInterval(load, 30_000);
+    const ctrl = new AbortController();
+    load(ctrl.signal);
+    intervalRef.current = setInterval(() => load(ctrl.signal), 30_000);
     return () => {
+      ctrl.abort();
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [load]);

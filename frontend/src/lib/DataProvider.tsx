@@ -7,6 +7,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import * as api from "./api";
@@ -48,11 +49,26 @@ export function useData(): DataContextValue {
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const { user, isDemo, updateBalance, markClaimedToday } = useSession();
+  const { user, isDemo, updateBalance, updateUser, markClaimedToday } =
+    useSession();
   const [markets, setMarkets] = useState<Market[]>([]);
   const [bets, setBets] = useState<Bet[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Tracks whether the provider is still mounted so fire-and-forget refetches
+  // don't setState on an unmounted tree.
+  const mountedRef = useRef(true);
+  // Monotonic counter used to discard stale post-mutation refetches when
+  // multiple mutations are in flight — only the latest response wins.
+  const refetchSeqRef = useRef(0);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -144,16 +160,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }),
       );
 
-      // Refresh the user's transactions and balance to reflect potential payouts
+      // Refresh the user's transactions and balance to reflect potential payouts.
+      // Use a sequence number so that only the response from the latest
+      // resolveMarket call writes to state — earlier in-flight refetches are
+      // discarded if superseded or if the provider has unmounted.
+      const seq = ++refetchSeqRef.current;
       Promise.all([api.getPortfolio(), api.getTransactions(), api.getMe()])
         .then(([newBets, newTxs, profile]) => {
+          if (!mountedRef.current || seq !== refetchSeqRef.current) return;
           setBets(newBets);
           setTransactions(newTxs);
-          updateBalance(profile.banana_balance - user.banana_balance);
+          // Set the authoritative balance from the server rather than computing
+          // a delta against a stale closure read of user.banana_balance.
+          updateUser({ banana_balance: profile.banana_balance });
         })
         .catch(console.error);
     },
-    [updateBalance, user.banana_balance],
+    [updateUser],
   );
 
   const disputeMarket = useCallback(
@@ -196,7 +219,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }),
       );
 
-      updateBalance(res.new_balance - user.banana_balance);
+      // Use the server-returned balance directly rather than computing a delta
+      // against the closure-captured user.banana_balance, which can be stale
+      // if another bet/resolution updated it between render and this callback.
+      updateUser({ banana_balance: res.new_balance });
 
       const now = new Date().toISOString();
       setBets((prev) => [
@@ -223,7 +249,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         ...prev,
       ]);
     },
-    [user.id, user.banana_balance, updateBalance],
+    [user.id, updateUser],
   );
 
   const placeMultichoiceBet = useCallback(
@@ -252,7 +278,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }),
       );
 
-      updateBalance(res.new_balance - user.banana_balance);
+      updateUser({ banana_balance: res.new_balance });
 
       const now = new Date().toISOString();
       setBets((prev) => [
@@ -279,7 +305,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         ...prev,
       ]);
     },
-    [user.id, user.banana_balance, updateBalance],
+    [user.id, updateUser],
   );
 
   const claimDaily = useCallback(async () => {
