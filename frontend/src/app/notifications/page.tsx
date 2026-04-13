@@ -172,10 +172,16 @@ export default function NotificationsPage() {
                 </p>
                 {typeof n.metadata?.market_id === "string" && (
                   <a
-                    href={`/markets/${n.metadata.market_id}`}
+                    href={
+                      n.type === "market_submitted"
+                        ? `/admin/review?marketId=${n.metadata.market_id}`
+                        : `/markets/${n.metadata.market_id}`
+                    }
                     className="inline-block text-xs text-primary hover:underline"
                   >
-                    View Market →
+                    {n.type === "market_submitted"
+                      ? "Review Market →"
+                      : "View Market →"}
                   </a>
                 )}
               </CardContent>
