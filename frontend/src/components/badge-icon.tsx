@@ -102,7 +102,13 @@ export function BadgeIcon({
             stroke={earned ? color : "none"}
             strokeWidth="1"
           />
-          <circle cx="20" cy="20" r="9" fill={earned ? "white" : fill} opacity={earned ? 0.25 : 0.3} />
+          <circle
+            cx="20"
+            cy="20"
+            r="9"
+            fill={earned ? "white" : fill}
+            opacity={earned ? 0.25 : 0.3}
+          />
         </svg>
         <span
           className="absolute inset-0 flex items-center justify-center"
@@ -136,8 +142,24 @@ export function BadgeIcon({
         />
         {earned && (
           <>
-            <line x1="20" y1="5" x2="20" y2="38" stroke="white" strokeWidth="0.5" opacity="0.3" />
-            <line x1="6" y1="21" x2="34" y2="21" stroke="white" strokeWidth="0.5" opacity="0.3" />
+            <line
+              x1="20"
+              y1="5"
+              x2="20"
+              y2="38"
+              stroke="white"
+              strokeWidth="0.5"
+              opacity="0.3"
+            />
+            <line
+              x1="6"
+              y1="21"
+              x2="34"
+              y2="21"
+              stroke="white"
+              strokeWidth="0.5"
+              opacity="0.3"
+            />
           </>
         )}
       </svg>

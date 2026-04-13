@@ -3,9 +3,9 @@ import { BananaCoin } from "@/components/banana-coin";
 import { getOptionColor } from "@/components/probability-chart";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { calendarDaysUntilClose } from "@/lib/datetime";
 import type { Market } from "@/lib/types";
 import { getMarketProbability } from "@/lib/types";
-import { calendarDaysUntilClose } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 
 function formatCloseDate(dateStr: string): string {

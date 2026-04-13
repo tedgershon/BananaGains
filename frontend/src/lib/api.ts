@@ -48,15 +48,21 @@ export class ApiError extends Error {
 
 async function authHeaders(): Promise<HeadersInit> {
   const headers: HeadersInit = { "Content-Type": "application/json" };
-  if (!supabase) return headers;
+  // browser client can't read cookies on the server — skip auth there
+  // (server prefetch only hits public endpoints anyway)
+  if (!supabase || typeof window === "undefined") return headers;
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-  if (session?.access_token) {
-    (headers as Record<string, string>).Authorization =
-      `Bearer ${session.access_token}`;
+    if (session?.access_token) {
+      (headers as Record<string, string>).Authorization =
+        `Bearer ${session.access_token}`;
+    }
+  } catch {
+    // session lookup failed — fall back to unauthenticated request
   }
   return headers;
 }
@@ -131,7 +137,9 @@ export async function uploadAvatar(
     throw new Error("Please select an image file.");
   }
   if (file.size > MAX_PROFILE_AVATAR_BYTES) {
-    throw new Error("Profile photo is too large. Please upload an image under 5 MB.");
+    throw new Error(
+      "Profile photo is too large. Please upload an image under 5 MB.",
+    );
   }
 
   const ext = file.name.split(".").pop() ?? "jpg";
@@ -175,13 +183,12 @@ export function listMarkets(
   if (params?.limit != null) sp.set("limit", String(params.limit));
   if (params?.offset != null) sp.set("offset", String(params.offset));
   const qs = sp.toString();
-  return apiFetch(`/api/markets${qs ? `?${qs}` : ""}`, { signal: opts?.signal });
+  return apiFetch(`/api/markets${qs ? `?${qs}` : ""}`, {
+    signal: opts?.signal,
+  });
 }
 
-export function getMarket(
-  marketId: string,
-  opts?: FetchOpts,
-): Promise<Market> {
+export function getMarket(marketId: string, opts?: FetchOpts): Promise<Market> {
   return apiFetch(`/api/markets/${marketId}`, { signal: opts?.signal });
 }
 
@@ -447,17 +454,15 @@ export function markNotificationsRead(): Promise<{ status: string }> {
 export function markNotificationRead(
   notificationId: string,
 ): Promise<{ status: string }> {
-  return apiFetch(`/api/notifications/${notificationId}/read`, { method: "POST" });
+  return apiFetch(`/api/notifications/${notificationId}/read`, {
+    method: "POST",
+  });
 }
 
 export function deleteNotification(
   notificationId: string,
 ): Promise<{ status: string }> {
   return apiFetch(`/api/notifications/${notificationId}`, { method: "DELETE" });
-}
-
-export function sendTestNotification(): Promise<{ status: string }> {
-  return apiFetch("/api/notifications/test", { method: "POST" });
 }
 
 // ---------------------------------------------------------------------------

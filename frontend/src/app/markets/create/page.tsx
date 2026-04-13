@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { useData } from "@/lib/DataProvider";
+import { useCreateMarket } from "@/lib/query/mutations/markets";
 
 const CATEGORIES = [
   "General",
@@ -72,7 +72,10 @@ function getOffsetMinutesAt(utcDate: Date, timeZone: string): number {
   return sign * (hours * 60 + minutes);
 }
 
-function zonedLocalDateTimeToUtcDate(value: string, timeZone: string): Date | null {
+function zonedLocalDateTimeToUtcDate(
+  value: string,
+  timeZone: string,
+): Date | null {
   const parsed = parseDateTimeLocal(value);
   if (!parsed) return null;
 
@@ -88,15 +91,17 @@ function zonedLocalDateTimeToUtcDate(value: string, timeZone: string): Date | nu
 
   for (let i = 0; i < 3; i += 1) {
     const offsetMinutes = getOffsetMinutesAt(new Date(utcMillis), timeZone);
-    const corrected = Date.UTC(
-      parsed.year,
-      parsed.month - 1,
-      parsed.day,
-      parsed.hour,
-      parsed.minute,
-      0,
-      0,
-    ) - offsetMinutes * 60_000;
+    const corrected =
+      Date.UTC(
+        parsed.year,
+        parsed.month - 1,
+        parsed.day,
+        parsed.hour,
+        parsed.minute,
+        0,
+        0,
+      ) -
+      offsetMinutes * 60_000;
     if (corrected === utcMillis) break;
     utcMillis = corrected;
   }
@@ -105,7 +110,7 @@ function zonedLocalDateTimeToUtcDate(value: string, timeZone: string): Date | nu
 }
 
 export default function CreateMarketPage() {
-  const { addMarket } = useData();
+  const createMarket = useCreateMarket();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -165,7 +170,10 @@ export default function CreateMarketPage() {
       setError("Close date is required.");
       return;
     }
-    const convertedCloseAt = zonedLocalDateTimeToUtcDate(closeAt, closeTimezone);
+    const convertedCloseAt = zonedLocalDateTimeToUtcDate(
+      closeAt,
+      closeTimezone,
+    );
     if (!convertedCloseAt) {
       setError("Close date and timezone are invalid.");
       return;
@@ -229,14 +237,14 @@ export default function CreateMarketPage() {
       };
 
       if (marketType === "binary") {
-        await addMarket({
+        await createMarket.mutateAsync({
           ...base,
           yes_criteria: yesCriteria.trim(),
           no_criteria: noCriteria.trim(),
           ambiguity_criteria: ambiguityCriteria.trim(),
         });
       } else {
-        await addMarket({
+        await createMarket.mutateAsync({
           ...base,
           multichoice_type: multichoiceType,
           options: options.filter((o) => o.trim()).map((o) => o.trim()),
@@ -628,8 +636,12 @@ export default function CreateMarketPage() {
                   onChange={(e) => setCloseTimezone(e.target.value)}
                   className={inputClass}
                 >
-                  {!TIME_ZONE_OPTIONS.some((tz) => tz.value === closeTimezone) && (
-                    <option value={closeTimezone}>{closeTimezone} (Browser Default)</option>
+                  {!TIME_ZONE_OPTIONS.some(
+                    (tz) => tz.value === closeTimezone,
+                  ) && (
+                    <option value={closeTimezone}>
+                      {closeTimezone} (Browser Default)
+                    </option>
                   )}
                   {TIME_ZONE_OPTIONS.map((tz) => (
                     <option key={tz.value} value={tz.value}>

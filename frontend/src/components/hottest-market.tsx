@@ -1,8 +1,9 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
 import {
   getOptionColor,
@@ -10,10 +11,14 @@ import {
 } from "@/components/probability-chart";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
-import { getHotMarkets, listBetsForMarket } from "@/lib/api";
+import {
+  betsForMarketQuery,
+  hotMarketsQuery,
+} from "@/lib/query/queries/markets";
 import type { Bet, Market, PricePoint } from "@/lib/types";
 import { getMarketProbability } from "@/lib/types";
 
+// exported because the markets page's FeaturedMarket also uses it
 export function buildPriceHistory(bets: Bet[]): PricePoint[] {
   if (bets.length === 0) return [];
   const sorted = [...bets].sort(
@@ -86,39 +91,18 @@ export function MarketOptions({ market }: { market: Market }) {
 }
 
 export function HottestMarketDisplay() {
-  const [hotMarkets, setHotMarkets] = useState<Market[]>([]);
+  const { data: hotMarkets = [], isLoading } = useQuery(hotMarketsQuery());
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [chartData, setChartData] = useState<PricePoint[]>([]);
-
-  useEffect(() => {
-    getHotMarkets()
-      .then(setHotMarkets)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
   const market = hotMarkets[currentIndex];
 
-  const loadChart = useCallback(async (m: Market) => {
-    if (m.market_type !== "binary") {
-      setChartData([]);
-      return;
-    }
-    try {
-      const bets = await listBetsForMarket(m.id);
-      setChartData(buildPriceHistory(bets));
-    } catch {
-      setChartData([]);
-    }
-  }, []);
+  const isBinary = market?.market_type === "binary";
+  const { data: bets = [] } = useQuery({
+    ...betsForMarketQuery(market?.id ?? ""),
+    enabled: !!market && isBinary,
+  });
+  const chartData = isBinary ? buildPriceHistory(bets) : [];
 
-  useEffect(() => {
-    if (market) loadChart(market);
-  }, [market, loadChart]);
-
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center rounded-xl border bg-card p-12">
         <Spinner className="size-6" />
@@ -126,7 +110,7 @@ export function HottestMarketDisplay() {
     );
   }
 
-  if (hotMarkets.length === 0) {
+  if (hotMarkets.length === 0 || !market) {
     return (
       <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground">
         No active markets yet. Be the first to create one!
@@ -204,13 +188,11 @@ export function HottestMarketDisplay() {
           </div>
 
           <div className="flex items-center">
-            {market.market_type === "binary" && chartData.length > 0 ? (
+            {isBinary && chartData.length > 0 ? (
               <ProbabilityChart data={chartData} />
             ) : (
               <div className="flex h-[280px] w-full items-center justify-center rounded-lg bg-muted/30 text-sm text-muted-foreground">
-                {market.market_type === "binary"
-                  ? "No bet history yet"
-                  : "Multichoice market"}
+                {isBinary ? "No bet history yet" : "Multichoice market"}
               </div>
             )}
           </div>

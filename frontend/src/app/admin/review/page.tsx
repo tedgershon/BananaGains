@@ -1,15 +1,18 @@
 "use client";
 
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import * as api from "@/lib/api";
 import { datetimeLocalToIso, formatForDatetimeLocal } from "@/lib/datetime";
-import { useSession } from "@/lib/SessionProvider";
+import { queryKeys } from "@/lib/query/keys";
+import { useReviewMarket } from "@/lib/query/mutations/admin";
+import { marketsForReviewQuery } from "@/lib/query/queries/admin";
+import { useMe } from "@/lib/query/queries/auth";
 import type { Market } from "@/lib/types";
 
 const CATEGORIES = [
@@ -52,6 +55,7 @@ interface ReviewPanelProps {
 }
 
 function ReviewPanel({ market, onAction }: ReviewPanelProps) {
+  const review = useReviewMarket();
   const [title, setTitle] = useState(market.title);
   const [description, setDescription] = useState(market.description);
   const [resolutionCriteria, setResolutionCriteria] = useState(
@@ -64,7 +68,6 @@ function ReviewPanel({ market, onAction }: ReviewPanelProps) {
   const [link, setLink] = useState(market.link ?? "");
   const [notes, setNotes] = useState("");
   const [notesError, setNotesError] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const prefix = `review-${market.id}`;
@@ -80,36 +83,35 @@ function ReviewPanel({ market, onAction }: ReviewPanelProps) {
       return;
     }
 
-    setActionLoading(true);
     try {
-      await api.reviewMarket(market.id, {
-        action,
-        notes: notes.trim() || undefined,
-        title: title !== market.title ? title : null,
-        description: description !== market.description ? description : null,
-        resolution_criteria:
-          resolutionCriteria !== market.resolution_criteria
-            ? resolutionCriteria
-            : null,
-        close_at:
-          closeAt !== formatForDatetimeLocal(market.close_at)
-            ? datetimeLocalToIso(closeAt)
-            : null,
-        category: category !== market.category ? category : null,
-        link: link !== (market.link ?? "") ? link || null : null,
+      await review.mutateAsync({
+        marketId: market.id,
+        body: {
+          action,
+          notes: notes.trim() || undefined,
+          title: title !== market.title ? title : null,
+          description: description !== market.description ? description : null,
+          resolution_criteria:
+            resolutionCriteria !== market.resolution_criteria
+              ? resolutionCriteria
+              : null,
+          close_at:
+            closeAt !== formatForDatetimeLocal(market.close_at)
+              ? datetimeLocalToIso(closeAt)
+              : null,
+          category: category !== market.category ? category : null,
+          link: link !== (market.link ?? "") ? link || null : null,
+        },
       });
       onAction();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Action failed.");
-    } finally {
-      setActionLoading(false);
     }
   }
 
   return (
     <div className="space-y-4 border-t pt-4 px-4 pb-4">
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Editable fields */}
         <div className="space-y-3">
           <div className="space-y-1">
             <label
@@ -207,7 +209,6 @@ function ReviewPanel({ market, onAction }: ReviewPanelProps) {
           </div>
         </div>
 
-        {/* Read-only fields */}
         <div className="space-y-3">
           <div className="space-y-1">
             <span className="text-xs font-medium text-muted-foreground">
@@ -244,7 +245,6 @@ function ReviewPanel({ market, onAction }: ReviewPanelProps) {
         </div>
       </div>
 
-      {/* Notes + actions */}
       <div className="space-y-3">
         <div className="space-y-1">
           <label
@@ -273,16 +273,16 @@ function ReviewPanel({ market, onAction }: ReviewPanelProps) {
           <Button
             variant="destructive"
             onClick={() => handleAction("deny")}
-            disabled={actionLoading}
+            disabled={review.isPending}
           >
-            {actionLoading ? <Spinner /> : "Deny Market"}
+            {review.isPending ? <Spinner /> : "Deny Market"}
           </Button>
           <Button
             className="bg-success text-success-foreground hover:bg-success/80"
             onClick={() => handleAction("approve")}
-            disabled={actionLoading}
+            disabled={review.isPending}
           >
-            {actionLoading ? <Spinner /> : "Approve Market"}
+            {review.isPending ? <Spinner /> : "Approve Market"}
           </Button>
         </div>
       </div>
@@ -415,14 +415,13 @@ function AccordionSection({
 
 function AdminReviewPageContent() {
   const router = useRouter();
+  const { user } = useMe();
+  const qc = useQueryClient();
   const searchParams = useSearchParams();
-  const { user } = useSession();
-  const [data, setData] = useState<{
-    pending: Market[];
-    approved: Market[];
-    denied: Market[];
-  } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading } = useQuery({
+    ...marketsForReviewQuery(),
+    enabled: user.role !== "user",
+  });
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [appliedDeepLink, setAppliedDeepLink] = useState(false);
 
@@ -432,27 +431,9 @@ function AdminReviewPageContent() {
     }
   }, [user.role, router]);
 
-  const fetchData = useCallback(async () => {
-    try {
-      const result = await api.getMarketsForReview();
-      setData(result);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // deep-link from notification: scroll to and expand the market row
   useEffect(() => {
-    if (user.role !== "user") {
-      fetchData();
-    }
-  }, [user.role, fetchData]);
-
-  useEffect(() => {
-    if (loading || !data || appliedDeepLink) {
-      return;
-    }
+    if (isLoading || !data || appliedDeepLink) return;
 
     const marketId = searchParams.get("marketId");
     if (!marketId) {
@@ -462,26 +443,18 @@ function AdminReviewPageContent() {
 
     const existsInPending = (data.pending ?? []).some((m) => m.id === marketId);
     setAppliedDeepLink(true);
-    if (!existsInPending) {
-      return;
-    }
+    if (!existsInPending) return;
 
     setExpandedId(marketId);
-
     requestAnimationFrame(() => {
       const row = document.getElementById(`review-market-${marketId}`);
       row?.scrollIntoView({ behavior: "smooth", block: "center" });
     });
-  }, [appliedDeepLink, data, loading, searchParams]);
-
-  function handleAction() {
-    setExpandedId(null);
-    fetchData();
-  }
+  }, [appliedDeepLink, data, isLoading, searchParams]);
 
   if (user.role === "user") return null;
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-5">
         <section>
@@ -498,6 +471,11 @@ function AdminReviewPageContent() {
   const approved = data?.approved ?? [];
   const denied = data?.denied ?? [];
 
+  function handleAction() {
+    setExpandedId(null);
+    // mutation already invalidates the review list
+  }
+
   function renderTable(
     markets: Market[],
     showReviewer: boolean,
@@ -513,7 +491,6 @@ function AdminReviewPageContent() {
 
     return (
       <div className="divide-y divide-border">
-        {/* Header */}
         <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-2 px-2 py-2 text-xs font-medium text-muted-foreground">
           <span>Title</span>
           <span>Proposed By</span>
@@ -528,9 +505,7 @@ function AdminReviewPageContent() {
             <div key={market.id} id={`review-market-${market.id}`}>
               <button
                 type="button"
-                onClick={() =>
-                  setExpandedId(isExpanded ? null : market.id)
-                }
+                onClick={() => setExpandedId(isExpanded ? null : market.id)}
                 className="grid w-full grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-2 px-2 py-2.5 text-left text-sm cursor-pointer hover:bg-muted/50"
               >
                 <span className="font-medium truncate">{market.title}</span>
@@ -569,7 +544,13 @@ function AdminReviewPageContent() {
             Review, edit, and approve or deny proposed markets.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchData}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            qc.invalidateQueries({ queryKey: queryKeys.markets.review })
+          }
+        >
           Refresh
         </Button>
       </section>

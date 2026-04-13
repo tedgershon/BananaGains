@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BananaCoin } from "@/components/banana-coin";
+import { NotificationsMenu } from "@/components/notifications-menu";
 import { buttonVariants } from "@/components/ui/button";
 import { UserMenu } from "@/components/user-menu";
+import { useMe } from "@/lib/query/queries/auth";
 import { useSession } from "@/lib/SessionProvider";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +17,8 @@ const NAV_LINKS = [
 
 export function Navbar() {
   const pathname = usePathname();
-  const { user, isDemo } = useSession();
+  const { isDemo } = useSession();
+  const { user } = useMe();
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-white">
@@ -57,6 +60,7 @@ export function Navbar() {
                 <BananaCoin size={16} />
                 <span>{user.banana_balance.toLocaleString()}</span>
               </Link>
+              <NotificationsMenu />
               <Link
                 href="/markets/create"
                 className={cn(

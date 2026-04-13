@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -23,10 +24,17 @@ class TransitionRule:
     requires_community_tally: bool = False
 
 
+# postgres can return fractional seconds with anywhere from 1-6 digits
+# python 3.10's fromisoformat only accepts 0/3/6, so pad to 6 first
+_FRACTIONAL_RE = re.compile(r"\.(\d{1,6})")
+
+
 def _parse_dt(value: str | None) -> datetime | None:
     if not value:
         return None
-    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    s = value.replace("Z", "+00:00")
+    s = _FRACTIONAL_RE.sub(lambda m: "." + m.group(1).ljust(6, "0"), s, count=1)
+    parsed = datetime.fromisoformat(s)
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)
     return parsed

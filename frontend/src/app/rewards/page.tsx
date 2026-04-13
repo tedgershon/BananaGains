@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { Check, Circle, Lock, Trophy } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BadgeIcon } from "@/components/badge-icon";
@@ -11,8 +12,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { getUserRewards, updateProfile } from "@/lib/api";
-import { useSession } from "@/lib/SessionProvider";
+import { useUpdateProfile } from "@/lib/query/mutations/auth";
+import { useMe } from "@/lib/query/queries/auth";
+import { rewardsQuery } from "@/lib/query/queries/rewards";
 import type {
   EquippedBadgesMap,
   RewardsResponse,
@@ -233,27 +235,24 @@ function TrackCard({
 }
 
 export default function RewardsPage() {
-  const { user, updateUser } = useSession();
-  const [data, setData] = useState<RewardsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user } = useMe();
+  const { data, isLoading } = useQuery(rewardsQuery());
+  const updateProfile = useUpdateProfile();
+
   const [savingTrack, setSavingTrack] = useState<string | null>(null);
   const [equippedByTrack, setEquippedByTrack] = useState<EquippedBadgesMap>(
     normalizeEquippedBadges(user.equipped_badges),
   );
 
-  useEffect(() => {
-    getUserRewards()
-      .then(setData)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
+  // keep our local optimistic map in sync when the cached user changes
   useEffect(() => {
     setEquippedByTrack(normalizeEquippedBadges(user.equipped_badges));
   }, [user.equipped_badges]);
 
+  // legacy backfill — if the old equipped_badge_id is set but no map exists,
+  // infer the track it belongs to once rewards data loads
   useEffect(() => {
-    const rewardsData = data;
+    const rewardsData = data ?? null;
     const legacyEquippedBadgeId = user.equipped_badge_id;
     if (!rewardsData || !legacyEquippedBadgeId) return;
 
@@ -283,11 +282,7 @@ export default function RewardsPage() {
     const legacyBadge = Object.values(next)[0] ?? null;
 
     try {
-      await updateProfile({
-        equipped_badges: next,
-        equipped_badge_id: legacyBadge,
-      });
-      updateUser({
+      await updateProfile.mutateAsync({
         equipped_badges: next,
         equipped_badge_id: legacyBadge,
       });
@@ -307,7 +302,7 @@ export default function RewardsPage() {
         </p>
       </section>
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex justify-center py-12">
           <Spinner className="size-6" />
         </div>

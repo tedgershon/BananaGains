@@ -1,12 +1,21 @@
 "use client";
 
-import { BarChart3, Bell, List, LogOut, Settings, Trophy, User, Wallet } from "lucide-react";
+import {
+  BarChart3,
+  List,
+  LogOut,
+  Settings,
+  Trophy,
+  User,
+  Wallet,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
-import { useUnreadNotificationCount } from "@/hooks/use-unread-notification-count";
+import { useMe } from "@/lib/query/queries/auth";
 import { useSession } from "@/lib/SessionProvider";
+import { useClickOutside } from "@/lib/use-click-outside";
 import { cn } from "@/lib/utils";
 
 const MENU_ITEMS = [
@@ -17,21 +26,14 @@ const MENU_ITEMS = [
 ];
 
 export function UserMenu() {
-  const { user, isDemo, signOut } = useSession();
-  const { unreadCount } = useUnreadNotificationCount(isDemo);
+  const { isDemo, signOut } = useSession();
+  const { user } = useMe();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  useClickOutside(menuRef, () => setOpen(false));
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const isAdmin = user.role === "admin" || user.role === "super_admin";
 
   if (isDemo) {
     return (
@@ -60,24 +62,19 @@ export function UserMenu() {
         type="button"
         onClick={() => setOpen(!open)}
         className="relative flex items-center"
-        aria-label={
-          unreadCount > 0
-            ? `Account menu, ${unreadCount} unread notifications`
-            : "Account menu"
-        }
+        aria-label="Account menu"
       >
         <div className="flex size-9 items-center justify-center overflow-hidden rounded-full border-2 border-border bg-muted text-sm font-medium text-muted-foreground transition-colors hover:bg-accent">
           {user.avatar_url ? (
-            <img src={user.avatar_url} alt="" className="size-full object-cover" />
+            <img
+              src={user.avatar_url}
+              alt=""
+              className="size-full object-cover"
+            />
           ) : (
             initials
           )}
         </div>
-        {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[11px] font-bold text-destructive-foreground ring-2 ring-white">
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        )}
       </button>
 
       {open && (
@@ -85,7 +82,11 @@ export function UserMenu() {
           <div className="flex items-center gap-3 border-b border-border px-4 py-3">
             <div className="flex size-10 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-medium text-muted-foreground">
               {user.avatar_url ? (
-                <img src={user.avatar_url} alt="" className="size-full object-cover" />
+                <img
+                  src={user.avatar_url}
+                  alt=""
+                  className="size-full object-cover"
+                />
               ) : (
                 initials
               )}
@@ -95,7 +96,7 @@ export function UserMenu() {
                 <p className="truncate text-sm font-semibold">
                   {user.display_name}
                 </p>
-                {(user.role === "admin" || user.role === "super_admin") && (
+                {isAdmin && (
                   <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
                     {user.role === "super_admin" ? "Super Admin" : "Admin"}
                   </span>
@@ -128,20 +129,7 @@ export function UserMenu() {
                 <span>{item.label}</span>
               </Link>
             ))}
-            <Link
-              href="/notifications"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-accent"
-            >
-              <Bell size={16} className="text-muted-foreground" />
-              <span className="flex-1">Notifications</span>
-              {unreadCount > 0 && (
-                <span className="rounded-full bg-destructive px-2 py-0.5 text-[11px] font-semibold text-destructive-foreground">
-                  {unreadCount > 99 ? "99+" : unreadCount}
-                </span>
-              )}
-            </Link>
-            {(user.role === "admin" || user.role === "super_admin") && (
+            {isAdmin && (
               <Link
                 href="/admin"
                 onClick={() => setOpen(false)}

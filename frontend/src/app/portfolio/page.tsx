@@ -1,15 +1,20 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import * as api from "@/lib/api";
-import { useData } from "@/lib/DataProvider";
-import { useSession } from "@/lib/SessionProvider";
+import { useClaimDaily } from "@/lib/query/mutations/auth";
+import { useMe } from "@/lib/query/queries/auth";
+import { marketsQuery } from "@/lib/query/queries/markets";
+import {
+  portfolioQuery,
+  transactionsQuery,
+} from "@/lib/query/queries/portfolio";
 import type { Market } from "@/lib/types";
 import { getMarketProbability } from "@/lib/types";
 
@@ -22,38 +27,48 @@ const TX_LABELS: Record<string, string> = {
   daily_claim: "Daily Claim",
 };
 
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "-";
+  return new Date(dateStr).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export default function PortfolioPage() {
-  const { user } = useSession();
-  const { markets, bets, transactions, loading, claimDaily } = useData();
-  const [claiming, setClaiming] = useState(false);
+  const { user } = useMe();
+  const { data: markets = [] } = useQuery(marketsQuery());
+  const { data: bets = [], isLoading: betsLoading } = useQuery(
+    portfolioQuery(),
+  );
+  const { data: transactions = [], isLoading: txsLoading } = useQuery(
+    transactionsQuery(),
+  );
+  // pending/denied live in the same markets endpoint with a filter — no
+  // extra useEffect + AbortController, RQ handles both
+  const { data: pendingMarkets = [] } = useQuery(
+    marketsQuery({ status: "pending_review" }),
+  );
+  const { data: deniedMarkets = [] } = useQuery(
+    marketsQuery({ status: "denied" }),
+  );
+
+  const claim = useClaimDaily();
   const [claimError, setClaimError] = useState<string | null>(null);
-  const [pendingMarkets, setPendingMarkets] = useState<Market[]>([]);
-  const [deniedMarkets, setDeniedMarkets] = useState<Market[]>([]);
-  const [expandedProposedId, setExpandedProposedId] = useState<string | null>(null);
+  const [expandedProposedId, setExpandedProposedId] = useState<string | null>(
+    null,
+  );
   const [showAllProposed, setShowAllProposed] = useState(false);
 
-  useEffect(() => {
-    const ctrl = new AbortController();
-    api
-      .listMarkets({ status: "pending_review" }, { signal: ctrl.signal })
-      .then((m) => {
-        if (!ctrl.signal.aborted) setPendingMarkets(m);
-      })
-      .catch(() => {});
-    api
-      .listMarkets({ status: "denied" }, { signal: ctrl.signal })
-      .then((m) => {
-        if (!ctrl.signal.aborted) setDeniedMarkets(m);
-      })
-      .catch(() => {});
-    return () => ctrl.abort();
-  }, []);
+  const loading = betsLoading || txsLoading;
 
   async function handleClaim() {
-    setClaiming(true);
     setClaimError(null);
     try {
-      await claimDaily();
+      await claim.mutateAsync();
     } catch (err) {
       if (
         err &&
@@ -65,24 +80,11 @@ export default function PortfolioPage() {
       } else {
         setClaimError("Failed to claim. Try again later.");
       }
-    } finally {
-      setClaiming(false);
     }
   }
 
   function getMarketById(id: string) {
     return markets.find((m) => m.id === id);
-  }
-
-  function formatDate(dateStr: string | null | undefined): string {
-    if (!dateStr) return "-";
-    return new Date(dateStr).toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
   }
 
   if (loading) {
@@ -159,9 +161,9 @@ export default function PortfolioPage() {
                     size="sm"
                     className="w-full"
                     onClick={handleClaim}
-                    disabled={claiming}
+                    disabled={claim.isPending}
                   >
-                    {claiming ? (
+                    {claim.isPending ? (
                       <Spinner />
                     ) : user.claim_amount < 1000 ? (
                       `Claim ${user.claim_amount.toLocaleString()} Daily Bananas`
@@ -224,10 +226,12 @@ export default function PortfolioPage() {
         <section className="space-y-1.5">
           <h2 className="text-lg font-semibold">Proposed Markets</h2>
           <div className="grid gap-1.5">
-            {visibleProposedMarkets.map((market, idx) => {
+            {visibleProposedMarkets.map((market) => {
               const isExpanded = expandedProposedId === market.id;
               const isDenied = market.status === "denied";
-              const reviewNotes = (market as Market & { review_notes?: string | null }).review_notes;
+              const reviewNotes = (
+                market as Market & { review_notes?: string | null }
+              ).review_notes;
               return (
                 <Card key={market.id} size="sm">
                   <CardContent className="!p-0">
@@ -278,13 +282,17 @@ export default function PortfolioPage() {
                             <p className="text-xs font-medium text-muted-foreground">
                               Resolution Criteria
                             </p>
-                            <p className="text-sm">{market.resolution_criteria}</p>
+                            <p className="text-sm">
+                              {market.resolution_criteria}
+                            </p>
                           </div>
                           <div>
                             <p className="text-xs font-medium text-muted-foreground">
                               Close Date
                             </p>
-                            <p className="text-sm">{formatDate(market.close_at)}</p>
+                            <p className="text-sm">
+                              {formatDate(market.close_at)}
+                            </p>
                           </div>
                           <div>
                             <p className="text-xs font-medium text-muted-foreground">

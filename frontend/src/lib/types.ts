@@ -12,7 +12,9 @@ export type MarketStatus =
   | "resolved"
   | "denied";
 export type BetSide = "YES" | "NO";
+
 export type UserRole = "user" | "admin" | "super_admin";
+export type EquippedBadgesMap = Record<string, string | null>;
 
 export interface UserProfile {
   id: string;
@@ -27,8 +29,35 @@ export interface UserProfile {
   claim_amount: number;
   above_cap: boolean;
   equipped_badge_id: string | null;
-  equipped_badges: Record<string, string | null>;
+  equipped_badges: EquippedBadgesMap;
   avatar_url: string | null;
+}
+
+export interface AdminStats {
+  total_users: number;
+  users_by_role: Record<string, number>;
+  total_markets: number;
+  markets_by_status: Record<string, number>;
+  total_banana_traded: number;
+  total_active_bets: number;
+}
+
+export interface UserSearchResult {
+  id: string;
+  andrew_id: string;
+  display_name: string;
+  role: string;
+  created_at: string;
+}
+
+export interface MarketOption {
+  id: string;
+  market_id: string;
+  label: string;
+  pool_total: number;
+  sort_order: number;
+  is_winner: boolean | null;
+  created_at: string;
 }
 
 export interface Market {
@@ -58,25 +87,15 @@ export interface Market {
   disputed_at?: string | null;
   disputed_by?: string | null;
   voting_ends_at?: string | null;
+  category: string;
+  link?: string | null;
   reviewed_by?: string | null;
   review_date?: string | null;
   review_notes?: string | null;
   resolution_window_end?: string | null;
-  category: string;
-  link?: string | null;
-  market_type?: "binary" | "multichoice";
-  multichoice_type?: "exclusive" | "non_exclusive" | null;
+  market_type: "binary" | "multichoice";
+  multichoice_type: "exclusive" | "non_exclusive" | null;
   options?: MarketOption[] | null;
-}
-
-export interface MarketOption {
-  id: string;
-  market_id: string;
-  label: string;
-  pool_total: number;
-  sort_order: number;
-  is_winner?: boolean | null;
-  created_at: string;
 }
 
 export interface Bet {
@@ -96,7 +115,8 @@ export type TransactionType =
   | "payout"
   | "voter_stake"
   | "voter_reward"
-  | "daily_claim";
+  | "daily_claim"
+  | "resolution_vote_reward";
 
 export interface Transaction {
   id: string;
@@ -112,9 +132,22 @@ export interface LeaderboardEntry {
   andrew_id: string;
   display_name: string;
   banana_balance: number;
-  avatar_url: string | null;
   equipped_badge_id: string | null;
-  equipped_badges: Record<string, string | null> | null;
+  equipped_badges: EquippedBadgesMap;
+  avatar_url: string | null;
+}
+
+export interface WeeklyLeaderboardEntry {
+  id: string;
+  andrew_id: string;
+  display_name: string;
+  banana_balance: number;
+  gains: number;
+}
+
+export interface WeeklyLeaderboardResponse {
+  period: "7d" | "30d" | "all_time";
+  entries: WeeklyLeaderboardEntry[];
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +171,17 @@ export interface CreateMarketRequest {
   options?: string[];
 }
 
+export interface ReviewMarketRequest {
+  action: "approve" | "deny";
+  notes?: string | null;
+  title?: string | null;
+  description?: string | null;
+  resolution_criteria?: string | null;
+  close_at?: string | null;
+  category?: string | null;
+  link?: string | null;
+}
+
 export interface ResolveMarketRequest {
   outcome: BetSide;
 }
@@ -153,6 +197,25 @@ export interface CastVoteRequest {
 export interface PlaceBetRequest {
   side: BetSide;
   amount: number;
+}
+
+export interface PlaceMultichoiceBetRequest {
+  option_id: string;
+  amount: number;
+}
+
+export interface BackrollRequest {
+  cutoff_date: string;
+  close_market: boolean;
+}
+
+export interface BackrollResponse {
+  market_id: string;
+  bets_cancelled: number;
+  total_refunded: number;
+  market_closed?: boolean;
+  cutoff_date?: string;
+  status?: string;
 }
 
 export interface CreateProfileRequest {
@@ -202,9 +265,12 @@ export interface VoteResponse {
   created_at: string;
 }
 
-export interface PricePoint {
-  timestamp: string;
-  probability: number;
+export interface CommunityVote {
+  id: string;
+  market_id: string;
+  voter_id: string;
+  selected_outcome: BetSide;
+  created_at: string;
 }
 
 export interface NotificationResponse {
@@ -218,75 +284,10 @@ export interface NotificationResponse {
   created_at: string;
 }
 
-export interface AdminStats {
-  total_users: number;
-  users_by_role: Record<string, number>;
-  total_markets: number;
-  markets_by_status: Record<string, number>;
-  total_banana_traded: number;
-  total_active_bets: number;
+export interface PricePoint {
+  timestamp: string;
+  probability: number;
 }
-
-export interface UserSearchResult {
-  id: string;
-  andrew_id: string;
-  display_name: string;
-  role: UserRole;
-  banana_balance: number;
-  created_at: string;
-}
-
-export interface ReviewMarketRequest {
-  action: "approve" | "deny";
-  notes?: string | null;
-  title?: string | null;
-  description?: string | null;
-  resolution_criteria?: string | null;
-  close_at?: string | null;
-  category?: string | null;
-  link?: string | null;
-}
-
-export interface BackrollRequest {
-  cutoff_date: string;
-  close_market?: boolean;
-}
-
-export interface BackrollResponse {
-  market_id: string;
-  bets_cancelled: number;
-  total_refunded: number;
-  market_closed?: boolean;
-  cutoff_date?: string;
-  status?: string;
-}
-
-export interface CommunityVote {
-  id: string;
-  market_id: string;
-  voter_id: string;
-  selected_outcome: BetSide;
-  created_at: string;
-}
-
-export interface PlaceMultichoiceBetRequest {
-  option_id: string;
-  amount: number;
-}
-
-export interface WeeklyLeaderboardEntry {
-  id: string;
-  andrew_id: string;
-  display_name: string;
-  gains: number;
-}
-
-export interface WeeklyLeaderboardResponse {
-  period: "7d" | "30d" | "all_time";
-  entries: WeeklyLeaderboardEntry[];
-}
-
-export type EquippedBadgesMap = Record<string, string | null>;
 
 export interface BadgeDefinition {
   id: string;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import {
   createContext,
   type ReactNode,
@@ -7,13 +8,15 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { getMe } from "./api";
+import { queryKeys } from "./query/keys";
 import { supabase } from "./supabase";
-import type { UserProfile, UserRole } from "./types";
+import type { UserProfile } from "./types";
 
-/** Default user state for unauthenticated sessions. */
+// still exported because useMe() falls back to this when the cache is empty
+// (logged out, first paint, 401), keeps consumers from having to null-check
 export const GUEST_USER: UserProfile = {
   id: "00000000-0000-0000-0000-000000000000",
   andrew_id: "",
@@ -32,33 +35,23 @@ export const GUEST_USER: UserProfile = {
 };
 
 interface SessionContextValue {
-  user: UserProfile;
   isDemo: boolean;
   isLoading: boolean;
-  updateBalance: (delta: number) => void;
-  updateUser: (partial: Partial<UserProfile>) => void;
-  markClaimedToday: () => void;
   signOut: () => Promise<void>;
-  viewAsRole: UserRole;
-  setViewAsRole: (role: UserRole) => void;
 }
 
 const SessionCtx = createContext<SessionContextValue>({
-  user: GUEST_USER,
   isDemo: true,
   isLoading: false,
-  updateBalance: () => {},
-  updateUser: () => {},
-  markClaimedToday: () => {},
   signOut: async () => {},
-  viewAsRole: "user",
-  setViewAsRole: () => {},
 });
 
 export function useSession() {
   return useContext(SessionCtx);
 }
 
+// session-shell provider — holds only auth-session bits
+// profile data lives in the me query (useMe), never here
 export function SessionProvider({
   children,
   initialUser,
@@ -66,101 +59,65 @@ export function SessionProvider({
   children: ReactNode;
   initialUser?: UserProfile | null;
 }) {
-  const [user, setUser] = useState<UserProfile>(initialUser ?? GUEST_USER);
+  const qc = useQueryClient();
   const [isDemo, setIsDemo] = useState(!initialUser);
   const [isLoading, setIsLoading] = useState(!initialUser);
-  const [viewAsRole, setViewAsRole] = useState<UserRole>(
-    initialUser?.role ?? "user",
-  );
 
-  const updateBalance = useCallback((delta: number) => {
-    setUser((prev) => ({
-      ...prev,
-      banana_balance: prev.banana_balance + delta,
-    }));
-  }, []);
+  // seed the me cache from SSR-fetched user so the first paint has real data
+  // and nothing else has to know about the initialUser prop
+  useState(() => {
+    if (initialUser) qc.setQueryData(queryKeys.me, initialUser);
+  });
 
-  const updateUser = useCallback((partial: Partial<UserProfile>) => {
-    setUser((prev) => ({ ...prev, ...partial }));
-  }, []);
-
-  const markClaimedToday = useCallback(() => {
-    setUser((prev) => ({ ...prev, claimed_today: true }));
-  }, []);
-
-  const loadProfile = useCallback(async () => {
-    try {
-      const profile = await getMe();
-      setUser(profile);
-      setIsDemo(false);
-      setViewAsRole(profile.role ?? "user");
-    } catch {
-      setUser(GUEST_USER);
-      setIsDemo(true);
-      setViewAsRole("user");
-    }
-  }, []);
+  // track the last user id we've seen so onAuthStateChange only invalidates
+  // when the user actually changes — supabase fires INITIAL_SESSION and
+  // TOKEN_REFRESHED without an actual transition, we want to ignore those
+  const lastUserIdRef = useRef<string | null>(initialUser?.id ?? null);
 
   useEffect(() => {
     if (!supabase) {
-      loadProfile().finally(() => setIsLoading(false));
+      // no supabase configured — we're permanently in demo mode
+      setIsDemo(true);
+      setIsLoading(false);
       return;
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        loadProfile().finally(() => setIsLoading(false));
-      } else {
-        setUser(GUEST_USER);
-        setIsDemo(true);
-        setIsLoading(false);
-      }
-    });
-
+    // onAuthStateChange fires INITIAL_SESSION right after subscribe with
+    // the current session, so we don't need a separate getSession() call —
+    // that was just a duplicate refetch
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      const newUserId = session?.user.id ?? null;
+      const changed = newUserId !== lastUserIdRef.current;
+      lastUserIdRef.current = newUserId;
+
       if (session) {
-        loadProfile();
+        setIsDemo(false);
+        // only refetch when it's actually a different user (sign-in, switch)
+        if (changed) qc.invalidateQueries({ queryKey: queryKeys.me });
       } else {
-        setUser(GUEST_USER);
         setIsDemo(true);
+        if (changed) qc.removeQueries({ queryKey: queryKeys.me });
       }
+      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [loadProfile]);
+  }, [qc]);
 
   const signOut = useCallback(async () => {
     if (supabase) {
       await supabase.auth.signOut();
     }
-    setUser(GUEST_USER);
     setIsDemo(true);
-  }, []);
+    lastUserIdRef.current = null;
+    qc.removeQueries({ queryKey: queryKeys.me });
+  }, [qc]);
 
   const value = useMemo(
-    () => ({
-      user,
-      isDemo,
-      isLoading,
-      updateBalance,
-      updateUser,
-      markClaimedToday,
-      signOut,
-      viewAsRole,
-      setViewAsRole,
-    }),
-    [
-      user,
-      isDemo,
-      isLoading,
-      updateBalance,
-      updateUser,
-      markClaimedToday,
-      signOut,
-      viewAsRole,
-    ],
+    () => ({ isDemo, isLoading, signOut }),
+    [isDemo, isLoading, signOut],
   );
 
   return <SessionCtx.Provider value={value}>{children}</SessionCtx.Provider>;

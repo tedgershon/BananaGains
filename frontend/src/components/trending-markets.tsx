@@ -1,12 +1,16 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { getTopMarkets, getTrendingMarkets } from "@/lib/api";
+import {
+  topMarketsQuery,
+  trendingMarketsQuery,
+} from "@/lib/query/queries/markets";
 import type { Market } from "@/lib/types";
 import { getMarketProbability } from "@/lib/types";
 
@@ -81,31 +85,14 @@ function RankedMarketList({ markets }: { markets: Market[] }) {
 
 export function TrendingTopMarkets() {
   const [activeTab, setActiveTab] = useState<"trending" | "top">("trending");
-  const [trendingMarkets, setTrendingMarkets] = useState<Market[]>([]);
-  const [topMarkets, setTopMarkets] = useState<Market[]>([]);
-  const [loadingTrending, setLoadingTrending] = useState(true);
-  const [loadingTop, setLoadingTop] = useState(false);
-  const [topLoaded, setTopLoaded] = useState(false);
-
-  useEffect(() => {
-    getTrendingMarkets()
-      .then(setTrendingMarkets)
-      .catch(() => {})
-      .finally(() => setLoadingTrending(false));
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === "top" && !topLoaded) {
-      setLoadingTop(true);
-      getTopMarkets()
-        .then((data) => {
-          setTopMarkets(data);
-          setTopLoaded(true);
-        })
-        .catch(() => {})
-        .finally(() => setLoadingTop(false));
-    }
-  }, [activeTab, topLoaded]);
+  const { data: trendingMarkets = [], isLoading: loadingTrending } = useQuery(
+    trendingMarketsQuery(),
+  );
+  // top tab only fetches when the user clicks over to it
+  const { data: topMarkets = [], isLoading: loadingTop } = useQuery({
+    ...topMarketsQuery(),
+    enabled: activeTab === "top",
+  });
 
   const isLoading =
     (activeTab === "trending" && loadingTrending) ||

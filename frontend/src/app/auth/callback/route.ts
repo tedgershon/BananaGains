@@ -60,10 +60,7 @@ export async function GET(request: NextRequest) {
               .select("role")
               .eq("id", user.id)
               .single();
-            if (
-              profile?.role === "admin" ||
-              profile?.role === "super_admin"
-            ) {
+            if (profile?.role === "admin" || profile?.role === "super_admin") {
               destination = "/admin";
             }
           }

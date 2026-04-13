@@ -1,12 +1,11 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { Trophy } from "lucide-react";
-import { useEffect, useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { getWeeklyLeaderboard } from "@/lib/api";
-import type { WeeklyLeaderboardEntry } from "@/lib/types";
+import { weeklyLeaderboardQuery } from "@/lib/query/queries/leaderboard";
 
 const PERIOD_LABELS: Record<string, string> = {
   "7d": "Past 7 days",
@@ -15,20 +14,9 @@ const PERIOD_LABELS: Record<string, string> = {
 };
 
 export function WeeklyLeaderboard() {
-  const [entries, setEntries] = useState<WeeklyLeaderboardEntry[]>([]);
-  const [period, setPeriod] = useState<string>("7d");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    getWeeklyLeaderboard(5)
-      .then((data) => {
-        setEntries(data.entries);
-        setPeriod(data.period);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
+  const { data, isLoading } = useQuery(weeklyLeaderboardQuery(5));
+  const entries = data?.entries ?? [];
+  const period = data?.period ?? "7d";
   const leaderGains = entries.length > 0 ? entries[0].gains : 1;
 
   return (
@@ -47,7 +35,7 @@ export function WeeklyLeaderboard() {
         </span>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex justify-center py-8">
           <Spinner className="size-6" />
         </div>

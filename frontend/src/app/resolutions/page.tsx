@@ -1,18 +1,28 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Clock, Timer } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import * as api from "@/lib/api";
-import { useSession } from "@/lib/SessionProvider";
-import type { CommunityVote, Market, VoteResponse } from "@/lib/types";
+import {
+  useCastCommunityVote,
+  useCastDisputeVote,
+} from "@/lib/query/mutations/markets";
+import { useMe } from "@/lib/query/queries/auth";
+import {
+  communityVotesQuery,
+  disputeVotesQuery,
+  resolutionMarketsQuery,
+} from "@/lib/query/queries/markets";
+import type { Market } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+// local countdown timer — pure UI state
 function useCountdown(targetDate: string | null | undefined) {
   const [remaining, setRemaining] = useState("");
   const [urgent, setUrgent] = useState(false);
@@ -49,11 +59,6 @@ function useCountdown(targetDate: string | null | undefined) {
   return { remaining, urgent };
 }
 
-interface VoteTally {
-  yes: number;
-  no: number;
-}
-
 function ResolutionCard({
   market,
   userId,
@@ -66,9 +71,33 @@ function ResolutionCard({
     ? market.voting_ends_at
     : market.resolution_window_end;
   const { remaining, urgent } = useCountdown(targetDate);
-  const [tally, setTally] = useState<VoteTally>({ yes: 0, no: 0 });
-  const [userVote, setUserVote] = useState<string | null>(null);
-  const [voting, setVoting] = useState(false);
+
+  // each card fetches its own votes via RQ — dedup + cache share if the
+  // user opens the market detail page right after
+  const { data: disputeVotes = [] } = useQuery({
+    ...disputeVotesQuery(market.id),
+    enabled: isDisputeMode,
+  });
+  const { data: communityVotes = [] } = useQuery({
+    ...communityVotesQuery(market.id),
+    enabled: !isDisputeMode,
+  });
+
+  const votes = isDisputeMode ? disputeVotes : communityVotes;
+  const tally = votes.reduce(
+    (acc, v) => {
+      if (v.selected_outcome === "YES") acc.yes += 1;
+      else acc.no += 1;
+      return acc;
+    },
+    { yes: 0, no: 0 },
+  );
+  const userVote =
+    votes.find((v) => v.voter_id === userId)?.selected_outcome ?? null;
+
+  const disputeMut = useCastDisputeVote();
+  const communityMut = useCastCommunityVote();
+  const voting = disputeMut.isPending || communityMut.isPending;
   const [error, setError] = useState<string | null>(null);
 
   const isCreator = userId === market.creator_id;
@@ -76,68 +105,16 @@ function ResolutionCard({
   const rewardPool = Math.round(totalPool * 0.04);
   const isExpired = remaining === "Expired";
 
-  const fetchVotes = useCallback(
-    async (signal?: AbortSignal) => {
-      try {
-        let yes = 0;
-        let no = 0;
-
-        if (isDisputeMode) {
-          const votes: VoteResponse[] = await api.listDisputeVotes(market.id, {
-            signal,
-          });
-          if (signal?.aborted) return;
-          for (const v of votes) {
-            if (v.selected_outcome === "YES") yes++;
-            else if (v.selected_outcome === "NO") no++;
-          }
-          const existing = votes.find((v) => v.voter_id === userId);
-          if (existing) setUserVote(existing.selected_outcome);
-          else setUserVote(null);
-        } else {
-          const votes: CommunityVote[] = await api.listCommunityVotes(
-            market.id,
-            { signal },
-          );
-          if (signal?.aborted) return;
-          for (const v of votes) {
-            if (v.selected_outcome === "YES") yes++;
-            else no++;
-          }
-          const existing = votes.find((v) => v.voter_id === userId);
-          if (existing) setUserVote(existing.selected_outcome);
-          else setUserVote(null);
-        }
-
-        setTally({ yes, no });
-      } catch {
-        // ignore
-      }
-    },
-    [isDisputeMode, market.id, userId],
-  );
-
-  useEffect(() => {
-    const ctrl = new AbortController();
-    fetchVotes(ctrl.signal);
-    return () => ctrl.abort();
-  }, [fetchVotes]);
-
   async function handleVote(side: "YES" | "NO") {
-    setVoting(true);
     setError(null);
     try {
       if (isDisputeMode) {
-        await api.castDisputeVote(market.id, { vote: side });
+        await disputeMut.mutateAsync({ marketId: market.id, vote: side });
       } else {
-        await api.castCommunityVote(market.id, { vote: side });
+        await communityMut.mutateAsync({ marketId: market.id, vote: side });
       }
-      setUserVote(side);
-      await fetchVotes();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to cast vote.");
-    } finally {
-      setVoting(false);
     }
   }
 
@@ -165,7 +142,6 @@ function ResolutionCard({
         </Badge>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Creator's Call */}
         <div className="flex items-center gap-2 text-sm">
           <span className="text-muted-foreground">Creator&apos;s Call:</span>
           {market.proposed_outcome ? (
@@ -184,13 +160,11 @@ function ResolutionCard({
           )}
         </div>
 
-        {/* Vote tally */}
         <div className="flex items-center justify-between text-sm">
           <span className="text-success font-medium">YES: {tally.yes}</span>
           <span className="text-danger font-medium">NO: {tally.no}</span>
         </div>
 
-        {/* Countdown */}
         <div className="flex items-center gap-2 text-sm">
           <Timer className="size-4 text-muted-foreground" />
           <span className={cn("font-medium", urgent && "text-danger")}>
@@ -198,14 +172,12 @@ function ResolutionCard({
           </span>
         </div>
 
-        {/* Reward pool */}
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           Reward pool:
           <BananaCoin size={12} />
           <span className="font-medium">{rewardPool.toLocaleString()}</span>
         </div>
 
-        {/* Vote buttons / status */}
         {isCreator ? (
           <p className="text-xs italic text-muted-foreground">
             You are the creator of this market
@@ -249,40 +221,20 @@ function ResolutionCard({
 }
 
 export default function ResolutionsPage() {
-  const { user } = useSession();
-  const [markets, setMarkets] = useState<Market[]>([]);
-  const [loading, setLoading] = useState(true);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const load = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const data = await api.listResolutionMarkets({ signal });
-      if (signal?.aborted) return;
-      setMarkets(data);
-    } catch {
-      // ignore
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const ctrl = new AbortController();
-    load(ctrl.signal);
-    intervalRef.current = setInterval(() => load(ctrl.signal), 30_000);
-    return () => {
-      ctrl.abort();
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [load]);
+  const { user } = useMe();
+  // refetchInterval replaces the old manual setInterval
+  const { data: markets = [], isLoading } = useQuery({
+    ...resolutionMarketsQuery(),
+    refetchInterval: 30_000,
+  });
 
   return (
     <div className="space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">Resolutions</h1>
         <p className="text-sm text-muted-foreground">
-          Help resolve markets by voting on the correct outcome. Voters
-          receive a share of each market they help resolve.
+          Help resolve markets by voting on the correct outcome. Voters receive
+          a share of each market they help resolve.
         </p>
       </div>
 
@@ -291,15 +243,14 @@ export default function ResolutionsPage() {
         <div className="text-sm">
           <p className="font-medium text-foreground">Your vote matters!</p>
           <p className="text-muted-foreground">
-            Help resolve markets by voting. Correct
-            voters receive a percentage of each market they help resolve.
-            Incorrect votes will result in forfeiture of the coin prize for
-            voting.
+            Help resolve markets by voting. Correct voters receive a percentage
+            of each market they help resolve. Incorrect votes will result in
+            forfeiture of the coin prize for voting.
           </p>
         </div>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex justify-center py-12">
           <Spinner className="size-6" />
         </div>

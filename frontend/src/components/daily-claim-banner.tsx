@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useState } from "react";
 import { BananaCoin } from "@/components/banana-coin";
+import { useMe } from "@/lib/query/queries/auth";
 import { useSession } from "@/lib/SessionProvider";
 
 export function DailyClaimBanner() {
-  const { user, isDemo, isLoading } = useSession();
+  const { isDemo, isLoading } = useSession();
+  const { user } = useMe();
   const [dismissed, setDismissed] = useState(false);
 
   if (
