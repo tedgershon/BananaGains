@@ -36,7 +36,10 @@ Both happen together because moving the backend is a prerequisite for WebSockets
 - `DataProvider.tsx` loads all markets, bets, and transactions **once on mount**.
 - After a user action (bet, resolve, dispute), the acting client applies an **optimistic local state patch** and sometimes fires a targeted re-fetch (e.g., `listBetsForMarket`).
 - **No other connected client is notified.** If User A places a bet, User B sees stale pool totals until they navigate away and remount, or perform their own action.
-- No `setInterval` polling exists anywhere.
+- Two queries currently use TanStack Query's `refetchInterval: 30_000` as a stopgap for live data:
+  - The resolutions list — `frontend/src/app/resolutions/page.tsx`
+  - The notification unread-count badge — `frontend/src/lib/query/queries/notifications.ts`
+  These polls are the **only** automatic background fetches in the app. Every other view relies on mount, `refetchOnWindowFocus`, or post-mutation `qc.invalidateQueries` calls. **This feature removes both polls** — WebSocket events become the single mechanism for automatic updates across the codebase.
 - No Redis dependency exists in the project.
 - Both frontend and backend are deployed on **Vercel**.
 
@@ -73,6 +76,7 @@ Vercel runs backend code as **serverless functions** — each request spins up a
 - REST endpoints remain the source of truth for mutations. WebSockets are read-only push channels.
 - The frontend connects to **one backend URL** for both REST (`https://`) and WebSocket (`wss://`) traffic.
 - Redis pub/sub enables horizontal scaling: if you later run multiple Fly.io instances, events published by Instance A reach WebSocket clients on Instance B.
+- **WebSockets are the default automatic-update mechanism.** After this feature, **no query in the codebase uses `refetchInterval`**. TanStack Query refetches are triggered by exactly three things: (a) initial mount / route prefetch, (b) `refetchOnWindowFocus` returning to a stale tab, and (c) `qc.invalidateQueries` calls fired by WebSocket event handlers. Background polling is not used anywhere — any new "live" surface added later must publish a Redis event and listen on the WS channel rather than introducing a `setInterval` or `refetchInterval`.
 
 ---
 
@@ -982,6 +986,90 @@ useEffect(() => {
 
 ---
 
+## Retiring Existing `refetchInterval` Polls
+
+This feature **removes the two `refetchInterval: 30_000` calls** currently in the codebase and replaces them with WebSocket-driven cache invalidation. Both must be removed in the same change set as the WebSocket layer is added — leaving them in place would mean the app polls *and* pushes, which defeats the point.
+
+### 1. Resolutions list — `frontend/src/app/resolutions/page.tsx`
+
+**Today:**
+
+```tsx
+const { data: markets = [], isLoading } = useQuery({
+  ...resolutionMarketsQuery(),
+  refetchInterval: 30_000,
+});
+```
+
+**After this feature:**
+
+```tsx
+const { data: markets = [], isLoading } = useQuery(resolutionMarketsQuery());
+```
+
+The freshness comes from a global WS listener (registered once in `WebSocketProvider` or a sibling hook) that invalidates the resolutions key whenever an event arrives that could change which markets belong on this page:
+
+```tsx
+useEffect(() => {
+  const removals = [
+    addListener("market.status_change", () => {
+      qc.invalidateQueries({ queryKey: queryKeys.markets.resolutions });
+    }),
+    addListener("market.vote_update", () => {
+      qc.invalidateQueries({ queryKey: queryKeys.markets.resolutions });
+    }),
+    addListener("market.resolved", () => {
+      qc.invalidateQueries({ queryKey: queryKeys.markets.resolutions });
+    }),
+  ];
+  return () => removals.forEach((r) => r());
+}, [addListener, qc]);
+```
+
+The 1-second `setInterval` countdown timer in the same file (`useResolutionCountdown`) **stays** — it is purely a UI string formatter (`"2h 14m 03s"`) and does not fetch anything.
+
+### 2. Notification unread-count badge — `frontend/src/lib/query/queries/notifications.ts`
+
+**Today:**
+
+```ts
+queryOptions({
+  queryKey: queryKeys.notifications.unreadCount,
+  queryFn: () => api.getUnreadNotificationCount(),
+  staleTime: STALE.NOTIFICATIONS,
+  refetchInterval: 30_000,
+});
+```
+
+**After this feature:**
+
+```ts
+queryOptions({
+  queryKey: queryKeys.notifications.unreadCount,
+  queryFn: () => api.getUnreadNotificationCount(),
+  staleTime: STALE.NOTIFICATIONS,
+});
+```
+
+The `useRealtimeNotifications` hook described above subscribes to `notification.new` and either bumps the cached count via `qc.setQueryData` or invalidates `queryKeys.notifications.unreadCount` to force a refetch. Marking notifications as read continues to invalidate via the existing `invalidateAfterNotificationsRead` helper.
+
+### 3. Surfaces that don't poll today but should also be live
+
+The same WebSocket-first principle applies to the views that have no polling today and rely on stale-time + window-focus refetch. After this feature they get pushed updates too — no `refetchInterval` is added to any of them:
+
+| View | File | Driving event(s) | Action |
+|---|---|---|---|
+| Markets dashboard list | `frontend/src/app/markets/markets-client.tsx` | `market.pool_update`, `market.status_change`, `market.approved` | Global listener invalidates `queryKeys.markets.list(...)` |
+| Market detail page | `frontend/src/app/markets/[id]/detail-client.tsx` | `market.pool_update`, `market.status_change`, `market.vote_update` | `useMarketUpdates(id, ...)` (defined above) |
+| Hot / Trending / Top sections | same as dashboard | `market.pool_update` | Global listener invalidates `queryKeys.markets.hot/trending/top` |
+| Leaderboard | `frontend/src/app/leaderboard/...` | `leaderboard.update` | Global listener invalidates leaderboard keys |
+
+### Lint-level guard against regressions
+
+Add a project-level rule (ESLint custom rule, `rg` check in CI, or a comment in `frontend/src/lib/query/staleTimes.ts`) that flags any new `refetchInterval` usage. The chosen mechanism is up to the implementer; the requirement is that re-introducing background polling be a deliberate, reviewed exception rather than a silent default.
+
+---
+
 ## Graceful Degradation
 
 The WebSocket connection is **optional**. If Redis is unavailable or the WebSocket fails to connect:
@@ -1187,9 +1275,11 @@ interface WSEvent {
 | Frontend (new) | `frontend/src/lib/useMarketUpdates.ts` | Hook for per-market live updates |
 | Frontend (new) | `frontend/src/lib/useRealtimeNotifications.ts` | Hook for live notification delivery |
 | Frontend (modify) | `frontend/src/app/layout.tsx` | Wrap app in `WebSocketProvider` |
-| Frontend (modify) | `frontend/src/app/markets/[id]/page.tsx` | Integrate `useMarketUpdates` |
-| Frontend (modify) | `frontend/src/lib/DataProvider.tsx` | Add global WebSocket listeners for market state |
-| Docs (modify) | `README.md` | Add Redis setup, Fly.io deployment notes |
+| Frontend (modify) | `frontend/src/app/markets/[id]/detail-client.tsx` | Integrate `useMarketUpdates` |
+| Frontend (modify) | `frontend/src/app/markets/markets-client.tsx` | Add global listeners that invalidate dashboard query keys |
+| Frontend (modify) | `frontend/src/app/resolutions/page.tsx` | **Remove `refetchInterval: 30_000`**, drive list updates from `market.status_change` / `market.vote_update` / `market.resolved` events |
+| Frontend (modify) | `frontend/src/lib/query/queries/notifications.ts` | **Remove `refetchInterval: 30_000`**, drive unread count from `notification.new` events via `useRealtimeNotifications` |
+| Docs (modify) | `README.md` | Add Redis setup, Fly.io deployment notes; note that WebSockets are the default automatic-update mechanism |
 
 ---
 
@@ -1212,10 +1302,17 @@ interface WSEvent {
 ### Resolution Voting
 - [ ] Open the Resolutions page in two browsers
 - [ ] Cast a community vote in Browser A → Browser B sees updated vote counts within 1 second
+- [ ] A market entering `pending_resolution` (e.g., its `close_at` elapses and a normalize call closes it, then the creator starts community resolution) appears on the Resolutions page in another open browser within 1 second, without that browser polling
 
 ### Notifications
 - [ ] Admin approves a market → creator receives a real-time notification without page refresh
 - [ ] Notification indicator dot appears on the avatar immediately
+- [ ] Unread-count badge increments via `notification.new` event, not via a 30-second poll (verify in the Network tab that no periodic `GET /api/notifications/unread-count` requests fire while the page is idle)
+
+### No Background Polling Remains
+- [ ] `rg "refetchInterval" frontend/src` returns **zero** matches after this feature ships
+- [ ] Sitting on `/resolutions` with the Network tab open shows no periodic REST requests; updates arrive only over the WebSocket
+- [ ] Sitting on any page with the notification bell visible shows no periodic `GET /api/notifications/unread-count`; the count updates only when a `notification.new` event arrives
 
 ### Leaderboard
 - [ ] Market resolves → leaderboard page updates within 2 seconds for all viewers
