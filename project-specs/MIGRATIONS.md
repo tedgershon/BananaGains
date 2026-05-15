@@ -36,6 +36,7 @@ This document lists all new SQL migrations required for the feature additions de
 | 047 | `047_harden_place_bet.sql` | 10 Safety | Hardened `place_bet()` with `close_at` timestamp check |
 | 048 | `048_restrict_market_updates.sql` | 10 Safety | Remove creator update policy; add resolved market guard trigger |
 | 049 | `049_fn_admin_backroll.sql` | 10 Safety | `admin_backroll_market()` function |
+| 062 | `062_badge_definitions_rls.sql` | 09 Rewards | Enable RLS + public SELECT policy on `badge_definitions` (closes Supabase linter finding) |
 
 **Note:** Numbers 023–024 and 043 are intentionally skipped (reserved for future use within those features if needed).
 
@@ -92,6 +93,7 @@ Run these after Phase 3:
 
 ```
 044_badge_definitions.sql
+062_badge_definitions_rls.sql
 045_user_badges.sql
 046_fn_check_badges.sql
 ```
@@ -139,6 +141,10 @@ DROP TABLE IF EXISTS notifications CASCADE;
 -- Rollback 044-045 (badges)
 DROP TABLE IF EXISTS user_badges CASCADE;
 DROP TABLE IF EXISTS badge_definitions CASCADE;
+
+-- Rollback 062 (badge_definitions RLS)
+DROP POLICY IF EXISTS "Badge definitions are viewable by everyone" ON badge_definitions;
+ALTER TABLE badge_definitions DISABLE ROW LEVEL SECURITY;
 ```
 
 **Warning:** Rollbacks on production data should be done with extreme caution. Always backup first.

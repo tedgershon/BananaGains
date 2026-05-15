@@ -125,6 +125,8 @@ INSERT INTO badge_definitions (track, tier, name, description, threshold, color)
 ('whale', 5, 'Whale',      'Place a single bet of 25,000+',  25000, '#be185d');
 ```
 
+RLS is enabled on `badge_definitions` with a public `SELECT` policy in migration `062_badge_definitions_rls.sql` (mirrors the `user_badges` policy below; mutations remain service-role-only).
+
 ### Migration 045: User Badges Table
 
 **File:** `backend/supabase/migrations/045_user_badges.sql`

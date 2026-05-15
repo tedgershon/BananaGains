@@ -2019,4 +2019,24 @@ END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 
 
+-- ============================================================================
+-- === Migration 062: Badge Definitions RLS ===
+-- ============================================================================
+
+ALTER TABLE badge_definitions ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE tablename = 'badge_definitions'
+          AND policyname = 'Badge definitions are viewable by everyone'
+    ) THEN
+        CREATE POLICY "Badge definitions are viewable by everyone"
+            ON badge_definitions FOR SELECT
+            TO public
+            USING (true);
+    END IF;
+END $$;
+
+
 COMMIT;
