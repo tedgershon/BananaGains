@@ -8,27 +8,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  CATEGORIES,
+  MAX_MARKET_DESCRIPTION_LENGTH,
+  MAX_MARKET_LINK_LENGTH,
+  MAX_MARKET_RESOLUTION_LENGTH,
+  MAX_MARKET_REVIEW_NOTES_LENGTH,
+  MAX_MARKET_TITLE_LENGTH,
+} from "@/lib/constants";
 import { datetimeLocalToIso, formatForDatetimeLocal } from "@/lib/datetime";
 import { queryKeys } from "@/lib/query/keys";
 import { useReviewMarket } from "@/lib/query/mutations/admin";
 import { marketsForReviewQuery } from "@/lib/query/queries/admin";
 import { useMe } from "@/lib/query/queries/auth";
 import type { Market } from "@/lib/types";
-
-const CATEGORIES = [
-  "General",
-  "Academics",
-  "Campus Life",
-  "Sports & Clubs",
-  "Tech",
-  "Politics",
-];
-
-const MAX_MARKET_TITLE_LENGTH = 160;
-const MAX_MARKET_DESCRIPTION_LENGTH = 2000;
-const MAX_MARKET_RESOLUTION_LENGTH = 2000;
-const MAX_MARKET_LINK_LENGTH = 2048;
-const MAX_MARKET_REVIEW_NOTES_LENGTH = 1000;
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "—";

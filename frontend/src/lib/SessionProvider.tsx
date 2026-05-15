@@ -15,6 +15,11 @@ import { queryKeys } from "./query/keys";
 import { supabase } from "./supabase";
 import type { UserProfile } from "./types";
 
+// DEMO MODE: GUEST_USER is the frontend-only sentinel that lets signed-out
+// visitors render the app shell as if logged in (see project-specs/
+// AUTHZ_MATRIX.md section 2 for the demo role definition). The backend never
+// sees this user -- any actual API call from a demo client is `anon` from
+// the backend's perspective. Do not extend this with backend writes.
 // still exported because useMe() falls back to this when the cache is empty
 // (logged out, first paint, 401), keeps consumers from having to null-check
 export const GUEST_USER: UserProfile = {
