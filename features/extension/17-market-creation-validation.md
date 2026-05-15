@@ -2,8 +2,8 @@
 
 **Status:** Design ratified
 **Phase:** UX hardening
-**Depends on:** `features/13-backend-hardening.md` (uses the envelope's `errors[]` field for `VALIDATION_FAILED` cases — the `parseApiError` helper exposes them as `fieldErrors`)
-**Parallelizable with:** `features/12-observability.md`, `features/16-home-vs-markets-split.md`, `features/18-dummy-data-removal.md`
+**Depends on:** `features/extension/13-backend-hardening.md` (uses the envelope's `errors[]` field for `VALIDATION_FAILED` cases — the `parseApiError` helper exposes them as `fieldErrors`)
+**Parallelizable with:** `features/extension/12-observability.md`, `features/extension/16-home-vs-markets-split.md`, `features/extension/18-dummy-data-removal.md`
 **Reads from:** `project-specs/AUTHZ_MATRIX.md` §5 (`/markets/create`), §7b (`POST /api/markets`)
 **Branch:** `feature/market-creation-validation` → 2 sub-PRs (see `issues/17.*.md`)
 **Execution items:** `issues/17.1-backend-tightened-validators.md`, `issues/17.2-frontend-field-errors.md`
@@ -189,8 +189,8 @@ Replace the existing `close_at_in_future` validator. The existing test `test_cre
 
 | Doc | Relationship |
 |---|---|
-| `features/13-backend-hardening.md` | Uses §1d `validation_handler` (drives the envelope shape) and §1e `parseApiError` (exposes `fieldErrors`). The validation tightening is a no-op on the envelope contract — it adds new `errors[]` entries; the shape is the same. |
+| `features/extension/13-backend-hardening.md` | Uses §1d `validation_handler` (drives the envelope shape) and §1e `parseApiError` (exposes `fieldErrors`). The validation tightening is a no-op on the envelope contract — it adds new `errors[]` entries; the shape is the same. |
 | `project-specs/AUTHZ_MATRIX.md` | §7b `POST /api/markets` cell still says `201 / 422`. The 422 cases gain new validation reasons; the cell itself is unchanged. |
-| `features/14-api-contract-tests.md` | Add `MATRIX_CELLS` rows for the new validation failures (e.g., a `MatrixCell` with body `{title: "T"*121}` expecting status 422 with `code = "VALIDATION_FAILED"`). |
-| `features/15-playwright-ui-tests.md` | 15.4 has a `validation.spec.ts` placeholder; un-fixme and fill in real assertions once 17.2 lands. |
-| `features/16-home-vs-markets-split.md` | Independent — touches different files. |
+| `features/extension/14-api-contract-tests.md` | Add `MATRIX_CELLS` rows for the new validation failures (e.g., a `MatrixCell` with body `{title: "T"*121}` expecting status 422 with `code = "VALIDATION_FAILED"`). |
+| `features/extension/15-playwright-ui-tests.md` | 15.4 has a `validation.spec.ts` placeholder; un-fixme and fill in real assertions once 17.2 lands. |
+| `features/extension/16-home-vs-markets-split.md` | Independent — touches different files. |

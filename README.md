@@ -1,8 +1,11 @@
 # s26_team_11
 
-Repository for s26_team_11 in 17-437: Web Application Development. 
+Repository for s26_team_11 in 17-437: Web Application Development.
 
-Project specifications are located in `project-specs/`.
+- **Agents / new contributors:** start at [`AGENTS.md`](AGENTS.md). It points at the canonical living docs.
+- **Product contract:** `project-specs/` (AUTHZ_MATRIX, DATA_MODEL, MIGRATIONS, PROJECT_SPECS).
+- **Active design docs:** `features/extension/`. Historical course-era designs live in `features/course/` (frozen).
+- **Work queue:** `issues/` (open) and `issues/archive/` (shipped). The lifecycle is documented in `issues/README.md`.
 
 ## Local development
 
@@ -81,3 +84,4 @@ The first commit also sets `status: in-progress`; the final commit sets `status:
 - `issues/agent-prompt-template.md` — the kickoff prompt for each agent (fill in `[ ... ]` blocks, then paste).
 - `issues/iteration-loop.md` — the 7-step per-issue loop.
 - `issues/roadmap.md` — dependency waves + an LLM prompt to pick the next batch.
+- `issues/archive/` — shipped issues. The PR that flips `status: done` also `git mv`s the file here.

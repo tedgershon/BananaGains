@@ -375,29 +375,29 @@ Scope:
 Scope classification: major feature additions (see `features/` for detailed plans)
 
 Sprint goal:
-Implement 10 new feature areas organized into 4 implementation phases. See `features/instructions.md` for the complete orchestration plan.
+Implement 10 new feature areas organized into 4 implementation phases. See `features/course/instructions.md` for the complete orchestration plan (historical — these 10 features have shipped).
 
 #### Phase 1 — Foundation (parallelizable, no dependencies)
 
-- **Admin & Super Admin System** (`features/01-admin-system.md`): Role-based access control with user/admin/super_admin roles, admin review infrastructure, super admin user management, statistics dashboard
-- **Coin Claiming Update** (`features/05-coin-claiming.md`): Daily claim cap at 5,000 coin balance, dynamic claim amounts, transparency text
-- **User Profile Dropdown** (`features/06-user-profile.md`): GitHub-style circular avatar dropdown replacing sign-in/sign-out button
+- **Admin & Super Admin System** (`features/course/01-admin-system.md`): Role-based access control with user/admin/super_admin roles, admin review infrastructure, super admin user management, statistics dashboard
+- **Coin Claiming Update** (`features/course/05-coin-claiming.md`): Daily claim cap at 5,000 coin balance, dynamic claim amounts, transparency text
+- **User Profile Dropdown** (`features/course/06-user-profile.md`): GitHub-style circular avatar dropdown replacing sign-in/sign-out button
 
 #### Phase 2 — Core Workflow (depends on Phase 1)
 
-- **Market Creation & Admin Review** (`features/02-market-creation-review.md`): All markets start as pending_review, admin approval/denial workflow, link field, style linting
-- **Market Resolution & Community Voting** (`features/04-market-resolution.md`): 24h community voting window, voter rewards (4% of pool), Resolutions tab with countdown
-- **Safety Logic & Admin Backroll** (`features/10-safety-logic.md`): Hardened bet placement, market update restrictions, admin backroll for ambiguous timelines
+- **Market Creation & Admin Review** (`features/course/02-market-creation-review.md`): All markets start as pending_review, admin approval/denial workflow, link field, style linting
+- **Market Resolution & Community Voting** (`features/course/04-market-resolution.md`): 24h community voting window, voter rewards (4% of pool), Resolutions tab with countdown
+- **Safety Logic & Admin Backroll** (`features/course/10-safety-logic.md`): Hardened bet placement, market update restrictions, admin backroll for ambiguous timelines
 
 #### Phase 3 — Extended Features (depends on Phase 2)
 
-- **Multichoice Markets** (`features/03-multichoice-markets.md`): Non-binary markets with 2-10 options, multi-line charts, multichoice payout schema
-- **Notifications** (`features/07-notifications.md`): In-app notification system with email via Resend API
+- **Multichoice Markets** (`features/course/03-multichoice-markets.md`): Non-binary markets with 2-10 options, multi-line charts, multichoice payout schema
+- **Notifications** (`features/course/07-notifications.md`): In-app notification system with email via Resend API
 
 #### Phase 4 — Polish & Display (depends on Phases 2-3)
 
-- **Homepage Redesign** (`features/08-main-page.md`): Hottest market display, weekly leaderboard, trending/top markets sections
-- **Claimable Rewards** (`features/09-claimable-rewards.md`): 5 badge tracks with 5 tiers each, leaderboard badges, rewards page
+- **Homepage Redesign** (`features/course/08-main-page.md`): Hottest market display, weekly leaderboard, trending/top markets sections
+- **Claimable Rewards** (`features/course/09-claimable-rewards.md`): 5 badge tracks with 5 tiers each, leaderboard badges, rewards page
 
 #### New Migrations
 

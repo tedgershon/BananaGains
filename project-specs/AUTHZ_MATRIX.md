@@ -3,7 +3,7 @@
 **Status:** Ratified 2026-05-08 — four known implementation gaps tracked in §8 (B-4 added 2026-05-09)
 **Type:** Living spec (not a one-shot plan)
 **Owner:** Team
-**Cited by:** `features/12-observability.md`, `features/13-backend-hardening.md`, `features/14-api-contract-tests.md`, `features/15-playwright-ui-tests.md`, `features/16-home-vs-markets-split.md`, `features/17-market-creation-validation.md`, `features/18-dummy-data-removal.md`
+**Cited by:** `features/extension/12-observability.md`, `features/extension/13-backend-hardening.md`, `features/extension/14-api-contract-tests.md`, `features/extension/15-playwright-ui-tests.md`, `features/extension/16-home-vs-markets-split.md`, `features/extension/17-market-creation-validation.md`, `features/extension/18-dummy-data-removal.md`
 
 ---
 
@@ -40,7 +40,7 @@ A "role" is determined entirely by the JWT presented to the backend (or its abse
 
 ### Role-preview override (admin tooling)
 
-Admins can use the role-preview toggle (per `features/01-admin-system.md`) to *render the UI as if* they were `user`. **This is presentation-only:** the underlying JWT still has `role = 'admin'`, so any actual API call carries admin privileges. The matrix below describes *backend authorization*; the role-preview toggle is a separate concern documented in the hardening plan as "preview must not bypass server-side checks."
+Admins can use the role-preview toggle (per `features/course/01-admin-system.md`) to *render the UI as if* they were `user`. **This is presentation-only:** the underlying JWT still has `role = 'admin'`, so any actual API call carries admin privileges. The matrix below describes *backend authorization*; the role-preview toggle is a separate concern documented in the hardening plan as "preview must not bypass server-side checks."
 
 ---
 
@@ -184,7 +184,7 @@ The `Admin Review` card is the only delta from today's UI (which shows 2/3); see
 
 ### 6d. Defense-in-depth requirement
 
-Every cell above marked `hidden` for a mutating control **must** have a corresponding API endpoint cell in §7 that returns 401/403 for the same role. The UI layer is for UX; the API layer is for security. `features/14-api-contract-tests.md` enforces this pairing in CI.
+Every cell above marked `hidden` for a mutating control **must** have a corresponding API endpoint cell in §7 that returns 401/403 for the same role. The UI layer is for UX; the API layer is for security. `features/extension/14-api-contract-tests.md` enforces this pairing in CI.
 
 ---
 
@@ -302,9 +302,9 @@ The matrix is the spec. This section tracks places where the **implementation to
 
 | Gap ID | Surface | Spec says | Implementation today | Fix tracked in |
 |---|---|---|---|---|
-| B-1 | `/markets/create` (page) for `anon` / `demo` | `redirect→/auth` (§5) | Page renders the create-market template regardless of auth status. A signed-out user could fill in the form (the API call would fail with 401, but the UX is wrong and leaks the form shape). | `features/13-backend-hardening.md` (frontend gate) |
-| B-2 | `/portfolio` (page) and/or `GET /api/portfolio` for any `user` | Spec: shows current user's bets/positions only (§5, §7g). | Page surfaces fields that belong to other users — specifically other users' proposed markets are visible. Could be a frontend filter miss, a backend response over-fetch, or a component pulling from the wrong query. **Investigate and fix.** | `features/13-backend-hardening.md` |
-| B-3 | `POST /api/markets/admin/{id}/resolve` (route mounting) | Should live under `/api/admin/...` (§7e) for consistency with the rest of admin routes. The relocated route is what the B-4 UI calls. | Mounted on the markets router; no frontend caller exists today. | `features/13-backend-hardening.md` (route move, no frontend churn) |
+| B-1 | `/markets/create` (page) for `anon` / `demo` | `redirect→/auth` (§5) | Page renders the create-market template regardless of auth status. A signed-out user could fill in the form (the API call would fail with 401, but the UX is wrong and leaks the form shape). | `features/extension/13-backend-hardening.md` (frontend gate) |
+| B-2 | `/portfolio` (page) and/or `GET /api/portfolio` for any `user` | Spec: shows current user's bets/positions only (§5, §7g). | Page surfaces fields that belong to other users — specifically other users' proposed markets are visible. Could be a frontend filter miss, a backend response over-fetch, or a component pulling from the wrong query. **Investigate and fix.** | `features/extension/13-backend-hardening.md` |
+| B-3 | `POST /api/markets/admin/{id}/resolve` (route mounting) | Should live under `/api/admin/...` (§7e) for consistency with the rest of admin routes. The relocated route is what the B-4 UI calls. | Mounted on the markets router; no frontend caller exists today. | `features/extension/13-backend-hardening.md` (route move, no frontend churn) |
 | B-4 | `/admin/admin-review` page + `/admin` dashboard card "Admin Review" + UI to resolve `admin_review` markets | Page renders for `admin` / `super_admin` (§5); dashboard exposes an "Admin Review" card (§6c); per-market YES/NO/AMBIGUOUS buttons call relocated `POST /api/admin/markets/{id}/resolve` (§7e). Target shape: 3 cards for admin / 4 cards for super_admin (§6c). | None of the above exists. The state machine *can* place markets in `admin_review` (`market_state_machine.py` lines 257, 297) when community resolution fails, but no UI path resolves them — admins must drop into Supabase to fix. | **Future doc** (e.g., `features/19-admin-resolution-ui.md`); explicitly out of scope for the current 12–18 sweep. Team has indicated preference for this option (build the UI) over the alternative (remove `admin_review` state and auto-default to AMBIGUOUS). |
 
 When a gap is fixed, add a row to the changelog and delete the row above. The matrix is the source of truth; this section is a transient TODO list.
@@ -315,7 +315,7 @@ When a gap is fixed, add a row to the changelog and delete the row above. The ma
 
 The following spec questions were marked `?` in the initial draft and have all been ratified by the team on 2026-05-08:
 
-- **Q1** (`/markets` vs `/`): Both routes exist with intentionally different layouts — see `features/16-home-vs-markets-split.md`. Originally suggested "deprecate one"; team chose to specialize.
+- **Q1** (`/markets` vs `/`): Both routes exist with intentionally different layouts — see `features/extension/16-home-vs-markets-split.md`. Originally suggested "deprecate one"; team chose to specialize.
 - **Q2** (`/markets/create` for unauth): redirect → `/auth`. Implementation lags spec — see Gap B-1.
 - **Q3** (admin filing disputes): yes — admin permissions = user + admin extras. §6a / §7b updated.
 - **Q4** (admin voting in resolutions): yes — same policy as Q3. §6a / §7b / §7d updated.
@@ -330,13 +330,13 @@ The following spec questions were marked `?` in the initial draft and have all b
 
 The matrix is only useful if it stays current. Discipline:
 
-1. **Adding a new API endpoint:** the PR must include a new row in the relevant table in §7. CI test (`features/14-api-contract-tests.md`) fails if a route exists in code but not in the matrix.
+1. **Adding a new API endpoint:** the PR must include a new row in the relevant table in §7. CI test (`features/extension/14-api-contract-tests.md`) fails if a route exists in code but not in the matrix.
 2. **Adding a new page:** PR must include a row in §5.
 3. **Adding a new mutating UI control:** PR must include a row in §6 *and* the corresponding API endpoint cell must already exist.
 4. **Changing a role or permission:** PR must update the matrix and the relevant downstream tests in the same change set. Don't ship gating changes without updating the spec.
 5. **Disagreement during review:** add the question to §8 with a `?` placeholder rather than guessing.
 
-A pre-commit or CI lint that diffs `@router.` declarations in `backend/routers/` against the endpoint tables in §7 is recommended (spec'd in `features/14-api-contract-tests.md`). Same for page routes in `frontend/src/app/`.
+A pre-commit or CI lint that diffs `@router.` declarations in `backend/routers/` against the endpoint tables in §7 is recommended (spec'd in `features/extension/14-api-contract-tests.md`). Same for page routes in `frontend/src/app/`.
 
 ---
 
@@ -344,13 +344,13 @@ A pre-commit or CI lint that diffs `@router.` declarations in `backend/routers/`
 
 | Doc | Reads from this matrix to … |
 |---|---|
-| `features/12-observability.md` | Decide which routes' error responses need PII-scrubbing context (e.g., admin routes log full traces, user routes scrub IDs). |
-| `features/13-backend-hardening.md` | Audit every `@router.` against the §7 tables and apply the correct `Depends(...)` dependency; fix `f"...: {e}"` leaks while in the file; **remediate gaps B-1, B-2, B-3 from §8**. |
-| `features/14-api-contract-tests.md` | Generate one parameterized pytest case per `(endpoint, role)` cell, asserting the documented status code. |
-| `features/15-playwright-ui-tests.md` | Generate browser tests from §5 (page redirects) and §6 (control visibility/disabled state). |
-| `features/16-home-vs-markets-split.md` | Cite §5 rows for `/` and `/markets` as the canonical access spec; this doc only specifies the *layout* differences, not who can see them. |
-| `features/17-market-creation-validation.md` | Read the `/markets/create` row in §5 and the `POST /api/markets` row in §7b for the access spec; this doc adds *input validation* on top. |
-| `features/18-dummy-data-removal.md` | No direct reference — but any seeded user/market that pretends to be a real role must respect the matrix once kept; otherwise it must be deleted. |
+| `features/extension/12-observability.md` | Decide which routes' error responses need PII-scrubbing context (e.g., admin routes log full traces, user routes scrub IDs). |
+| `features/extension/13-backend-hardening.md` | Audit every `@router.` against the §7 tables and apply the correct `Depends(...)` dependency; fix `f"...: {e}"` leaks while in the file; **remediate gaps B-1, B-2, B-3 from §8**. |
+| `features/extension/14-api-contract-tests.md` | Generate one parameterized pytest case per `(endpoint, role)` cell, asserting the documented status code. |
+| `features/extension/15-playwright-ui-tests.md` | Generate browser tests from §5 (page redirects) and §6 (control visibility/disabled state). |
+| `features/extension/16-home-vs-markets-split.md` | Cite §5 rows for `/` and `/markets` as the canonical access spec; this doc only specifies the *layout* differences, not who can see them. |
+| `features/extension/17-market-creation-validation.md` | Read the `/markets/create` row in §5 and the `POST /api/markets` row in §7b for the access spec; this doc adds *input validation* on top. |
+| `features/extension/18-dummy-data-removal.md` | No direct reference — but any seeded user/market that pretends to be a real role must respect the matrix once kept; otherwise it must be deleted. |
 
 ---
 
@@ -359,5 +359,5 @@ A pre-commit or CI lint that diffs `@router.` declarations in `backend/routers/`
 | Date | Change | By |
 |---|---|---|
 | 2026-05-08 | Initial draft from codebase audit (routers + pages enumerated; UI controls and `?` cells require team ratification) | Cursor (Claude) |
-| 2026-05-08 | Team ratified Q1–Q7. Stated policy: admin = user + admin extras (only admin-resolve, backroll, admin pages, super-admin user mgmt are admin-only). §6a / §7b / §7d cells updated. §7f `POST /{id}/read` non-owner finalized as `404`. §8 repurposed from "Open Questions" to "Known Implementation Gaps" (B-1, B-2, B-3 listed for fix in `features/13-backend-hardening.md`). New downstream docs scoped: `features/16-home-vs-markets-split.md`, `features/17-market-creation-validation.md`, `features/18-dummy-data-removal.md`. | Team + Cursor (Claude) |
+| 2026-05-08 | Team ratified Q1–Q7. Stated policy: admin = user + admin extras (only admin-resolve, backroll, admin pages, super-admin user mgmt are admin-only). §6a / §7b / §7d cells updated. §7f `POST /{id}/read` non-owner finalized as `404`. §8 repurposed from "Open Questions" to "Known Implementation Gaps" (B-1, B-2, B-3 listed for fix in `features/extension/13-backend-hardening.md`). New downstream docs scoped: `features/extension/16-home-vs-markets-split.md`, `features/extension/17-market-creation-validation.md`, `features/extension/18-dummy-data-removal.md`. | Team + Cursor (Claude) |
 | 2026-05-09 | Added §5 row for `/admin/admin-review`; reshaped §6a "Admin Resolve" entry into an informational banner (action moved to admin page); added §6c rows for the four dashboard cards and the per-market resolve buttons; added §7e row for relocated `POST /api/admin/markets/{id}/resolve`; tightened §7b Gap B-3 footnote to reflect "no frontend caller" finding (`rg "markets/admin"` clean); added Gap B-4 (missing `admin_review` resolution UI) with team direction to build it; added Q8 to resolved questions; updated header status to four gaps. | Team + Cursor (Claude) |

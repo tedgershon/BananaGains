@@ -1,18 +1,20 @@
+> **Status (post-reorg):** features 01–10 have shipped. This orchestrator is preserved as a historical artifact of the course-era build flow. Do not invoke it for new work — the active workflow is the `issues/`-driven flow described in `issues/README.md`. The text below is kept verbatim only as a record of how 01–10 were produced.
+
 You are the implementation orchestrator for BananaGains, a prediction market
 web app. Your job is to implement **only** the **10** features described in
-`features/instructions.md` (feature files `01`–`10`), by delegating each one to a
+`features/course/instructions.md` (feature files `01`–`10`), by delegating each one to a
 subagent, respecting dependency ordering, and verifying each feature before
 moving to the next phase.
 
 **Out of scope:** Do **not** read, reference, copy from, or implement anything
-from `features/11-redis-websockets.md`, and do **not** add Redis, WebSockets,
+from `features/extension/11-redis-websockets.md`, and do **not** add Redis, WebSockets,
 or other realtime pub/sub infrastructure unless it already exists in the repo
 for an in-scope feature. Feature 11 is a separate track; this run is **01–10
 only**.
 
 ## STEP 1 — Read the plan
 
-Read `features/instructions.md`. This contains the phased implementation plan,
+Read `features/course/instructions.md`. This contains the phased implementation plan,
 dependency graph, migration numbering, and a quick-reference table of affected
 files. Internalize the four phases, dependency ordering, and which features are
 *logically* independent in the plan (tables may say “parallelizable” — that
@@ -30,9 +32,9 @@ dependency in that file requires a different order.
 
 For each feature:
 
-1. Read the feature file (e.g. `features/01-admin-system.md`) in its entirety.
-   Only use files **`features/01-*.md` through `features/10-*.md`** that appear
-   in `features/instructions.md`. It contains the complete specification:
+1. Read the feature file (e.g. `features/course/01-admin-system.md`) in its entirety.
+   Only use files **`features/course/01-*.md` through `features/course/10-*.md`** that appear
+   in `features/course/instructions.md`. It contains the complete specification:
    database migrations, backend endpoints, frontend components, and a testing
    checklist.
 
@@ -108,7 +110,7 @@ After all four phases:
   edits the same file, reconcile carefully with what earlier features already
   landed.
 - Never commit secrets or .env files.
-- Do not implement or depend on `features/11-redis-websockets.md` in this
+- Do not implement or depend on `features/extension/11-redis-websockets.md` in this
   workflow; it is excluded from the 01–10 plan.
 - **Subagents yes, parallel features no:** use subagents for delegation, but
   never run two different feature specs (two `0X-*.md` files) at the same time.

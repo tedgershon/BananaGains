@@ -19,7 +19,7 @@ Step 0 — Orient. Read these in order before any code changes:
   4. The files referenced under "Spec / design references" in the issue,
      plus any other files implied by the acceptance criteria:
        [ REFERENCED FILES: list each file with a one-line purpose. E.g.
-         - features/13-backend-hardening.md (§1b enum to copy verbatim)
+         - features/extension/13-backend-hardening.md (§1b enum to copy verbatim)
          - backend/observability.py (where AppError is added)
          - backend/main.py (where global handlers are wired)
        ]
@@ -45,12 +45,17 @@ state. For this issue the natural shape is:
 
   [ COMMIT SHAPE: one bullet per commit, derived from the issue's
     acceptance-criteria sub-sections. Mark which commit flips status
-    to in-progress (first) and which flips to done (last). Example:
+    to in-progress (first) and which flips to done AND `git mv`s the
+    issue file into issues/archive/ (last). Example:
       a. Add ErrorCode enum + AppError class in backend/observability.py.
          (sets `status: in-progress`)
       b. Wire validation + unhandled-exception handlers in backend/main.py.
-         (sets `status: done`)
+         (sets `status: done`, `git mv issues/[ID]-...md issues/archive/`)
   ]
+
+The status flip and the `git mv` to `issues/archive/` MUST land in the
+same commit. Don't push a standalone archive move and don't leave the
+file in `issues/` after it's done — see `issues/README.md` Lifecycle.
 
 Commit message format (each commit):
 

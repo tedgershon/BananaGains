@@ -3,7 +3,7 @@
 After each PR squash-merges to `main`:
 
 1. `git checkout main && git pull origin main` — pull the merge.
-2. Confirm the issue's frontmatter is `status: done` on main: `git log -1 --stat issues/<id>-*.md`. If a PR slipped through without flipping it, push a follow-up commit on main: `<id>: mark issue done`.
+2. Confirm the issue's frontmatter is `status: done` on main and the file lives in `issues/archive/`: `git log -1 --stat issues/archive/<id>-*.md`. If a PR slipped through without flipping/moving it, push a follow-up commit on main: `<id>: mark issue done + archive`.
 3. Delete the merged branch locally and on the remote.
 4. Pick the next batch (1–3 issues, disjoint paths) using `roadmap.md` or the "what's next" prompt inside it.
 5. For each chosen issue, open a fresh Cursor background agent (its own worktree) and paste `agent-prompt-template.md` with every `[ ... ]` block filled in.

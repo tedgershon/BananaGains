@@ -2,7 +2,7 @@
 
 **Status:** Design ratified
 **Phase:** Hardening verification
-**Depends on:** `features/12-observability.md`, `features/13-backend-hardening.md`
+**Depends on:** `features/extension/12-observability.md`, `features/extension/13-backend-hardening.md`
 **Reads from:** `project-specs/AUTHZ_MATRIX.md` (every cell in §7 becomes a parameterized test case)
 **Branch:** `feature/api-contract-tests` → multiple sub-PRs (see `issues/14.*.md`)
 **Execution items:** `issues/14.1-test-infrastructure.md`, `issues/14.2-matrix-driven-endpoint-tests.md`, `issues/14.3-schemathesis-ci.md` (optional), `issues/14.4-docs-production-lockdown.md`
@@ -250,7 +250,7 @@ Result: in production, all three return 404. In development and test environment
 | Doc | Relationship |
 |---|---|
 | `project-specs/AUTHZ_MATRIX.md` | Drives 100% of `MATRIX_CELLS`. Every §7 cell becomes a test parameter. The matrix's §9 maintenance protocol is enforced by `test_route_coverage.py`. |
-| `features/12-observability.md` | The tests run with `SENTRY_DSN` unset (Sentry no-ops). Test environment uses `sentry_environment="development"` so the `/docs` lockdown doesn't kick in for local dev. |
-| `features/13-backend-hardening.md` | Provides the canonical envelope (`{"detail": {"code": ..., "message": ...}}`) and the `ErrorCode` enum that tests assert against. Catalog (§4) provides expected message strings. |
-| `features/15-playwright-ui-tests.md` | Same matrix; different layer (browser vs HTTP). Where doc 14 asserts the API contract, doc 15 asserts the UI honors it. |
-| `features/17-market-creation-validation.md` | Adds new `VALIDATION_FAILED` cases that this doc's parameterization picks up automatically (just add new `MATRIX_CELLS` rows for any new validation behavior). |
+| `features/extension/12-observability.md` | The tests run with `SENTRY_DSN` unset (Sentry no-ops). Test environment uses `sentry_environment="development"` so the `/docs` lockdown doesn't kick in for local dev. |
+| `features/extension/13-backend-hardening.md` | Provides the canonical envelope (`{"detail": {"code": ..., "message": ...}}`) and the `ErrorCode` enum that tests assert against. Catalog (§4) provides expected message strings. |
+| `features/extension/15-playwright-ui-tests.md` | Same matrix; different layer (browser vs HTTP). Where doc 14 asserts the API contract, doc 15 asserts the UI honors it. |
+| `features/extension/17-market-creation-validation.md` | Adds new `VALIDATION_FAILED` cases that this doc's parameterization picks up automatically (just add new `MATRIX_CELLS` rows for any new validation behavior). |
