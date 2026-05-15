@@ -6,7 +6,7 @@
 **Parallelizable with:** every other 12–17 doc
 **Reads from:** `project-specs/AUTHZ_MATRIX.md` (any seeded user/market that pretends to be a real role must respect the matrix or be deleted)
 **Branch:** `feature/dummy-data-removal` → 2 sub-PRs (see `issues/18.*.md`)
-**Execution items:** `issues/18.1-dummy-data-inventory.md`, `issues/18.2-dummy-data-cleanup.md`
+**Execution items:** `issues/archive/18.1-dummy-data-inventory.md`, `issues/archive/18.2-dummy-data-cleanup.md`
 
 ---
 
@@ -98,7 +98,7 @@ The cleanup PR (18.2) takes the inventory as input and executes the recommended 
 
 | Area | File | Status |
 |---|---|---|
-| Docs | `issues/18.1-dummy-data-inventory.md` | Acceptance criteria includes the inventory output (added inline or as a separate `inventory.md` linked from the issue). |
+| Docs | `issues/archive/18.1-dummy-data-inventory.md` | Acceptance criteria includes the inventory output (added inline or as a separate `inventory.md` linked from the issue). |
 
 ### 18.2 (cleanup) — varies by inventory output, but typical
 
@@ -118,8 +118,8 @@ The 18.2 PR diff is sized by what 18.1 finds. If the inventory turns up a lot, s
 
 | Issue | Title | Depends on |
 |---|---|---|
-| `issues/18.1-dummy-data-inventory.md` | Sweep + classify; produce inventory output. No code changes. | — |
-| `issues/18.2-dummy-data-cleanup.md` | Execute the inventory's recommendations. | 18.1 |
+| `issues/archive/18.1-dummy-data-inventory.md` | Sweep + classify; produce inventory output. No code changes. | — |
+| `issues/archive/18.2-dummy-data-cleanup.md` | Execute the inventory's recommendations. | 18.1 |
 
 If the inventory is large enough that 18.2 doesn't fit in a single review, split it during 18.1's writeup.
 
@@ -130,5 +130,5 @@ If the inventory is large enough that 18.2 doesn't fit in a single review, split
 | Doc | Relationship |
 |---|---|
 | `project-specs/AUTHZ_MATRIX.md` | §2 acknowledges `demo` as a frontend illusion. Any demo scaffolding kept after this doc must respect that — never write to the backend, never claim a real role. |
-| `features/17-market-creation-validation.md` | If 17 touches the `MAX_MARKET_*` constants in `frontend/src/app/markets/create/page.tsx`, coordinate with 18.2 to avoid merge conflict (do 17 first or do them in the same PR). |
-| `features/13-backend-hardening.md` | If the inventory finds any "dummy" route or test endpoint left in `backend/routers/`, 18.2 deletes it (consistent with 13's general "no dead code" cleanup). |
+| `features/extension/17-market-creation-validation.md` | If 17 touches the `MAX_MARKET_*` constants in `frontend/src/app/markets/create/page.tsx`, coordinate with 18.2 to avoid merge conflict (do 17 first or do them in the same PR). |
+| `features/extension/13-backend-hardening.md` | If the inventory finds any "dummy" route or test endpoint left in `backend/routers/`, 18.2 deletes it (consistent with 13's general "no dead code" cleanup). |

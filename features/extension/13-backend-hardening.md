@@ -1,8 +1,8 @@
 # Feature 13: Backend Hardening — Error Envelope, Auth Audit, Gap Remediation
 
 **Status:** Design ratified
-**Phase:** Hardening — depends on `features/12-observability.md`
-**Parallelizable with:** `features/16-home-vs-markets-split.md`, `features/17-market-creation-validation.md`, `features/18-dummy-data-removal.md`
+**Phase:** Hardening — depends on `features/extension/12-observability.md`
+**Parallelizable with:** `features/extension/16-home-vs-markets-split.md`, `features/extension/17-market-creation-validation.md`, `features/extension/18-dummy-data-removal.md`
 **Reads from:** `project-specs/AUTHZ_MATRIX.md` (audit driven by §7; gap remediation closes B-1, B-2, B-3 from §8)
 **Branch:** `feature/backend-hardening` → multiple sub-PRs (see `issues/13.*.md`)
 **Execution items:** `issues/13.1-error-envelope-foundation.md` through `issues/13.10-error-code-tag-verification.md`
@@ -405,9 +405,9 @@ PRs 13.3, 13.4, and 13.5 can run in parallel (different routers, independent mer
 | Doc | Relationship |
 |---|---|
 | `project-specs/AUTHZ_MATRIX.md` | Drives §2a audit (every cell tested); §3 closes Gaps B-1, B-2, B-3 from §8. Updates §7e (B-3 destination), §7g (B-2 new endpoint). Gap B-4 (admin_review UI) explicitly out of scope. |
-| `features/12-observability.md` | This doc imports `report_and_safe_message`, `set_user_context`, `RequestContextMiddleware`. `AppError` defined here uses `sentry_sdk.capture_exception` directly inside a Sentry scope to attach the `error_code` tag. |
-| `features/14-api-contract-tests.md` | Asserts every cell in matrix §7 against the migrated routes. Specifically asserts that `code` in the envelope matches the expected `ErrorCode` and `message` is from the §4 catalog. |
-| `features/15-playwright-ui-tests.md` | Asserts that visible toasts render `parseApiError(err).message` from the §4 catalog (allow-list), not raw exception text. Verifies B-1 redirect and B-2 absence-from-portfolio in browser. |
-| `features/16-home-vs-markets-split.md` / `17-market-creation-validation.md` | Land in parallel; touching different files. The validation doc adds new `VALIDATION_FAILED` cases that this doc's envelope/handler already supports. |
-| `features/11-redis-websockets.md` | Reserves `ErrorCode.RATE_LIMITED` for use by feature 11's rate-limit middleware. No work in feature 13 to wire up. |
+| `features/extension/12-observability.md` | This doc imports `report_and_safe_message`, `set_user_context`, `RequestContextMiddleware`. `AppError` defined here uses `sentry_sdk.capture_exception` directly inside a Sentry scope to attach the `error_code` tag. |
+| `features/extension/14-api-contract-tests.md` | Asserts every cell in matrix §7 against the migrated routes. Specifically asserts that `code` in the envelope matches the expected `ErrorCode` and `message` is from the §4 catalog. |
+| `features/extension/15-playwright-ui-tests.md` | Asserts that visible toasts render `parseApiError(err).message` from the §4 catalog (allow-list), not raw exception text. Verifies B-1 redirect and B-2 absence-from-portfolio in browser. |
+| `features/extension/16-home-vs-markets-split.md` / `17-market-creation-validation.md` | Land in parallel; touching different files. The validation doc adds new `VALIDATION_FAILED` cases that this doc's envelope/handler already supports. |
+| `features/extension/11-redis-websockets.md` | Reserves `ErrorCode.RATE_LIMITED` for use by feature 11's rate-limit middleware. No work in feature 13 to wire up. |
 | Future doc (e.g., `features/19-admin-resolution-ui.md`) | Will close Gap B-4 by adding `/admin/admin-review` page + dashboard card. Calls the relocated `POST /api/admin/markets/{id}/resolve` route from PR-13.9. |

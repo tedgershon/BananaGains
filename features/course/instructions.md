@@ -2,9 +2,11 @@
 
 ## Overview
 
-This document orchestrates the implementation of **10 new feature areas** for BananaGains. Each feature has its own detailed instruction file in this `features/` directory (numbered `01`–`10`). Features are organized into **four implementation phases** based on dependencies.
+This document orchestrates the implementation of **10 new feature areas** for BananaGains. Each feature has its own detailed instruction file in this `features/course/` directory (numbered `01`–`10`). Features are organized into **four implementation phases** based on dependencies.
 
-**Note:** `11-redis-websockets.md` exists in this folder but is **not** part of the 01–10 phased plan below; treat it as a separate initiative unless you explicitly scope it in.
+> **Status (post-reorg):** features 01–10 have shipped. This document is preserved as a historical artifact of the course-era workflow; the canonical product behavior lives in `project-specs/`, and ongoing work uses the `issues/`-driven flow described in `issues/README.md`. Anything below describing *future* implementation work is no longer active.
+
+**Note:** `features/extension/11-redis-websockets.md` is **not** part of the 01–10 phased plan below; treat it as a separate initiative unless you explicitly scope it in. (Originally sat in this folder; moved to `features/extension/` during the course/extension reorganization.)
 
 Subagents implementing a later phase **must wait** for all earlier phases to be merged and tested before beginning work. Within a phase, features marked as **parallelizable** have **no dependencies on each other** (so the team *could* split them across people or branches). If you use the **`LLM-instructions.md` orchestrator**, follow that doc instead: **one feature at a time, no parallel feature work** — subagents are still encouraged for delegation within a feature.
 
@@ -114,7 +116,7 @@ Phase 4 (parallel):                                           ▼
 
 ### Commits and pull requests (orchestrator / LLM runs)
 
-For automated or LLM-assisted implementation, use `LLM-instructions.md` as the source of truth. In short: **one PR per feature (01–10)**; **many small commits** inside each feature; **subagents encouraged** but **no parallelizing different features**; the agent should **prompt the user periodically** with files to stage and a concise commit message, and **wait between features** so the user can open a PR. Do **not** implement `11-redis-websockets.md` as part of the 01–10 batch.
+For automated or LLM-assisted implementation, use `LLM-instructions.md` as the source of truth. In short: **one PR per feature (01–10)**; **many small commits** inside each feature; **subagents encouraged** but **no parallelizing different features**; the agent should **prompt the user periodically** with files to stage and a concise commit message, and **wait between features** so the user can open a PR. Do **not** implement `features/extension/11-redis-websockets.md` as part of the 01–10 batch.
 
 ---
 

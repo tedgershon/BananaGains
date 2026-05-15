@@ -1,8 +1,8 @@
 # Feature 12: Observability — Sentry SaaS + Structured Logging
 
 **Status:** Design ratified
-**Phase:** Hardening prerequisite — must ship before `features/13-backend-hardening.md`
-**Parallelizable with:** `features/16-home-vs-markets-split.md`, `features/17-market-creation-validation.md`, `features/18-dummy-data-removal.md`
+**Phase:** Hardening prerequisite — must ship before `features/extension/13-backend-hardening.md`
+**Parallelizable with:** `features/extension/16-home-vs-markets-split.md`, `features/extension/17-market-creation-validation.md`, `features/extension/18-dummy-data-removal.md`
 **Branch:** `feature/observability` → multiple sub-PRs (see `issues/12.*.md`)
 **Execution items:** `issues/12.1-sentry-account-setup.md`, `issues/12.2-backend-observability-foundation.md`, `issues/12.3-backend-user-context.md`, `issues/12.4-frontend-observability-foundation.md`
 
@@ -252,7 +252,7 @@ This design is implemented across four PRs. See the linked issues for scope, acc
 
 ## Forward Compatibility with Feature 11
 
-When the backend migrates from Vercel to Fly.io (`features/11-redis-websockets.md`), the only change is where the env vars come from:
+When the backend migrates from Vercel to Fly.io (`features/extension/11-redis-websockets.md`), the only change is where the env vars come from:
 
 - `VERCEL_GIT_COMMIT_SHA` → Dockerfile `ARG GIT_SHA` + `fly deploy --build-arg GIT_SHA=$(git rev-parse --short HEAD)`.
 - `vercel env` → `fly secrets set`.
@@ -266,7 +266,7 @@ No code changes at the SDK layer. The `RequestContextMiddleware`, `observability
 | Doc | Reads from this doc to … |
 |---|---|
 | `project-specs/AUTHZ_MATRIX.md` | Cited in §"PII Scrubbing": admin routes can capture more extras safely; user routes scrub more. |
-| `features/13-backend-hardening.md` | Imports `report_and_safe_message`, `set_user_context`, `RequestContextMiddleware`, and the request/user `ContextVar`s. `AppError` is built on top of this module. **This doc is its rigid prerequisite.** |
-| `features/14-api-contract-tests.md` | Tests assert the safe user-facing message (e.g., `"Bet failed."`), independent of the Sentry-captured exception text. The split is what makes both layers testable. |
-| `features/15-playwright-ui-tests.md` | Asserts visible error toasts contain only allow-listed strings; pairs with Sentry capture to ensure the real error wasn't lost. |
-| `features/11-redis-websockets.md` | Backend deploy notes here will be repointed at Fly.io once feature 11 lands. SDK code is identical. |
+| `features/extension/13-backend-hardening.md` | Imports `report_and_safe_message`, `set_user_context`, `RequestContextMiddleware`, and the request/user `ContextVar`s. `AppError` is built on top of this module. **This doc is its rigid prerequisite.** |
+| `features/extension/14-api-contract-tests.md` | Tests assert the safe user-facing message (e.g., `"Bet failed."`), independent of the Sentry-captured exception text. The split is what makes both layers testable. |
+| `features/extension/15-playwright-ui-tests.md` | Asserts visible error toasts contain only allow-listed strings; pairs with Sentry capture to ensure the real error wasn't lost. |
+| `features/extension/11-redis-websockets.md` | Backend deploy notes here will be repointed at Fly.io once feature 11 lands. SDK code is identical. |

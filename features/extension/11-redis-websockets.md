@@ -1222,7 +1222,7 @@ Without Redis running, the app still works — REST endpoints function normally 
 
 **Production deployment:**
 
-The backend is deployed on Fly.io (persistent hosting for WebSocket support). The frontend remains on Vercel. Both connect to Upstash Redis for real-time event fan-out. See `features/11-redis-websockets.md` for full deployment instructions.
+The backend is deployed on Fly.io (persistent hosting for WebSocket support). The frontend remains on Vercel. Both connect to Upstash Redis for real-time event fan-out. See `features/extension/11-redis-websockets.md` for full deployment instructions.
 
 ---
 

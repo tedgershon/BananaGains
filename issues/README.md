@@ -32,7 +32,7 @@ id: 13.3
 phase: backend-hardening
 status: open          # open | in-progress | done | cancelled
 pr: null              # filled with PR number/URL when one opens, e.g. "#42"
-design_doc: features/13-backend-hardening.md
+design_doc: features/extension/13-backend-hardening.md
 spec: project-specs/AUTHZ_MATRIX.md
 depends_on: [13.1]    # other issue IDs this depends on; empty list if none
 parallel_with: [13.4, 13.5]   # issues that can run concurrently
@@ -48,7 +48,7 @@ parallel_with: [13.4, 13.5]   # issues that can run concurrently
 - [ ] ...
 
 ## Spec / design references
-- features/13-backend-hardening.md §2d, §3
+- features/extension/13-backend-hardening.md §2d, §3
 - project-specs/AUTHZ_MATRIX.md §7b
 
 ## Verification

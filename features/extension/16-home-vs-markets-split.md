@@ -3,7 +3,7 @@
 **Status:** Design ratified
 **Phase:** UX hardening
 **Depends on:** None (refactor-only; doesn't touch the API or auth)
-**Parallelizable with:** `features/12-observability.md`, `features/13-backend-hardening.md`, `features/17-market-creation-validation.md`, `features/18-dummy-data-removal.md`
+**Parallelizable with:** `features/extension/12-observability.md`, `features/extension/13-backend-hardening.md`, `features/extension/17-market-creation-validation.md`, `features/extension/18-dummy-data-removal.md`
 **Reads from:** `project-specs/AUTHZ_MATRIX.md` §5 (`/` and `/markets` rows — both render for all roles, with same gating)
 **Branch:** `feature/home-vs-markets-split` → 2 sub-PRs (see `issues/16.*.md`)
 **Execution items:** `issues/16.1-route-split.md`, `issues/16.2-curated-home-dashboard.md`
@@ -134,5 +134,5 @@ Both small. 16.1 is ~30 min of work; 16.2 is the design-doc translation work, ~2
 | Doc | Relationship |
 |---|---|
 | `project-specs/AUTHZ_MATRIX.md` | §5 governs access (both routes `render` for signed-in roles, `render-readonly` for anon/demo). This doc only changes *content*, not gating. |
-| `features/15-playwright-ui-tests.md` | §15a tests assume both routes exist with their specified content. Post-16, the `/` test asserts no "Markets" heading + no closed-market section; the `/markets` test asserts the existing dense layout. |
-| `features/17-market-creation-validation.md` / `features/18-dummy-data-removal.md` | Land in parallel; touching different files. |
+| `features/extension/15-playwright-ui-tests.md` | §15a tests assume both routes exist with their specified content. Post-16, the `/` test asserts no "Markets" heading + no closed-market section; the `/markets` test asserts the existing dense layout. |
+| `features/extension/17-market-creation-validation.md` / `features/extension/18-dummy-data-removal.md` | Land in parallel; touching different files. |

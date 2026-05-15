@@ -2,8 +2,8 @@
 
 **Status:** Design ratified
 **Phase:** Hardening verification
-**Depends on:** `features/13-backend-hardening.md` (relies on the structured envelope + canonical message catalog), `features/14-api-contract-tests.md` (overlapping fixtures conceptually; Playwright runs its own browser-side fixtures)
-**Reads from:** `project-specs/AUTHZ_MATRIX.md` §5 (page redirects), §6 (UI control visibility), `features/13-backend-hardening.md` §4 (toast allow-list)
+**Depends on:** `features/extension/13-backend-hardening.md` (relies on the structured envelope + canonical message catalog), `features/extension/14-api-contract-tests.md` (overlapping fixtures conceptually; Playwright runs its own browser-side fixtures)
+**Reads from:** `project-specs/AUTHZ_MATRIX.md` §5 (page redirects), §6 (UI control visibility), `features/extension/13-backend-hardening.md` §4 (toast allow-list)
 **Branch:** `feature/playwright-ui-tests` → multiple sub-PRs (see `issues/15.*.md`)
 **Execution items:** `issues/15.1-playwright-setup.md`, `issues/15.2-page-redirect-tests.md`, `issues/15.3-control-visibility-tests.md`, `issues/15.4-error-toast-allow-list.md`
 
@@ -171,7 +171,7 @@ Two environments:
 | Doc | Relationship |
 |---|---|
 | `project-specs/AUTHZ_MATRIX.md` | §5 → 15.2 page tests; §6 → 15.3 control tests. The matrix's §9 maintenance protocol is enforced here too: a new page or control must come with a test row in this suite. |
-| `features/13-backend-hardening.md` | §4 catalog → 15.4 toast allow-list. `parseApiError` integration → 15.4 negative assertions. Server-side gate (Gap B-1) verified by 15.2. Portfolio leak (Gap B-2) verified by 15.3 (control should not even render the leaked content). |
-| `features/14-api-contract-tests.md` | Doc 14 asserts the API contract; doc 15 asserts the UI honors it. Same matrix, different layer. The `signInAs` fixture mirrors `as_role` from doc 14 — same UUIDs so logs cross-reference cleanly. |
-| `features/16-home-vs-markets-split.md` | Adds two new page-shape tests (root vs `/markets`) — listed in 15.2's acceptance criteria once 16 lands. |
-| `features/17-market-creation-validation.md` | Adds form validation tests (`fieldErrors` rendering per §1e of doc 13) — listed in 15.4 once 17 lands. |
+| `features/extension/13-backend-hardening.md` | §4 catalog → 15.4 toast allow-list. `parseApiError` integration → 15.4 negative assertions. Server-side gate (Gap B-1) verified by 15.2. Portfolio leak (Gap B-2) verified by 15.3 (control should not even render the leaked content). |
+| `features/extension/14-api-contract-tests.md` | Doc 14 asserts the API contract; doc 15 asserts the UI honors it. Same matrix, different layer. The `signInAs` fixture mirrors `as_role` from doc 14 — same UUIDs so logs cross-reference cleanly. |
+| `features/extension/16-home-vs-markets-split.md` | Adds two new page-shape tests (root vs `/markets`) — listed in 15.2's acceptance criteria once 16 lands. |
+| `features/extension/17-market-creation-validation.md` | Adds form validation tests (`fieldErrors` rendering per §1e of doc 13) — listed in 15.4 once 17 lands. |

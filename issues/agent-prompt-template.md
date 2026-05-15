@@ -19,7 +19,7 @@ Step 0 — Orient. Read these in order before any code changes:
   4. The files referenced under "Spec / design references" in the issue,
      plus any other files implied by the acceptance criteria:
        [ REFERENCED FILES: list each file with a one-line purpose. E.g.
-         - features/13-backend-hardening.md (§1b enum to copy verbatim)
+         - features/extension/13-backend-hardening.md (§1b enum to copy verbatim)
          - backend/observability.py (where AppError is added)
          - backend/main.py (where global handlers are wired)
        ]
