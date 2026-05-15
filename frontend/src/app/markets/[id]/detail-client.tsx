@@ -43,6 +43,7 @@ import {
   disputeVotesQuery,
   marketQuery,
 } from "@/lib/query/queries/markets";
+import { useSession } from "@/lib/SessionProvider";
 import type { Bet, BetSide, MarketOption, PricePoint } from "@/lib/types";
 import { getMarketProbability, isMarketOpen } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -126,7 +127,7 @@ export default function MarketDetailClient({ id }: { id: string }) {
     | { kind: "backroll" };
 
   const { user } = useMe();
-  const isDemo = user.id === "00000000-0000-0000-0000-000000000000";
+  const { isDemo } = useSession();
 
   // one useQuery per thing, RQ handles cancellation + dedup + refetch
   const { data: market } = useQuery(marketQuery(id));
