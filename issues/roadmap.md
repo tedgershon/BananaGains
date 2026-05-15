@@ -2,6 +2,8 @@
 
 A wave-by-wave view of the open issues plus an LLM prompt for picking the next batch when the roadmap drifts. See `iteration-loop.md` for the per-issue loop and `agent-prompt-template.md` for the kickoff prompt.
 
+**Shipped to date:** 09.1, 18.1, 18.2 (in `issues/archive/`). The picker prompt below reads both `issues/*.md` and `issues/archive/*.md`, so dependencies on those resolve automatically.
+
 ## Static roadmap
 
 Anything in the same wave can run as parallel agents (each in its own Cursor background-agent worktree). `HUMAN` items require manual SaaS / console work — assign to a teammate, not an agent.
@@ -38,9 +40,11 @@ Paste into any agent to compute the ready set:
 You are helping me pick the next issue(s) to implement.
 
 Inputs:
-- Read every file matching issues/*.md.
+- Read every file matching issues/*.md AND issues/archive/*.md.
+  The archive holds shipped issues; the live directory holds the queue.
 - Treat the following IDs as `status: done` even if their files say
-  otherwise (they just merged but main may not be pulled yet):
+  otherwise (they just merged but main may not be pulled yet, and the
+  archive move may not have landed locally):
     DONE_OVERRIDES = [<comma-separated IDs, or empty>]
 
 Algorithm:

@@ -375,7 +375,7 @@ Scope:
 Scope classification: major feature additions (see `features/` for detailed plans)
 
 Sprint goal:
-Implement 10 new feature areas organized into 4 implementation phases. See `features/instructions.md` for the complete orchestration plan.
+Implement 10 new feature areas organized into 4 implementation phases. See `features/course/instructions.md` for the complete orchestration plan (historical — these 10 features have shipped).
 
 #### Phase 1 — Foundation (parallelizable, no dependencies)
 

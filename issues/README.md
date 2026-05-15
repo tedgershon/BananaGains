@@ -64,27 +64,35 @@ A normal flow:
 
 1. **Created** with `status: open`. Some work needed before anyone picks it up (design pending, prerequisite not done).
 2. **Picked up.** Set `status: in-progress`. Push the same commit that opens the PR; set `pr` to the PR number/URL.
-3. **PR merges.** Set `status: done`. Leave the file in place — `git log` is the audit trail. Don't delete or move done files; the file history is part of the record.
-4. **Cancelled.** Set `status: cancelled` if scope is dropped. Add a one-line note in the body explaining why.
+3. **PR merges.** Set `status: done` **and** `git mv` the file from `issues/` to `issues/archive/` in the *same* commit. Git rename detection preserves `git log --follow`, so the audit trail stays intact.
+4. **Cancelled.** Set `status: cancelled` if scope is dropped, add a one-line note in the body explaining why, and `git mv` into `issues/archive/` (same as `done`).
 
 Status transitions should happen in the same commit as the work itself, never standalone.
+
+The archive keeps the live `issues/` directory scannable: `rg "^status: open" issues/*.md` is the queue an agent should look at first, and it isn't diluted by months of done files. See `issues/archive/README.md` for the full rationale.
 
 ## Querying
 
 Common one-liners (from repo root):
 
 ```bash
-# All open issues
-rg "^status: open" issues/ --multiline
+# All open issues (queue)
+rg "^status: open" issues/*.md
 
-# All issues for a phase
-ls issues/13.*.md
+# All shipped issues
+rg "^status: done" issues/archive/*.md
+
+# All issues for a phase (open + done)
+ls issues/13.*.md issues/archive/13.*.md
 
 # Find the next dependency-free open issue
-rg -l "^status: open" issues/ | xargs rg -L "^depends_on: \[\]"
+rg -l "^status: open" issues/*.md | xargs rg -L "^depends_on: \[\]"
+
+# Full history of one issue, across the open→archive rename
+git log --follow issues/archive/09.1-badge-definitions-rls.md
 ```
 
-For an agent: `rg "^status: open" issues/` returns the queue. Read the first match, follow `design_doc` and `spec` references, do the work, update the frontmatter when shipping.
+For an agent: `rg "^status: open" issues/*.md` returns the queue. Read the first match, follow `design_doc` and `spec` references, do the work, update the frontmatter and `git mv` to `issues/archive/` when shipping.
 
 ## Mirroring to GitHub Issues (optional)
 
@@ -106,10 +114,12 @@ If the team is agent-only and doesn't need a board, skip GitHub Issues entirely.
 | Directory | Lifespan | Shape | Purpose |
 |---|---|---|---|
 | `project-specs/` | Long-lived | Reference; can be 300+ lines | Specs (AUTHZ_MATRIX, DATA_MODEL). Updated as the system evolves. |
-| `features/` | Long-lived | Design rationale; ~200–400 lines | "Why we chose this shape." Cited by issues. Rarely updated post-approval. |
-| `issues/` | Per-PR | Execution scope; ~50–150 lines | "What to do this week." Closed when shipped. |
+| `features/extension/` | Long-lived | Design rationale; ~200–400 lines | "Why we chose this shape" for active post-course work. Cited by issues. Rarely updated post-approval. |
+| `features/course/` | Frozen | Historical design rationale | Original 17-437 course features (01–10). Shipped; preserved for archaeology. **Don't start new work from these.** |
+| `issues/` | Per-PR (queue) | Execution scope; ~50–150 lines | "What to do this week." Moves to `issues/archive/` when shipped. |
+| `issues/archive/` | Per-PR (shipped) | Same shape | Audit trail of shipped issue files. |
 
-If a piece of information is **why we chose this**, it goes in `features/`. If it's **what to do for one PR**, it goes in `issues/`. If it's **the contract everyone must respect**, it goes in `project-specs/`.
+If a piece of information is **why we chose this**, it goes in `features/extension/`. If it's **what to do for one PR**, it goes in `issues/`. If it's **the contract everyone must respect**, it goes in `project-specs/`.
 
 ## Conventions
 
