@@ -66,3 +66,9 @@ The first commit also sets `status: in-progress`; the final commit sets `status:
 **PR body** copies the issue's acceptance-criteria checklist with verified boxes ticked, plus the verification output.
 
 **Agents.** Run one Cursor background agent per issue — each gets its own worktree, so `parallel_with` issues parallelize cleanly. No master agent; per-PR review is the gate.
+
+**Workflow files.** Operational details live in `issues/`:
+
+- `issues/agent-prompt-template.md` — the kickoff prompt for each agent (fill in `[ ... ]` blocks, then paste).
+- `issues/iteration-loop.md` — the 7-step per-issue loop.
+- `issues/roadmap.md` — dependency waves + an LLM prompt to pick the next batch.
