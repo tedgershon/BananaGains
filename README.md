@@ -38,3 +38,31 @@ Stop-Process -Id <PID> -Force
 ```
 
 Copy `frontend/.env.local.example` to `frontend/.env.local` if needed. `NEXT_PUBLIC_API_URL` defaults to `http://localhost:8000`.
+
+## Contributing
+
+One PR per file in `issues/`. See `issues/README.md` for the full lifecycle.
+
+**Pick.** `rg -l "^status: open" issues/`. Check the frontmatter: `depends_on` must be empty (or already merged); `parallel_with` issues can ship concurrently.
+
+**Branch** off `origin/main`:
+
+```
+issue/<id>-<slug>     # e.g. issue/09.1-badge-definitions-rls
+```
+
+**Commit** in 2–4 logical steps, each leaving the codebase in a valid state. Squash-merge on GitHub so `main` gets one commit per issue.
+
+```
+<id>: <imperative subject, <=60 chars>
+
+<optional 1–2 sentence body explaining *why* if not obvious>
+
+Refs issues/<id>-<slug>.md     # `Closes` on the final commit
+```
+
+The first commit also sets `status: in-progress`; the final commit sets `status: done`. Never commit a standalone status flip.
+
+**PR body** copies the issue's acceptance-criteria checklist with verified boxes ticked, plus the verification output.
+
+**Agents.** Run one Cursor background agent per issue — each gets its own worktree, so `parallel_with` issues parallelize cleanly. No master agent; per-PR review is the gate.
