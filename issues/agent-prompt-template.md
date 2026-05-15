@@ -74,9 +74,12 @@ environment from here). Confirm:
       - Sentry event recorded with error_code tag
   ]
 
-Capture the actual output for the PR body. If any check requires a
-running environment you cannot reach, list it as "to be verified
-manually before merge" in the PR body and explain why.
+Capture the actual output for the PR body. If a check requires an
+environment the agent can't reach (DB, running app, Sentry dashboard,
+etc.), hand the user the exact command(s) to run and the expected
+output, and pause. When the user pastes back the actual result, update
+the PR body's "Verification" section to show real output (not the
+placeholder) before proceeding to Step 7.
 
 Step 6 — Open the PR.
 
@@ -113,6 +116,47 @@ Hard constraints:
   acceptance criteria. Diff and confirm before opening the PR.
 
 Begin with Step 0 → Step 1. Do not start Step 2 until I say "go".
+
+Environment notes (Windows + Cursor on this machine — read first):
+
+- Shell is PowerShell, not bash. Bash-only constructs (heredocs
+  `$(cat <<'EOF' ... EOF)`, `<` as a redirection operator) parse-fail in
+  PowerShell. For multi-line commit messages, write the message to a temp
+  file under `.git/` (gitignored) and use `git commit -F .git/COMMIT_MSG_TMP`,
+  then delete the temp file.
+
+- The Cursor shell wrapper auto-appends
+  `Co-authored-by: Cursor <cursoragent@cursor.com>` to every `git commit`
+  invocation, regardless of `--cleanup=verbatim` or `-F`. The hard
+  constraint above forbids co-author trailers. To bypass without modifying
+  git config, invoke the git executable directly and build the commit
+  manually:
+
+      git add <files>
+      $tree   = (& 'C:\Program Files\Git\cmd\git.exe' write-tree).Trim()
+      $parent = (& 'C:\Program Files\Git\cmd\git.exe' rev-parse HEAD).Trim()
+      $new    = (Get-Content -Raw .git/COMMIT_MSG_TMP |
+                 & 'C:\Program Files\Git\cmd\git.exe' commit-tree $tree -p $parent |
+                 Out-String).Trim()
+      & 'C:\Program Files\Git\cmd\git.exe' update-ref HEAD $new
+
+  Verify with `git log -1 --format='%B'` — the trailer must not be present.
+
+- `gh` CLI may or may not be installed. If `gh --version` fails, do NOT
+  try to install it. Instead: write the PR title + body to
+  `.git/PR_BODY.md` (gitignored), hand the user the URL printed by
+  `git push` (`https://github.com/<owner>/<repo>/pull/new/<branch>`), and
+  ask them to paste the body. Then ask them to reply with the PR number
+  so Step 7 can run.
+
+- You have no database, Supabase, or running-app access from this
+  environment. For any verification step that requires hitting the DB or
+  a live endpoint: hand the user the exact SQL / curl / page URL, tell
+  them what output to expect, and ask them to paste back. Then update
+  the PR body with the actual result before Step 7. If the verification
+  is a negative test (e.g. "expect RLS error"), warn the user that
+  Supabase Studio surfaces an expected error as "Failed to run sql
+  query" — that wording is the success condition, not failure.
 ```
 
 ## Fill-in checklist

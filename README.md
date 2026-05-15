@@ -51,6 +51,15 @@ One PR per file in `issues/`. See `issues/README.md` for the full lifecycle.
 issue/<id>-<slug>     # e.g. issue/09.1-badge-definitions-rls
 ```
 
+**Tooling.** Agents on Windows assume `gh` (GitHub CLI) is installed and authenticated:
+
+```powershell
+winget install --id GitHub.cli
+gh auth login
+```
+
+If `gh` is missing, the agent will fall back to handing you a paste-ready PR body and the create-PR URL.
+
 **Commit** in 2–4 logical steps, each leaving the codebase in a valid state. Squash-merge on GitHub so `main` gets one commit per issue.
 
 ```
