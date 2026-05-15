@@ -14,11 +14,7 @@ _supabase_service_client: Client | None = None
 
 
 def get_supabase_client() -> Client:
-    """Return a Supabase client.  Always initialised when URL + key are set.
-
-    The demo_mode flag only governs *authentication* (get_current_user returns
-    a hardcoded profile); every route still needs a live DB connection.
-    """
+    """Return a Supabase client.  Always initialised when URL + key are set."""
     global _supabase_client
     if _supabase_client is None:
         s = get_settings()
