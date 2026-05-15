@@ -309,17 +309,14 @@ COMMIT;
 
 ---
 
-## Rollback (saved for later)
+## Rollback
 
-```sql
-DELETE FROM auth.users WHERE email IN (
-  'rhendrix@andrew.cmu.edu','ebachman@andrew.cmu.edu','bgilfoyl@andrew.cmu.edu',
-  'dchughta@andrew.cmu.edu','jdunn@andrew.cmu.edu','mhall@andrew.cmu.edu',
-  'gbelson@andrew.cmu.edu','nbighett@andrew.cmu.edu'
-);
--- then manually drop any markets still referencing these creators:
--- (run the market-cleanup helper we used for the smoke-test cleanup earlier)
-```
+See `seeds/TEARDOWN.sql` for the complete FK-ordered teardown transaction.
+The bare `DELETE FROM auth.users` originally sketched here would fail with
+foreign-key violations against the markets, bets, votes, and ledger entries
+these fixture users created; `TEARDOWN.sql` deletes all dependent rows in
+the right order and is scoped strictly by Andrew ID so real OAuth signups
+are not touched.
 
 ---
 
