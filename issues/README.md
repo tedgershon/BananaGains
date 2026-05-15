@@ -115,6 +115,7 @@ If a piece of information is **why we chose this**, it goes in `features/`. If i
 
 - **One issue, one PR.** If a piece of work needs two PRs, split it into two issue files.
 - **Acceptance criteria are verifiable.** "Code is clean" is not acceptance; "`rg \"raise HTTPException\" backend/routers/` returns zero matches" is.
+- **Negative-test verification.** If a check expects a query to *fail* (RLS denial, constraint violation, permission error), say so explicitly in the "Verification" section. Note that Supabase Studio surfaces expected errors as "Failed to run sql query" — the error firing IS the pass.
 - **Reference, don't restate.** If a design choice is in the design doc, link to it (`§2d`). Don't paste the rationale into the issue.
 - **Keep issues short.** A reader should be able to grok the scope in under 60 seconds. If you can't, the issue is too big — split it.
 - **No CI hookup expected here.** Treat issue files as plain Markdown. Lint enforcement (e.g., "every PR updates an issue file") can be added later if useful, but isn't required for day-one usefulness.
