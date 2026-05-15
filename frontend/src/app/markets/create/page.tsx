@@ -6,36 +6,22 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  CATEGORIES,
+  MAX_MARKET_CRITERIA_LENGTH,
+  MAX_MARKET_DESCRIPTION_LENGTH,
+  MAX_MARKET_LINK_LENGTH,
+  MAX_MARKET_OFFICIAL_SOURCE_LENGTH,
+  MAX_MARKET_OPTION_LENGTH,
+  MAX_MARKET_RESOLUTION_LENGTH,
+  MAX_MARKET_TITLE_LENGTH,
+  TIME_ZONE_OPTIONS,
+} from "@/lib/constants";
 import { useCreateMarket } from "@/lib/query/mutations/markets";
-
-const CATEGORIES = [
-  "General",
-  "Academics",
-  "Campus Life",
-  "Sports & Clubs",
-  "Tech",
-  "Politics",
-];
 
 const URL_REGEX = /^https?:\/\/[^\s/$.?#].[^\s]*$/;
 const MAX_OPTIONS = 10;
 const MIN_OPTIONS = 2;
-const MAX_MARKET_TITLE_LENGTH = 160;
-const MAX_MARKET_DESCRIPTION_LENGTH = 2000;
-const MAX_MARKET_RESOLUTION_LENGTH = 2000;
-const MAX_MARKET_OFFICIAL_SOURCE_LENGTH = 300;
-const MAX_MARKET_CRITERIA_LENGTH = 1000;
-const MAX_MARKET_LINK_LENGTH = 2048;
-const MAX_MARKET_OPTION_LENGTH = 80;
-const TIME_ZONE_OPTIONS = [
-  { value: "America/New_York", label: "Eastern (EST/EDT)" },
-  { value: "America/Chicago", label: "Central (CST/CDT)" },
-  { value: "America/Denver", label: "Mountain (MST/MDT)" },
-  { value: "America/Los_Angeles", label: "Pacific (PST/PDT)" },
-  { value: "America/Phoenix", label: "Arizona (MST)" },
-  { value: "Pacific/Honolulu", label: "Hawaii (HST)" },
-  { value: "UTC", label: "UTC" },
-];
 
 function getBrowserTimeZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
