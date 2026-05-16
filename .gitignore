@@ -11,6 +11,8 @@ node_modules/
 # Local environment files
 .env
 .env.*
+!.env.example
+!.env.local.example
 
 # Super admin credentials
 .super_admin
