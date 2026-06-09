@@ -1,11 +1,17 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import get_settings
+from dependencies import require_admin
+from middleware.request_context import RequestContextMiddleware
+from observability import init_observability
 from routers import admin, auth, bets, leaderboard, markets, notifications, portfolio, resolution, rewards
+
+init_observability()
 
 app = FastAPI(title="BananaGains API", version="0.1.0")
 
+app.add_middleware(RequestContextMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_origins,
@@ -28,3 +34,12 @@ app.include_router(rewards.router)
 @app.get("/")
 def health_check():
     return {"status": "ok", "service": "bananagains-api"}
+
+
+# Temporary smoke-test endpoint for verifying Sentry capture end-to-end.
+# Gated to development to avoid exposing an arbitrary 500-trigger in prod.
+if get_settings().sentry_environment == "development":
+
+    @app.post("/api/__sentry-test")
+    def _sentry_test(_current_user: dict = Depends(require_admin)) -> dict:
+        raise RuntimeError("sentry-test: intentional failure for verification")
