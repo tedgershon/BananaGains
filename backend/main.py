@@ -2,10 +2,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import get_settings
+from middleware.request_context import RequestContextMiddleware
+from observability import init_observability
 from routers import admin, auth, bets, leaderboard, markets, notifications, portfolio, resolution, rewards
+
+init_observability()
 
 app = FastAPI(title="BananaGains API", version="0.1.0")
 
+app.add_middleware(RequestContextMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_origins,
