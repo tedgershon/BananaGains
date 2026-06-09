@@ -12,6 +12,11 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["http://localhost:3000"]
 
+    sentry_dsn: str = ""
+    sentry_environment: str = "development"
+    sentry_release: str | None = None
+    sentry_traces_sample_rate: float = 0.1
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
