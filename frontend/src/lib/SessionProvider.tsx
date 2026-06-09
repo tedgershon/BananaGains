@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   createContext,
@@ -101,9 +102,13 @@ export function SessionProvider({
         setIsDemo(false);
         // only refetch when it's actually a different user (sign-in, switch)
         if (changed) qc.invalidateQueries({ queryKey: queryKeys.me });
+        // UUID only — never andrew_id or email
+        // (features/extension/12-observability.md §Architecture Overview)
+        Sentry.setUser({ id: session.user.id });
       } else {
         setIsDemo(true);
         if (changed) qc.removeQueries({ queryKey: queryKeys.me });
+        Sentry.setUser(null);
       }
       setIsLoading(false);
     });

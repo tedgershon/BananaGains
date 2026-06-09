@@ -1,3 +1,4 @@
+import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
 function getSupabaseHostname() {
@@ -45,4 +46,10 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  org: "bananagains",
+  project: "bananagains-frontend",
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  disableLogger: true,
+});
