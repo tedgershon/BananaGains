@@ -9,7 +9,14 @@ from routers import admin, auth, bets, leaderboard, markets, notifications, port
 
 init_observability()
 
-app = FastAPI(title="BananaGains API", version="0.1.0")
+is_production = get_settings().sentry_environment == "production"
+app = FastAPI(
+    title="BananaGains API",
+    version="0.1.0",
+    docs_url=None if is_production else "/docs",
+    redoc_url=None if is_production else "/redoc",
+    openapi_url=None if is_production else "/openapi.json",
+)
 
 app.add_middleware(RequestContextMiddleware)
 app.add_middleware(
