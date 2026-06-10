@@ -5,6 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from supabase import Client, create_client
 
 from config import get_settings
+from observability import set_user_context
 
 _security = HTTPBearer(auto_error=False)
 _security_optional = HTTPBearer(auto_error=False)
@@ -82,7 +83,9 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
         )
-    return _resolve_user(credentials.credentials, supabase)
+    profile = _resolve_user(credentials.credentials, supabase)
+    set_user_context(profile["id"])
+    return profile
 
 
 async def get_user_token(
@@ -133,6 +136,8 @@ async def get_current_user_optional(
     if credentials is None:
         return None
     try:
-        return _resolve_user(credentials.credentials, supabase)
+        profile = _resolve_user(credentials.credentials, supabase)
+        set_user_context(profile["id"])
+        return profile
     except HTTPException:
         return None
